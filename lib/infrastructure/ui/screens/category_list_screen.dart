@@ -19,18 +19,26 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   void initState() {
     super.initState();
-    _categoriesFuture = _apiService.fetchCategories();
+    _refresh();
   }
 
-  void _showCategoryForm(BuildContext context) {
+  void _refresh() {
+    setState(() {
+      _categoriesFuture = _apiService.fetchCategories();
+    });
+  }
+
+  void _showCategoryForm({Category? category, Subcategory? subcategory, int? parentId}) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const CategoryFormDialog(),
-    ).then((_) {
-      setState(() {
-        _categoriesFuture = _apiService.fetchCategories();
-      });
+      builder: (context) => CategoryFormDialog(
+        category: category,
+        subcategory: subcategory,
+        parentCategoryId: parentId,
+      ),
+    ).then((saved) {
+      if (saved == true) _refresh();
     });
   }
 
@@ -40,17 +48,16 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
     return Column(
       children: [
-        // Toolbar superior
         Container(
           height: 45,
           color: AppColors.cardBackground,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              _buildFilterDropdown(l10n.allDates),
+              Text('Categories', style: AppTextStyles.sidebarItemBold),
               const SizedBox(width: 12),
               ElevatedButton.icon(
-                onPressed: () => _showCategoryForm(context),
+                onPressed: () => _showCategoryForm(),
                 icon: const Icon(Icons.add, size: 16, color: Colors.white),
                 label: Text(l10n.newCategory, style: const TextStyle(fontSize: 13, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
@@ -59,29 +66,11 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.settings_outlined, color: AppColors.secondaryText, size: 20),
+              IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _refresh),
             ],
           ),
         ),
         const Divider(height: 1),
-        
-        // Cabecera de la tabla
-        Container(
-          height: 30,
-          color: AppColors.tableHeader,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(Icons.arrow_drop_down, size: 18),
-              const SizedBox(width: 8),
-              Text(l10n.categoryName, style: AppTextStyles.tableHeader),
-              const Spacer(),
-              Text(l10n.allDates, style: AppTextStyles.tableHeader),
-            ],
-          ),
-        ),
-        
-        // Lista expandible
         Expanded(
           child: FutureBuilder<List<Category>>(
             future: _categoriesFuture,
@@ -101,56 +90,52 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     );
   }
 
-  Widget _buildFilterDropdown(String label) {
-    return Row(
-      children: [
-        Text(label, style: AppTextStyles.sidebarItem),
-        const Icon(Icons.arrow_drop_down, color: AppColors.secondaryText),
-      ],
-    );
-  }
-
   Widget _buildCategoryTile(Category category, AppLocalizations l10n) {
     bool isExpense = category.type == CategoryType.expense;
     
-    return Column(
-      children: [
-        Container(
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-              leading: Icon(
-                category.subcategories.isNotEmpty ? Icons.arrow_right : Icons.circle,
-                size: 18,
-                color: AppColors.secondaryText,
-              ),
-              title: Text(
-                category.name,
-                style: AppTextStyles.bodyText,
-              ),
-              trailing: Text(
-                isExpense ? l10n.expense : l10n.income,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isExpense ? AppColors.expenseRed : AppColors.incomeGreen,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              children: category.subcategories
-                  .map((sub) => _buildSubcategoryTile(sub))
-                  .toList(),
-            ),
+    return Container(
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: Icon(
+            category.subcategories.isNotEmpty ? Icons.arrow_right : Icons.circle,
+            size: 18,
+            color: AppColors.secondaryText,
           ),
+          title: Text(category.name, style: AppTextStyles.bodyText),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isExpense ? l10n.expense : l10n.income,
+                style: TextStyle(fontSize: 12, color: isExpense ? AppColors.expenseRed : AppColors.incomeGreen),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 18, color: AppColors.primaryBlue),
+                onPressed: () => _showCategoryForm(parentId: category.id),
+                tooltip: 'Add Subcategory',
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                onPressed: () => _showCategoryForm(category: category),
+                tooltip: 'Edit Category',
+              ),
+            ],
+          ),
+          children: category.subcategories
+              .map((sub) => _buildSubcategoryTile(sub))
+              .toList(),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildSubcategoryTile(Subcategory subcategory) {
     return Container(
-      padding: const EdgeInsets.only(left: 40, top: 8, bottom: 8, right: 16),
+      padding: const EdgeInsets.only(left: 40, top: 4, bottom: 4, right: 16),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
         color: Color(0xFFFAFAFA),
@@ -159,7 +144,12 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
         children: [
           const Icon(Icons.subdirectory_arrow_right, size: 14, color: Colors.grey),
           const SizedBox(width: 10),
-          Text(subcategory.name, style: const TextStyle(fontSize: 13, color: AppColors.primaryText)),
+          Expanded(child: Text(subcategory.name, style: const TextStyle(fontSize: 13))),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+            onPressed: () => _showCategoryForm(subcategory: subcategory),
+            tooltip: 'Edit Subcategory',
+          ),
         ],
       ),
     );

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../domain/models/account_item.dart';
-import '../../../domain/models/transaction_item.dart';
+import '../styles/app_styles.dart';
 import '../../../services/api_service.dart';
+import '../../../domain/models/transaction_item.dart';
+import '../../../domain/models/account_item.dart';
+import '../../../domain/models/category.dart';
+import '../../../l10n/app_localizations.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,197 +16,371 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final ApiService _apiService = ApiService();
-  late Future<List<AccountItem>> _accountsFuture;
-  late Future<List<TransactionItem>> _transactionsFuture;
+  
+  List<AccountItem> _accounts = [];
+  AccountItem? _selectedAccount; 
+  
+  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0, 23, 59, 59);
+  
+  String _categoryMode = 'EXPENSE'; 
+  Map<String, double> _categoryData = {};
+  double _totalCategoryAmount = 0;
+  
+  bool _isLoading = true;
+  int _touchedIndex = -1;
 
   @override
   void initState() {
     super.initState();
-    _accountsFuture = _apiService.fetchAccounts();
-    _transactionsFuture = _apiService.fetchTransactions();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    final accs = await _apiService.fetchAccounts();
+    setState(() {
+      _accounts = accs;
+    });
+    await _refreshDashboard();
+  }
+
+  Future<void> _refreshDashboard() async {
+    setState(() => _isLoading = true);
+    final txs = await _apiService.fetchTransactions(
+      startDate: _startDate.toIso8601String(),
+      endDate: _endDate.toIso8601String(),
+    );
+
+    Map<String, double> catTotals = {};
+    double sum = 0;
+
+    for (var tx in txs) {
+      if (_selectedAccount != null && tx.account.id != _selectedAccount!.id) continue;
+      
+      if (tx.type.name == _categoryMode) {
+        String catName = tx.category?.name ?? 'General';
+        double val = (tx.amount.value / 100).abs();
+        catTotals[catName] = (catTotals[catName] ?? 0) + val;
+        sum += val;
+      }
+    }
+
+    setState(() {
+      _categoryData = catTotals;
+      _totalCategoryAmount = sum;
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        bool isWide = constraints.maxWidth > 900;
+    final l10n = AppLocalizations.of(context)!;
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Botón Nova transação
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add, size: 18, color: Colors.white),
-                label: const Text('Nova transação', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF009FFB),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              isWide 
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildBalanceWidget()),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildCategoryChartWidget()),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _buildBalanceWidget(),
-                      const SizedBox(height: 20),
-                      _buildCategoryChartWidget(),
-                    ],
-                  ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBalanceWidget() {
-    return FutureBuilder<List<AccountItem>>(
-      future: _accountsFuture,
-      builder: (context, snapshot) {
-        final accounts = snapshot.data ?? [];
-        double total = accounts.fold(0, (sum, item) => sum + item.amount.value);
-        
-        return _buildDashboardWidget(
-          title: 'Saldo da conta "Todas as contas"',
-          child: Column(
-            children: [
-              _buildBalanceRow('Total', '€ ${(total / 100).toStringAsFixed(2)}', isHeader: true, isNegative: total < 0),
-              const Divider(),
-              ...accounts.map((acc) => _buildBalanceRow(
-                acc.name, 
-                '€ ${(acc.amount.value / 100).toStringAsFixed(2)}',
-                isNegative: acc.amount.isNegative
-              )),
-              if (accounts.isEmpty) const Center(child: Text('Carregando contas...')),
-            ],
-          ),
-        );
-      }
-    );
-  }
-
-  Widget _buildCategoryChartWidget() {
-    return FutureBuilder<List<TransactionItem>>(
-      future: _transactionsFuture,
-      builder: (context, snapshot) {
-        final transactions = snapshot.data ?? [];
-        
-        // Lógica para agrupar gastos por tags (simplificado para categorías reales luego)
-        Map<String, double> data = {};
-        for (var t in transactions) {
-          if (t.amount.isNegative) {
-            String cat = t.tags.isNotEmpty ? t.tags.first : 'Otros';
-            data[cat] = (data[cat] ?? 0) + (t.amount.value / 100).abs();
-          }
-        }
-
-        List<PieChartSectionData> sections = [];
-        int i = 0;
-        final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.red];
-        
-        data.forEach((key, value) {
-          sections.add(PieChartSectionData(
-            color: colors[i % colors.length],
-            value: value,
-            title: '',
-            radius: 30,
-          ));
-          i++;
-        });
-
-        return _buildDashboardWidget(
-          title: 'Despesa por categoria Últimos 30 dias',
-          child: Column(
-            children: [
-              SizedBox(
-                height: 180,
-                child: sections.isEmpty 
-                  ? const Center(child: Text('Sem despesas')) 
-                  : PieChart(PieChartData(sectionsSpace: 2, centerSpaceRadius: 40, sections: sections)),
-              ),
-              const SizedBox(height: 20),
-              ...data.entries.map((e) => _buildLegendItem(colors[sections.indexWhere((s) => s.value == e.value) % colors.length], e.key, '- € ${e.value.toStringAsFixed(2)}')),
-            ],
-          ),
-        );
-      }
-    );
-  }
-
-  Widget _buildDashboardWidget({required String title, required Widget child}) {
     return Container(
+      color: const Color(0xFFF5F5F5),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n))),
+                const SizedBox(width: 16),
+                Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector())),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildBalanceSection(l10n),
+            const SizedBox(height: 16),
+            _buildCategoriesSection(l10n),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterBox(String label, Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
+        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4A636F), fontSize: 13)),
-                const Icon(Icons.close, size: 14, color: Colors.grey),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(padding: const EdgeInsets.all(16.0), child: child),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+          const SizedBox(height: 6),
+          child,
         ],
       ),
     );
   }
 
-  Widget _buildBalanceRow(String label, String value, {bool isHeader = false, bool isNegative = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+  Widget _buildAccountDropdown(AppLocalizations l10n) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<AccountItem?>(
+        value: _selectedAccount,
+        isDense: true,
+        isExpanded: true,
+        items: [
+          DropdownMenuItem(value: null, child: Text(l10n.allAccounts, style: const TextStyle(fontSize: 13))),
+          ..._accounts.map((a) => DropdownMenuItem(value: a, child: Text(a.name, style: const TextStyle(fontSize: 13)))),
+        ],
+        onChanged: (val) {
+          setState(() => _selectedAccount = val);
+          _refreshDashboard();
+        },
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDateRangePicker(
+          context: context,
+          initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2101),
+        );
+        if (picked != null) {
+          setState(() {
+            _startDate = picked.start;
+            _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59);
+          });
+          _refreshDashboard();
+        }
+      },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontWeight: isHeader ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
           Text(
-            value,
-            style: TextStyle(
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              color: isNegative ? Colors.red : (isHeader ? Colors.black : Colors.grey.shade700),
-              fontSize: 13,
-            ),
+            '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}',
+            style: const TextStyle(fontSize: 13),
+          ),
+          const Icon(Icons.calendar_today, size: 14, color: AppColors.secondaryText),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceSection(AppLocalizations l10n) {
+    double netWorth = _accounts.fold(0, (sum, a) => sum + (a.amount.value / 100));
+    return _buildSectionCard(
+      title: l10n.balanceSummary.toUpperCase(),
+      child: Column(
+        children: [
+          _buildBalanceRow(l10n.netWorth, netWorth, isBold: true),
+          const Divider(),
+          ..._accounts.map((a) => _buildBalanceRow(a.name, a.amount.value / 100)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceRow(String label, double val, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            '€ ${val.toStringAsFixed(2)}',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: val < 0 ? AppColors.expenseRed : (isBold ? AppColors.primaryBlue : AppColors.incomeGreen)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(Color color, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+  Widget _buildCategoriesSection(AppLocalizations l10n) {
+    return Column(
+      children: [
+        _buildViewModeSelector(l10n),
+        const SizedBox(height: 12),
+        _buildSectionCard(
+          title: l10n.categoriesAnalysis.toUpperCase(),
+          child: Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: SizedBox(
+                      height: 280,
+                      child: _categoryData.isEmpty 
+                        ? Center(child: Text(l10n.noData))
+                        : PieChart(
+                            PieChartData(
+                              pieTouchData: PieTouchData(
+                                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                                  setState(() {
+                                    if (!event.isInterestedForInteractions || pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+                                      _touchedIndex = -1;
+                                      return;
+                                    }
+                                    _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                                  });
+                                },
+                              ),
+                              sectionsSpace: 4,
+                              centerSpaceRadius: 50,
+                              sections: _buildChartSections(),
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  Expanded(
+                    flex: 6,
+                    child: _buildCategoryTable(l10n),
+                  ),
+                ],
+              ),
+              const Divider(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text('${l10n.totalBalance}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text('€ ${_totalCategoryAmount.toStringAsFixed(2)}', 
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _categoryMode == 'EXPENSE' ? AppColors.expenseRed : AppColors.incomeGreen)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewModeSelector(AppLocalizations l10n) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black12)),
       child: Row(
         children: [
-          Container(width: 10, height: 10, color: color),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red)),
+          _buildModeTab('EXPENSE', l10n.expense.toUpperCase(), AppColors.expenseRed),
+          _buildModeTab('INCOME', l10n.income.toUpperCase(), AppColors.incomeGreen),
         ],
       ),
     );
+  }
+
+  Widget _buildModeTab(String mode, String label, Color color) {
+    bool isSelected = _categoryMode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() => _categoryMode = mode);
+          _refreshDashboard();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.05) : Colors.transparent,
+            border: Border(bottom: BorderSide(color: isSelected ? color : Colors.transparent, width: 3)),
+          ),
+          child: Center(
+            child: Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? color : Colors.grey, fontSize: 12)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTable(AppLocalizations l10n) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(flex: 4, child: Text(l10n.categoryName.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+            const Expanded(flex: 2, child: Text('%', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+            Expanded(flex: 3, child: Text(l10n.amount.toUpperCase(), textAlign: TextAlign.right, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+          ],
+        ),
+        const Divider(),
+        ..._categoryData.entries.toList().asMap().entries.map((entry) {
+          final isTouched = entry.key == _touchedIndex;
+          final name = entry.value.key;
+          final value = entry.value.value;
+          final percent = (_totalCategoryAmount > 0) ? (value / _totalCategoryAmount) * 100 : 0.0;
+          final color = _getPaletteColor(entry.key);
+
+          return Container(
+            color: isTouched ? color.withOpacity(0.05) : Colors.transparent,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Row(
+                    children: [
+                      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(name, style: TextStyle(fontSize: 13, fontWeight: isTouched ? FontWeight.bold : FontWeight.normal))),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text('${percent.toStringAsFixed(1)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text('€ ${value.toStringAsFixed(2)}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard({required String title, required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+          const Divider(height: 30),
+          child,
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _buildChartSections() {
+    int i = 0;
+    return _categoryData.entries.map((e) {
+      final isTouched = i == _touchedIndex;
+      final radius = isTouched ? 70.0 : 60.0;
+      final color = _getPaletteColor(i++);
+
+      return PieChartSectionData(
+        color: color,
+        value: e.value,
+        title: isTouched ? '${((e.value/_totalCategoryAmount)*100).toStringAsFixed(0)}%' : '',
+        radius: radius,
+        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+      );
+    }).toList();
+  }
+
+  Color _getPaletteColor(int index) {
+    List<Color> colors = [const Color(0xFF009FFB), Colors.orange, Colors.green, Colors.purple, Colors.redAccent, Colors.teal, Colors.amber, Colors.indigo];
+    return colors[index % colors.length];
   }
 }

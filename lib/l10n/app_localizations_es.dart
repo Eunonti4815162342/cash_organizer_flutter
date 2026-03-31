@@ -9,7 +9,7 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get appTitle => 'Organizador de Gastos';
+  String get appTitle => 'Cash Organizer';
 
   @override
   String get allAccounts => 'Todas las cuentas';
@@ -39,6 +39,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cancel => 'Cancelar';
 
   @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get edit => 'Editar';
+
+  @override
   String get description => 'Descripción';
 
   @override
@@ -51,10 +57,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get income => 'Ingreso';
 
   @override
+  String get transfer => 'Transferencia';
+
+  @override
   String get subcategoryOf => 'Subcategoría de';
 
   @override
-  String get selectParentCategory => 'Seleccionar categoría...';
+  String get selectParentCategory => 'Seleccionar categoría padre...';
 
   @override
   String get pleaseSelectParentCategory =>
@@ -74,4 +83,104 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get premiumSubtitle => 'Funciones avanzadas para ti';
+
+  @override
+  String get dashboard => 'Panel de Control';
+
+  @override
+  String get netWorth => 'Patrimonio Neto';
+
+  @override
+  String get cashFlow => 'Flujo de Caja';
+
+  @override
+  String get recentActivity => 'Actividad Reciente';
+
+  @override
+  String get accountName => 'Nombre de la cuenta';
+
+  @override
+  String get totalBalance => 'Saldo Total';
+
+  @override
+  String get accountProperties => 'Propiedades de la cuenta';
+
+  @override
+  String get newTransaction => 'Nueva Transacción';
+
+  @override
+  String get editTransaction => 'Editar Transacción';
+
+  @override
+  String get amount => 'Importe';
+
+  @override
+  String get date => 'Fecha';
+
+  @override
+  String get entity => 'Entidad';
+
+  @override
+  String get newAccount => 'Nueva cuenta';
+
+  @override
+  String get editAccount => 'Editar cuenta';
+
+  @override
+  String get initialBalance => 'Saldo inicial';
+
+  @override
+  String get notes => 'Notas';
+
+  @override
+  String get property => 'Propiedad';
+
+  @override
+  String get share => 'Compartir';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get deleteForever => 'Eliminar para siempre';
+
+  @override
+  String get closeAccount => 'Cerrar cuenta';
+
+  @override
+  String get removeAccount => 'Eliminar cuenta';
+
+  @override
+  String get confirmDeleteTransaction =>
+      '¿Estás seguro de que deseas eliminar esta transacción?';
+
+  @override
+  String get confirmDeleteAccount => '¿Cómo deseas eliminar esta cuenta?';
+
+  @override
+  String get balanceSummary => 'Resumen de Saldos';
+
+  @override
+  String get categoriesAnalysis => 'Análisis de Categorías';
+
+  @override
+  String get period => 'Periodo';
+
+  @override
+  String get openReport => 'Abrir Informe';
+
+  @override
+  String get exportPdf => 'Exportar PDF';
+
+  @override
+  String get noData => 'No hay datos disponibles';
+
+  @override
+  String get newEntity => 'Nueva Entidad';
+
+  @override
+  String get legalEntity => 'Entidad Jurídica';
+
+  @override
+  String get physicalPerson => 'Persona Física';
 }

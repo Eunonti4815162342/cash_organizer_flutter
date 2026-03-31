@@ -7,23 +7,21 @@ import '../domain/models/category.dart';
 import '../domain/models/financial_entity.dart';
 
 class ApiService {
-  // Cambia esta IP por la IP de tu ordenador si pruebas en un dispositivo físico
-  static const String _defaultIp = 'localhost'; 
-  
+  // En Web, 'localhost' es lo correcto. En emulador Android, se usa 10.0.2.2
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://$_defaultIp:8080/api';
+      return 'http://127.0.0.1:8080/api';
     }
-    // Para el emulador de Android, 10.0.2.2 apunta al localhost de la máquina host
     return 'http://10.0.2.2:8080/api'; 
   }
 
   // --- ACCOUNTS ---
   Future<List<AccountItem>> fetchAccounts() async {
     try {
-      print('Fetching accounts from $baseUrl/accounts');
-      final response = await http.get(Uri.parse('$baseUrl/accounts'))
-          .timeout(const Duration(seconds: 5));
+      final response = await http.get(
+        Uri.parse('$baseUrl/accounts'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
@@ -69,12 +67,18 @@ class ApiService {
 
   Future<bool> deleteAccount(int id) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/accounts/$id'),
-      );
+      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id'));
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Exception deleting account: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccountPermanently(int id) async {
+    try {
+      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id/permanent'));
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
       return false;
     }
   }
@@ -101,20 +105,36 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(entityData),
       );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return FinancialEntity.fromJson(jsonDecode(response.body));
-      }
+      return (response.statusCode == 200 || response.statusCode == 201)
+          ? FinancialEntity.fromJson(jsonDecode(response.body))
+          : null;
     } catch (e) {
-      print('Exception creating entity: $e');
+      return null;
     }
-    return null;
+  }
+
+  Future<bool> deleteEntity(int id) async {
+    try {
+      final response = await http.delete(Uri.parse('$baseUrl/entities/$id'));
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      return false;
+    }
   }
 
   // --- TRANSACTIONS ---
-  Future<List<TransactionItem>> fetchTransactions() async {
+  Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/transactions'))
+      Map<String, String> queryParams = {};
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (accountId != null) queryParams['accountId'] = accountId;
+
+      final uri = Uri.parse('$baseUrl/transactions').replace(queryParameters: queryParams);
+      
+      final response = await http.get(uri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 5));
+          
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => TransactionItem.fromJson(json)).toList();
@@ -159,12 +179,9 @@ class ApiService {
 
   Future<bool> deleteTransaction(int id) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/transactions/$id'),
-      );
+      final response = await http.delete(Uri.parse('$baseUrl/transactions/$id'));
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Exception deleting transaction: $e');
       return false;
     }
   }
@@ -172,8 +189,7 @@ class ApiService {
   // --- CATEGORIES ---
   Future<List<Category>> fetchCategories() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/categories'))
-          .timeout(const Duration(seconds: 5));
+      final response = await http.get(Uri.parse('$baseUrl/categories'));
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => Category.fromJson(json)).toList();
@@ -204,6 +220,32 @@ class ApiService {
     return null;
   }
 
+  Future<Category?> updateCategory(int id, Category category) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/categories/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(category.toJson()),
+      );
+      return response.statusCode == 200 ? Category.fromJson(jsonDecode(response.body)) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Subcategory?> updateSubcategory(int id, Subcategory subcategory) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/categories/subcategories/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(subcategory.toJson()),
+      );
+      return response.statusCode == 200 ? Subcategory.fromJson(jsonDecode(response.body)) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<Subcategory?> createSubcategory(int categoryId, Subcategory subcategory) async {
     try {
       final response = await http.post(
@@ -211,12 +253,11 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(subcategory.toJson()),
       );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return Subcategory.fromJson(jsonDecode(response.body));
-      }
+      return (response.statusCode == 200 || response.statusCode == 201)
+          ? Subcategory.fromJson(jsonDecode(response.body))
+          : null;
     } catch (e) {
-      print('Exception creating subcategory: $e');
+      return null;
     }
-    return null;
   }
 }

@@ -3,6 +3,7 @@ import '../styles/app_styles.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../services/api_service.dart';
+import '../../../l10n/app_localizations.dart';
 import 'transaction_form_screen.dart';
 import '../widgets/account_form_dialog.dart';
 
@@ -15,8 +16,9 @@ class AccountTransactionsScreen extends StatefulWidget {
 
 class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   final ApiService _apiService = ApiService();
-  late Future<List<FinancialEntity>> _entitiesFuture;
-  late Future<List<AccountItem>> _orphanAccountsFuture; // Cuentas sin entidad
+  List<FinancialEntity> _entities = [];
+  List<AccountItem> _allAccounts = [];
+  bool _isLoading = true;
   AccountItem? _selectedAccount;
 
   @override
@@ -25,85 +27,74 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     _refreshData();
   }
 
-  void _refreshData() {
-    setState(() {
-      _entitiesFuture = _apiService.fetchEntities();
-      _orphanAccountsFuture = _apiService.fetchAccounts().then(
-        (list) => list.where((a) => a.entity == null).toList()
-      );
-    });
+  Future<void> _refreshData() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        _apiService.fetchEntities(),
+        _apiService.fetchAccounts(),
+      ]);
+      setState(() {
+        _entities = results[0] as List<FinancialEntity>;
+        _allAccounts = results[1] as List<AccountItem>;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+
+    final orphans = _allAccounts.where((a) => a.entity == null).toList();
+
     return Row(
       children: [
-        // TABLA DE ENTIDADES Y CUENTAS
         Expanded(
           flex: 7,
           child: Container(
             color: AppColors.cardBackground,
             child: Column(
               children: [
-                // Cabecera
                 Container(
                   height: 35,
                   color: AppColors.tableHeader,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Expanded(child: Text('Entity / Account Name', style: AppTextStyles.tableHeader)),
-                      Text('Total Balance', style: AppTextStyles.tableHeader),
-                      SizedBox(width: 40),
+                      Expanded(child: Text('${l10n.entity} / ${l10n.accountName}', style: AppTextStyles.tableHeader)),
+                      Text(l10n.totalBalance, style: AppTextStyles.tableHeader),
+                      const SizedBox(width: 40),
                     ],
                   ),
                 ),
                 const Divider(height: 1),
-                
-                // Lista Agrupada
                 Expanded(
-                  child: FutureBuilder(
-                    future: Future.wait([_entitiesFuture, _orphanAccountsFuture]),
-                    builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      
-                      final List<FinancialEntity> entities = snapshot.data?[0] ?? [];
-                      final List<AccountItem> orphans = snapshot.data?[1] ?? [];
-
-                      if (entities.isEmpty && orphans.isEmpty) {
-                        return const Center(child: Text('No entities or accounts found', style: TextStyle(color: AppColors.secondaryText)));
-                      }
-
-                      return ListView(
-                        children: [
-                          // 1. Mostrar Entidades con sus cuentas
-                          ...entities.map((entity) => _buildEntitySection(entity)),
-                          
-                          // 2. Mostrar cuentas sin entidad (si existen)
-                          if (orphans.isNotEmpty) 
-                            _buildSimpleSection('Individual / No Entity', orphans),
-                        ],
-                      );
-                    },
+                  child: ListView(
+                    children: [
+                      ..._entities.map((entity) => _buildEntitySection(entity, l10n)),
+                      if (orphans.isNotEmpty) 
+                        _buildSimpleSection('Individual / No ${l10n.entity}', orphans),
+                    ],
                   ),
                 ),
-                
-                // Footer
-                _buildFooter(),
+                _buildFooter(l10n),
               ],
             ),
           ),
         ),
-        
-        // PANEL DE PROPIEDADES (Derecho)
-        _buildPropertiesPanel(),
+        _buildPropertiesPanel(l10n),
       ],
     );
   }
 
-  Widget _buildEntitySection(FinancialEntity entity) {
+  Widget _buildEntitySection(FinancialEntity entity, AppLocalizations l10n) {
+    final entityAccounts = _allAccounts.where((a) => a.entity?.id == entity.id).toList();
+    double entityTotal = entityAccounts.fold(0, (sum, item) => sum + (item.amount.value / 100));
+    
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
@@ -114,31 +105,21 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           children: [
             Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, color: AppColors.primaryBlue, size: 20),
             const SizedBox(width: 10),
-            Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText, fontSize: 15)),
-            if (entity.taxId != null && entity.taxId!.isNotEmpty)
-              Text(' (${entity.taxId})', style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
+            Expanded(child: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.black12),
+              onPressed: () => _confirmDeleteEntity(entity, l10n),
+            ),
+            Text('€ ${entityTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: entityTotal < 0 ? AppColors.expenseRed : AppColors.primaryBlue)),
           ],
         ),
-        children: (entity.id == 0) ? [] : _buildAccountRowsForEntity(entity.id),
+        children: entityAccounts.map((acc) => _buildAccountRow(acc, indent: 32)).toList(),
       ),
     );
   }
 
-  List<Widget> _buildAccountRowsForEntity(int entityId) {
-    return [
-      FutureBuilder<List<AccountItem>>(
-        future: _apiService.fetchAccounts(),
-        builder: (context, snapshot) {
-          final accounts = snapshot.data?.where((a) => a.entity?.id == entityId).toList() ?? [];
-          return Column(
-            children: accounts.map((acc) => _buildAccountRow(acc, indent: 32)).toList(),
-          );
-        }
-      )
-    ];
-  }
-
   Widget _buildSimpleSection(String title, List<AccountItem> accounts) {
+    double subtotal = accounts.fold(0, (sum, item) => sum + (item.amount.value / 100));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -146,7 +127,13 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           color: const Color(0xFFEEEEEE),
           width: double.infinity,
-          child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+              Text('€ ${subtotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: subtotal < 0 ? AppColors.expenseRed : Colors.grey)),
+            ],
+          ),
         ),
         ...accounts.map((acc) => _buildAccountRow(acc)),
       ],
@@ -159,33 +146,16 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     return InkWell(
       onTap: () => setState(() => _selectedAccount = account),
       child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE3F2FD) : Colors.transparent,
-          border: const Border(bottom: BorderSide(color: AppColors.divider)),
-        ),
+        decoration: BoxDecoration(color: isSelected ? const Color(0xFFE3F2FD) : Colors.transparent, border: const Border(bottom: BorderSide(color: AppColors.divider))),
         padding: EdgeInsets.only(left: indent, right: 16, top: 12, bottom: 12),
         child: Row(
           children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Icon(
-                    account.isUnbalanced ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined,
-                    size: 18,
-                    color: account.isUnbalanced ? AppColors.warningOrange : AppColors.primaryBlue,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(account.name, style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            Text(
-              '€ ${balance.toStringAsFixed(2)}',
-              style: TextStyle(
-                color: (balance < 0 || account.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Expanded(child: Row(children: [
+              Icon(account.isUnbalanced ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined, size: 18, color: account.isUnbalanced ? AppColors.warningOrange : AppColors.primaryBlue),
+              const SizedBox(width: 10),
+              Text(account.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+            ])),
+            Text('€ ${balance.toStringAsFixed(2)}', style: TextStyle(color: (balance < 0 || account.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, fontWeight: FontWeight.w600)),
             const SizedBox(width: 10),
             const Icon(Icons.more_vert, size: 18, color: AppColors.secondaryText),
           ],
@@ -194,47 +164,27 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(AppLocalizations l10n) {
+    double total = _allAccounts.fold(0, (sum, item) => sum + (item.amount.value / 100));
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.tableHeader,
-        border: const Border(top: BorderSide(color: Colors.black12)),
-      ),
+      height: 40, padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: AppColors.tableHeader, border: const Border(top: BorderSide(color: Colors.black12))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Text('Global Balance: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-          FutureBuilder<List<AccountItem>>(
-            future: _apiService.fetchAccounts(),
-            builder: (context, snapshot) {
-              final accounts = snapshot.data ?? [];
-              double total = accounts.fold(0, (sum, item) => sum + (item.amount.value / 100));
-              return Text(
-                '€ ${total.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold, 
-                  fontSize: 12,
-                  color: total < 0 ? AppColors.expenseRed : Colors.black,
-                ),
-              );
-            },
-          ),
+          Text('${l10n.totalBalance}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          Text('€ ${total.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: total < 0 ? AppColors.expenseRed : Colors.black)),
           const Icon(Icons.arrow_drop_down, size: 16),
         ],
       ),
     );
   }
 
-  Widget _buildPropertiesPanel() {
+  Widget _buildPropertiesPanel(AppLocalizations l10n) {
     return Expanded(
       flex: 3,
       child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.sidebarBackground,
-          border: Border(left: BorderSide(color: Colors.black12)),
-        ),
+        decoration: const BoxDecoration(color: AppColors.sidebarBackground, border: Border(left: BorderSide(color: Colors.black12))),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,53 +192,31 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Account properties', style: TextStyle(fontSize: 16, color: AppColors.secondaryText)),
-                if (_selectedAccount != null)
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: AppColors.secondaryText),
-                    onPressed: () => setState(() => _selectedAccount = null),
-                  ),
+                Text(l10n.accountProperties, style: const TextStyle(fontSize: 16, color: AppColors.secondaryText)),
+                if (_selectedAccount != null) IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _selectedAccount = null)),
               ],
             ),
             const SizedBox(height: 30),
             if (_selectedAccount != null) ...[
-              Row(
-                children: [
-                  Expanded(child: _buildProp('Name', _selectedAccount!.name, isBold: true)),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.primaryBlue),
-                    onPressed: () => _showEditAccountDialog(_selectedAccount!),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                    onPressed: () => _confirmDeleteAccount(_selectedAccount!),
-                  ),
-                ],
-              ),
-              _buildProp('Entity', _selectedAccount!.entity?.name ?? 'None', isBold: true),
-              _buildProp('Description', _selectedAccount!.description ?? 'N/A', isBold: true),
+              Row(children: [
+                Expanded(child: _buildProp(l10n.accountName, _selectedAccount!.name, isBold: true)),
+                IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue), onPressed: () => _showEditAccountDialog(_selectedAccount!)),
+                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _confirmDeleteAccount(_selectedAccount!, l10n)),
+              ]),
+              _buildProp(l10n.entity, _selectedAccount!.entity?.name ?? 'None', isBold: true),
+              _buildProp(l10n.description, _selectedAccount!.description ?? 'N/A', isBold: true),
               _buildProp('Currency', _selectedAccount!.amount.currency, isBold: true),
-              _buildProp('Total Balance', '€ ${(_selectedAccount!.amount.value / 100).toStringAsFixed(2)}', 
-                color: (_selectedAccount!.amount.value < 0 || _selectedAccount!.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, isBold: true),
-              _buildProp('Type', _selectedAccount!.accountType ?? 'Cash', isBold: true),
-              _buildProp('Status', _selectedAccount!.isUnbalanced ? 'Unbalanced' : 'Balanced', isBold: true),
-            ] else
-              const Center(child: Text('Select an account to see details', style: TextStyle(color: AppColors.secondaryText, fontSize: 12))),
+              _buildProp(l10n.totalBalance, '€ ${(_selectedAccount!.amount.value / 100).toStringAsFixed(2)}', color: (_selectedAccount!.amount.value < 0 || _selectedAccount!.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, isBold: true),
+              _buildProp(l10n.type, _selectedAccount!.accountType ?? 'Cash', isBold: true),
+            ] else Center(child: Text(l10n.noData, style: const TextStyle(fontSize: 12))),
             const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => TransactionFormScreen()),
-                  ).then((saved) {
-                    if (saved == true) _refreshData();
-                  });
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, elevation: 0),
-                child: const Text('New transaction', style: TextStyle(color: Colors.black)),
-              ),
-            )
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshData(); });
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200),
+              child: Text(l10n.newTransaction, style: const TextStyle(color: Colors.black)),
+            ))
           ],
         ),
       ),
@@ -296,52 +224,36 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   }
 
   Widget _buildProp(String label, String value, {Color? color, bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
-          Text(value, style: TextStyle(color: color ?? AppColors.primaryText, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
-        ],
-      ),
-    );
+    return Padding(padding: const EdgeInsets.only(bottom: 15.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
+      Text(value, style: TextStyle(color: color ?? AppColors.primaryText, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
+    ]));
   }
 
   void _showEditAccountDialog(AccountItem account) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AccountFormDialog(account: account),
-    ).then((saved) {
-      if (saved == true) {
-        _refreshData();
-        setState(() => _selectedAccount = null);
-      }
-    });
+    showDialog(context: context, barrierDismissible: false, builder: (context) => AccountFormDialog(account: account)).then((saved) { if (saved == true) _refreshData(); });
   }
 
-  void _confirmDeleteAccount(AccountItem account) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: Text('Are you sure you want to delete "${account.name}"? This will be recorded as a closing transaction.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await _apiService.deleteAccount(account.id);
-              if (success) {
-                _refreshData();
-                setState(() => _selectedAccount = null);
-              }
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
+  void _confirmDeleteAccount(AccountItem account, AppLocalizations l10n) {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: Text(l10n.removeAccount),
+      content: Text(l10n.confirmDeleteAccount),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        TextButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteAccount(account.id); if (success) _refreshData(); }, child: Text(l10n.closeAccount)),
+        ElevatedButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteAccountPermanently(account.id); if (success) _refreshData(); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), child: Text(l10n.deleteForever)),
+      ],
+    ));
+  }
+
+  void _confirmDeleteEntity(FinancialEntity entity, AppLocalizations l10n) {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: Text('${l10n.delete} ${l10n.entity}'),
+      content: Text('Are you sure you want to delete "${entity.name}"?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        TextButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteEntity(entity.id); if (success) _refreshData(); }, child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent))),
+      ],
+    ));
   }
 }

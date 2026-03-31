@@ -21,6 +21,11 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   late TextEditingController _initialBalanceController;
   late TextEditingController _notesController;
   
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _descFocus = FocusNode();
+  final FocusNode _balanceFocus = FocusNode();
+  final FocusNode _notesFocus = FocusNode();
+  
   String _selectedCurrency = 'EUR';
   String _selectedType = 'CASH';
   FinancialEntity? _selectedEntity;
@@ -38,6 +43,16 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
     );
     _notesController = TextEditingController(text: widget.account?.notes ?? '');
     
+    // Clear field on focus logic
+    _nameFocus.addListener(() { if (_nameFocus.hasFocus) _nameController.clear(); });
+    _descFocus.addListener(() { if (_descFocus.hasFocus) _descriptionController.clear(); });
+    _notesFocus.addListener(() { if (_notesFocus.hasFocus) _notesController.clear(); });
+    _balanceFocus.addListener(() {
+      if (_balanceFocus.hasFocus && (_initialBalanceController.text == '0.00' || widget.account != null)) {
+        _initialBalanceController.clear();
+      }
+    });
+
     if (widget.account != null) {
       _selectedCurrency = widget.account!.amount.currency;
       _selectedType = (widget.account!.accountType ?? 'CASH').toUpperCase();
@@ -78,12 +93,17 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
     _descriptionController.dispose();
     _initialBalanceController.dispose();
     _notesController.dispose();
+    _nameFocus.dispose();
+    _descFocus.dispose();
+    _balanceFocus.dispose();
+    _notesFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final greyInputStyle = TextStyle(color: Colors.grey.shade600, fontSize: 14);
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -136,6 +156,13 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                             : await _apiService.updateAccount(widget.account!.id, data);
 
                         if (result != null) {
+                          if (widget.account != null && val != (widget.account!.amount.value / 100)) {
+                            if ((result.amount.value / 100) != val && mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Note: Balance cannot be changed because this account has transactions.')),
+                              );
+                            }
+                          }
                           if (mounted) Navigator.pop(context, true);
                         } else {
                           if (mounted) {
@@ -164,7 +191,6 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
             Expanded(
               child: Row(
                 children: [
-                  // FORM
                   Expanded(
                     flex: 6,
                     child: Container(
@@ -183,8 +209,6 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                                     Container(height: 2, width: 80, color: AppColors.primaryBlue),
                                   ],
                                 ),
-                                const SizedBox(width: 20),
-                                const Text('Share', style: TextStyle(color: AppColors.secondaryText)),
                               ],
                             ),
                           ),
@@ -200,7 +224,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                                         isExpanded: true,
                                         underline: const SizedBox(),
                                         hint: const Text('Select Entity...'),
-                                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
+                                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name, style: greyInputStyle))).toList(),
                                         onChanged: (v) => setState(() => _selectedEntity = v),
                                       ),
                                     ),
@@ -212,37 +236,45 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                                 )),
                                 _buildInputRow('Name*', TextField(
                                   controller: _nameController,
+                                  focusNode: _nameFocus,
+                                  style: greyInputStyle,
                                   decoration: const InputDecoration(hintText: 'Account name', border: InputBorder.none),
                                 )),
                                 _buildInputRow('Description', TextField(
                                   controller: _descriptionController,
+                                  focusNode: _descFocus,
+                                  style: greyInputStyle,
                                   decoration: const InputDecoration(hintText: 'Optional description', border: InputBorder.none),
                                 )),
                                 _buildInputRow('Currency', DropdownButton<String>(
                                   value: _selectedCurrency,
                                   isExpanded: true,
                                   underline: const SizedBox(),
-                                  items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                                  items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e, style: greyInputStyle))).toList(),
                                   onChanged: (v) => setState(() => _selectedCurrency = v!),
                                 )),
                                 _buildInputRow('Type', DropdownButton<String>(
                                   value: _selectedType,
                                   isExpanded: true,
                                   underline: const SizedBox(),
-                                  items: const [
-                                    DropdownMenuItem(value: 'CASH', child: Text('Cash')),
-                                    DropdownMenuItem(value: 'BANK', child: Text('Bank')),
-                                    DropdownMenuItem(value: 'CARD', child: Text('Card')),
+                                  items: [
+                                    DropdownMenuItem(value: 'CASH', child: Text('Cash', style: greyInputStyle)),
+                                    DropdownMenuItem(value: 'BANK', child: Text('Bank', style: greyInputStyle)),
+                                    DropdownMenuItem(value: 'CARD', child: Text('Card', style: greyInputStyle)),
                                   ],
                                   onChanged: (v) => setState(() => _selectedType = v!),
                                 )),
                                 _buildInputRow('Initial Balance', TextField(
                                   controller: _initialBalanceController,
+                                  focusNode: _balanceFocus,
+                                  style: greyInputStyle,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(border: InputBorder.none),
                                 )),
                                 _buildInputRow('Notes', TextField(
                                   controller: _notesController,
+                                  focusNode: _notesFocus,
+                                  style: greyInputStyle,
                                   maxLines: 3,
                                   decoration: const InputDecoration(border: InputBorder.none),
                                 )),
@@ -254,7 +286,6 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                     ),
                   ),
                   
-                  // PROPERTIES PANEL
                   Expanded(
                     flex: 4,
                     child: Container(

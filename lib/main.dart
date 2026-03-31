@@ -82,15 +82,19 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
   }
 
   Future<void> _refreshAccounts() async {
+    print('DEBUG: Requesting accounts from API...');
     final accs = await _apiService.fetchAccounts();
-    setState(() {
-      _accounts = accs;
-    });
+    print('DEBUG: Received ${accs.length} accounts');
+    if (mounted) {
+      setState(() {
+        _accounts = accs;
+      });
+    }
   }
 
   List<Widget> get _screens => [
     const DashboardScreen(),
-    const TransactionListScreen(),
+    TransactionListScreen(accountId: _selectedAccountId),
     AccountTransactionsScreen(key: _screenKey),
     const ReportsListScreen(),
     const CategoryListScreen(),
@@ -142,14 +146,14 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
             onPressed: () => setState(() => _isSidebarVisible = !_isSidebarVisible),
           ),
           const SizedBox(width: 15),
-          const Text(
-            'Cash Organizer',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w400),
+          Text(
+            l10n.appTitle,
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w400),
           ),
           const Spacer(),
           _buildLanguageToggle(),
           const SizedBox(width: 10),
-          const Text('Saved', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          Text(l10n.save, style: const TextStyle(color: Colors.white70, fontSize: 13)),
           IconButton(
             icon: const Icon(Icons.sync, color: Colors.white, size: 20), 
             onPressed: () {
@@ -169,13 +173,13 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
               color: AppColors.cardBackground,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const TextField(
+            child: TextField(
               decoration: InputDecoration(
-                hintText: 'Search',
-                hintStyle: TextStyle(fontSize: 13),
-                prefixIcon: Icon(Icons.search, size: 18, color: AppColors.secondaryText),
+                hintText: l10n.search,
+                hintStyle: const TextStyle(fontSize: 13),
+                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondaryText),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.only(bottom: 12),
+                contentPadding: const EdgeInsets.only(bottom: 12),
               ),
             ),
           ),
@@ -212,7 +216,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
             ElevatedButton.icon(
               onPressed: () => _showNewAccountDialog(),
               icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: const Text('New account', style: TextStyle(fontSize: 13, color: Colors.white)),
+              label: Text(l10n.newAccount, style: const TextStyle(fontSize: 13, color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 elevation: 0,
@@ -221,10 +225,6 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
               ),
             ),
           const Spacer(),
-          IconButton(icon: const Icon(Icons.person_add_outlined, color: AppColors.primaryBlue, size: 20), onPressed: () {}),
-          const Text('Sharing access', style: TextStyle(color: AppColors.primaryText, fontSize: 12)),
-          const SizedBox(width: 10),
-          const Icon(Icons.settings_outlined, color: AppColors.secondaryText, size: 20),
         ],
       ),
     );
@@ -255,7 +255,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
         PopupMenuItem(value: 'all', child: Text(l10n.allAccounts)),
         if (_accounts.isNotEmpty) ...[
           const PopupMenuDivider(),
-          const PopupMenuItem(enabled: false, child: Text('My accounts', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+          PopupMenuItem(enabled: false, child: Text(l10n.accounts, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
           ..._accounts.map((acc) => PopupMenuItem(
                 value: acc.id.toString(),
                 child: Padding(
@@ -277,7 +277,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
       ),
       child: Column(
         children: [
-          _buildSidebarItem(0, Icons.dashboard_outlined, 'Dashboard'),
+          _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
           const Divider(height: 1),
           _buildSidebarSection('OPERATIONS'),
           _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
@@ -308,7 +308,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
           children: [
             const Icon(Icons.language, size: 18, color: AppColors.primaryText),
             const SizedBox(width: 10),
-            Text('Language', style: AppTextStyles.sidebarItem),
+            Text(l10n.language, style: AppTextStyles.sidebarItem),
             const Spacer(),
             const Icon(Icons.arrow_right, size: 16, color: AppColors.secondaryText),
           ],

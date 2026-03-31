@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/models/transaction_item.dart';
+import '../../../services/api_service.dart';
 import '../screens/transaction_form_screen.dart';
 
 class TransactionListItem extends StatelessWidget {
@@ -113,7 +114,11 @@ class TransactionListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.black12, size: 20),
+                    onPressed: () => _confirmDelete(context),
+                    tooltip: 'Delete',
+                  ),
                   const SizedBox(width: 4),
                 ],
               ),
@@ -121,6 +126,30 @@ class TransactionListItem extends StatelessWidget {
             const Divider(height: 1, indent: 16, color: Color(0xFFEEEEEE)),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    final ApiService apiService = ApiService();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text('Are you sure you want to delete this transaction?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await apiService.deleteTransaction(transaction.id);
+              if (success && onRefresh != null) {
+                onRefresh!();
+              }
+            },
+            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
   }

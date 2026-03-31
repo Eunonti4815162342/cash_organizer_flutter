@@ -40,7 +40,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             itemCount: transactions.length,
             itemBuilder: (context, index) {
               final transaction = transactions[index];
-              return TransactionListItem(transaction: transaction);
+              return TransactionListItem(
+                transaction: transaction,
+                onRefresh: () => setState(() {
+                  _transactionsFuture = _apiService.fetchTransactions();
+                }),
+              );
             },
           );
         },
@@ -49,7 +54,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => const TransactionFormScreen()),
-          );
+          ).then((saved) {
+            if (saved == true) {
+              setState(() {
+                _transactionsFuture = _apiService.fetchTransactions();
+              });
+            }
+          });
         },
         backgroundColor: const Color(0xFF009FFB),
         child: const Icon(Icons.add, color: Colors.white),

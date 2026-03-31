@@ -106,6 +106,12 @@ abstract class AppLocalizations {
   /// **'Cash Organizer'**
   String get appTitle;
 
+  /// No description provided for @allAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'All accounts'**
+  String get allAccounts;
+
   /// No description provided for @accounts.
   ///
   /// In en, this message translates to:

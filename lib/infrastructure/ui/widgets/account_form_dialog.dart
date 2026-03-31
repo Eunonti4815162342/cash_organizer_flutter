@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import '../styles/app_styles.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/api_service.dart';
+import '../../../domain/models/account_item.dart';
+import '../../../domain/models/financial_entity.dart';
+import 'entity_form_dialog.dart';
 
 class AccountFormDialog extends StatefulWidget {
-  const AccountFormDialog({super.key});
+  final AccountItem? account;
+  const AccountFormDialog({super.key, this.account});
 
   @override
   State<AccountFormDialog> createState() => _AccountFormDialogState();
@@ -12,13 +16,70 @@ class AccountFormDialog extends StatefulWidget {
 
 class _AccountFormDialogState extends State<AccountFormDialog> {
   final ApiService _apiService = ApiService();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _initialBalanceController = TextEditingController(text: '0.00');
-  final TextEditingController _notesController = TextEditingController();
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _initialBalanceController;
+  late TextEditingController _notesController;
   
   String _selectedCurrency = 'EUR';
-  String _selectedType = 'Dinheiro';
+  String _selectedType = 'CASH';
+  FinancialEntity? _selectedEntity;
+  List<FinancialEntity> _entities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.account?.name ?? '');
+    _descriptionController = TextEditingController(text: widget.account?.description ?? '');
+    _initialBalanceController = TextEditingController(
+      text: widget.account != null 
+          ? (widget.account!.amount.value / 100).toStringAsFixed(2) 
+          : '0.00'
+    );
+    _notesController = TextEditingController(text: widget.account?.notes ?? '');
+    
+    if (widget.account != null) {
+      _selectedCurrency = widget.account!.amount.currency;
+      _selectedType = (widget.account!.accountType ?? 'CASH').toUpperCase();
+      if (!['CASH', 'BANK', 'CARD'].contains(_selectedType)) {
+        _selectedType = 'CASH';
+      }
+      _selectedEntity = widget.account!.entity;
+    }
+    _loadEntities();
+  }
+
+  Future<void> _loadEntities() async {
+    final list = await _apiService.fetchEntities();
+    setState(() {
+      _entities = list;
+      if (widget.account?.entity != null) {
+        try {
+          _selectedEntity = _entities.firstWhere((e) => e.id == widget.account!.entity!.id);
+        } catch (e) {
+          _selectedEntity = null;
+        }
+      }
+    });
+  }
+
+  void _showNewEntityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const EntityFormDialog(),
+    ).then((saved) {
+      if (saved == true) _loadEntities();
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _initialBalanceController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,13 +109,13 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
               ),
               child: Row(
                 children: [
-                  Text(l10n.accounts, style: const TextStyle(fontSize: 18, color: AppColors.primaryText)),
+                  Text(widget.account == null ? 'New Account' : 'Edit Account', style: const TextStyle(fontSize: 18, color: AppColors.primaryText)),
                   const Spacer(),
                   ElevatedButton(
                     onPressed: () async {
                       if (_nameController.text.isNotEmpty) {
                         double val = double.tryParse(_initialBalanceController.text) ?? 0.0;
-                        await _apiService.createAccount({
+                        final data = {
                           'name': _nameController.text,
                           'description': _descriptionController.text,
                           'amount': {
@@ -64,9 +125,25 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                           },
                           'accountType': _selectedType,
                           'notes': _notesController.text,
-                          'flags': 0
-                        });
-                        if (mounted) Navigator.pop(context, true);
+                          'flags': widget.account?.flags ?? 0,
+                          'accountOrder': widget.account?.accountOrder ?? 0,
+                          'active': true,
+                          'entity': _selectedEntity != null ? {'id': _selectedEntity!.id} : null
+                        };
+
+                        final result = widget.account == null
+                            ? await _apiService.createAccount(data)
+                            : await _apiService.updateAccount(widget.account!.id, data);
+
+                        if (result != null) {
+                          if (mounted) Navigator.pop(context, true);
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Error: Could not save account')),
+                            );
+                          }
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -87,7 +164,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
             Expanded(
               child: Row(
                 children: [
-                  // FORMULARIO
+                  // FORM
                   Expanded(
                     flex: 6,
                     child: Container(
@@ -102,12 +179,12 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text('Propriedade', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                                    const Text('Property', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
                                     Container(height: 2, width: 80, color: AppColors.primaryBlue),
                                   ],
                                 ),
                                 const SizedBox(width: 20),
-                                const Text('Compartilhar', style: TextStyle(color: AppColors.secondaryText)),
+                                const Text('Share', style: TextStyle(color: AppColors.secondaryText)),
                               ],
                             ),
                           ),
@@ -115,34 +192,56 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                           Expanded(
                             child: ListView(
                               children: [
-                                _buildInputRow('Nome*', TextField(
+                                _buildInputRow('Entity', Row(
+                                  children: [
+                                    Expanded(
+                                      child: DropdownButton<FinancialEntity>(
+                                        value: _selectedEntity,
+                                        isExpanded: true,
+                                        underline: const SizedBox(),
+                                        hint: const Text('Select Entity...'),
+                                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
+                                        onChanged: (v) => setState(() => _selectedEntity = v),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
+                                      onPressed: _showNewEntityDialog,
+                                    ),
+                                  ],
+                                )),
+                                _buildInputRow('Name*', TextField(
                                   controller: _nameController,
-                                  decoration: const InputDecoration(hintText: 'Nome da conta', border: InputBorder.none),
+                                  decoration: const InputDecoration(hintText: 'Account name', border: InputBorder.none),
                                 )),
-                                _buildInputRow(l10n.description, TextField(
+                                _buildInputRow('Description', TextField(
                                   controller: _descriptionController,
-                                  decoration: const InputDecoration(hintText: 'Descrição opcional', border: InputBorder.none),
+                                  decoration: const InputDecoration(hintText: 'Optional description', border: InputBorder.none),
                                 )),
-                                _buildInputRow('Moeda', DropdownButton<String>(
+                                _buildInputRow('Currency', DropdownButton<String>(
                                   value: _selectedCurrency,
                                   isExpanded: true,
                                   underline: const SizedBox(),
                                   items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                                   onChanged: (v) => setState(() => _selectedCurrency = v!),
                                 )),
-                                _buildInputRow('Tipo', DropdownButton<String>(
+                                _buildInputRow('Type', DropdownButton<String>(
                                   value: _selectedType,
                                   isExpanded: true,
                                   underline: const SizedBox(),
-                                  items: ['Dinheiro', 'Banco', 'Cartão'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                                  items: const [
+                                    DropdownMenuItem(value: 'CASH', child: Text('Cash')),
+                                    DropdownMenuItem(value: 'BANK', child: Text('Bank')),
+                                    DropdownMenuItem(value: 'CARD', child: Text('Card')),
+                                  ],
                                   onChanged: (v) => setState(() => _selectedType = v!),
                                 )),
-                                _buildInputRow('Saldo inicial', TextField(
+                                _buildInputRow('Initial Balance', TextField(
                                   controller: _initialBalanceController,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(border: InputBorder.none),
                                 )),
-                                _buildInputRow('Nota', TextField(
+                                _buildInputRow('Notes', TextField(
                                   controller: _notesController,
                                   maxLines: 3,
                                   decoration: const InputDecoration(border: InputBorder.none),
@@ -155,7 +254,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                     ),
                   ),
                   
-                  // PANEL DE PROPIEDADES
+                  // PROPERTIES PANEL
                   Expanded(
                     flex: 4,
                     child: Container(
@@ -167,17 +266,17 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Propriedades da conta', style: TextStyle(fontSize: 16, color: AppColors.secondaryText)),
+                          const Text('Account Properties', style: TextStyle(fontSize: 16, color: AppColors.secondaryText)),
                           const SizedBox(height: 30),
-                          _buildPropertyItem('Nome', _nameController.text.isEmpty ? 'Nueva conta' : _nameController.text, isBoldValue: true),
-                          _buildPropertyItem('Moeda', _selectedCurrency, isBoldValue: true),
-                          _buildPropertyItem('Saldo Total', '€ ${_initialBalanceController.text}', valueColor: Colors.black, isBoldValue: true),
+                          _buildPropertyItem('Name', _nameController.text.isEmpty ? 'New Account' : _nameController.text, isBoldValue: true),
+                          _buildPropertyItem('Currency', _selectedCurrency, isBoldValue: true),
+                          _buildPropertyItem('Total Balance', '€ ${_initialBalanceController.text}', valueColor: Colors.black, isBoldValue: true),
                           const Spacer(),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
                               onPressed: () {},
-                              child: const Text('Nova transação', style: TextStyle(color: AppColors.primaryText)),
+                              child: const Text('New Transaction', style: TextStyle(color: AppColors.primaryText)),
                             ),
                           ),
                         ],

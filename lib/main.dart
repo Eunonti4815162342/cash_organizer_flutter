@@ -8,6 +8,8 @@ import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/widgets/account_form_dialog.dart';
+import 'services/api_service.dart';
+import 'domain/models/account_item.dart';
 
 final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
@@ -65,10 +67,26 @@ class DesktopMainLayout extends StatefulWidget {
 }
 
 class _DesktopMainLayoutState extends State<DesktopMainLayout> {
+  final ApiService _apiService = ApiService();
   int _selectedIndex = 0;
   String? _selectedAccountName;
+  String? _selectedAccountId; 
   bool _isSidebarVisible = true;
   Key _screenKey = UniqueKey();
+  List<AccountItem> _accounts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshAccounts();
+  }
+
+  Future<void> _refreshAccounts() async {
+    final accs = await _apiService.fetchAccounts();
+    setState(() {
+      _accounts = accs;
+    });
+  }
 
   List<Widget> get _screens => [
     const DashboardScreen(),
@@ -81,7 +99,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    _selectedAccountName ??= 'Todas as contas';
+    _selectedAccountName ??= l10n.allAccounts;
 
     return Scaffold(
       body: Column(
@@ -94,7 +112,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
                 Expanded(
                   child: Column(
                     children: [
-                      _buildWhiteToolbar(),
+                      _buildWhiteToolbar(l10n),
                       Expanded(
                         child: Container(
                           color: const Color(0xFFEAEAEA),
@@ -131,8 +149,16 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
           const Spacer(),
           _buildLanguageToggle(),
           const SizedBox(width: 10),
-          const Text('Salvo', style: TextStyle(color: Colors.white70, fontSize: 13)),
-          IconButton(icon: const Icon(Icons.sync, color: Colors.white, size: 20), onPressed: () {}),
+          const Text('Saved', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          IconButton(
+            icon: const Icon(Icons.sync, color: Colors.white, size: 20), 
+            onPressed: () {
+              _refreshAccounts();
+              setState(() {
+                _screenKey = UniqueKey();
+              });
+            }
+          ),
           IconButton(icon: const Icon(Icons.calendar_today, color: Colors.white, size: 20), onPressed: () {}),
           IconButton(icon: const Icon(Icons.apps, color: Colors.white, size: 20), onPressed: () {}),
           const SizedBox(width: 10),
@@ -160,7 +186,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('usuario@email.com', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+              Text('user@email.com', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
               Text('Online', style: TextStyle(color: Colors.white70, fontSize: 10)),
             ],
           ),
@@ -170,7 +196,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
     );
   }
 
-  Widget _buildWhiteToolbar() {
+  Widget _buildWhiteToolbar(AppLocalizations l10n) {
     return Container(
       height: 45,
       decoration: const BoxDecoration(
@@ -180,13 +206,13 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _buildAccountSelector(),
+          _buildAccountSelector(l10n),
           const SizedBox(width: 12),
           if (_selectedIndex == 2)
             ElevatedButton.icon(
               onPressed: () => _showNewAccountDialog(),
               icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: const Text('Nova conta', style: TextStyle(fontSize: 13, color: Colors.white)),
+              label: const Text('New account', style: TextStyle(fontSize: 13, color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 elevation: 0,
@@ -204,22 +230,40 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
     );
   }
 
-  Widget _buildAccountSelector() {
+  Widget _buildAccountSelector(AppLocalizations l10n) {
     return PopupMenuButton<String>(
-      onSelected: (value) => setState(() => _selectedAccountName = value),
+      onSelected: (value) {
+        setState(() {
+          if (value == 'all') {
+            _selectedAccountName = l10n.allAccounts;
+            _selectedAccountId = null;
+          } else {
+            final acc = _accounts.firstWhere((a) => a.id.toString() == value);
+            _selectedAccountName = acc.name;
+            _selectedAccountId = value;
+          }
+          _screenKey = UniqueKey(); 
+        });
+      },
       child: Row(
         children: [
-          Text(_selectedAccountName!, style: const TextStyle(fontSize: 14, color: AppColors.primaryText)),
+          Text(_selectedAccountName!, style: const TextStyle(fontSize: 14, color: AppColors.primaryText, fontWeight: FontWeight.w500)),
           const Icon(Icons.arrow_drop_down, color: AppColors.secondaryText),
         ],
       ),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'Todas as contas', child: Text('Todas as contas')),
-        const PopupMenuDivider(),
-        const PopupMenuItem(enabled: false, child: Text('Grupos de contas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-        const PopupMenuItem(value: 'Caixa', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Caixa'))),
-        const PopupMenuItem(value: 'Empréstimos', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Empréstimos'))),
-        const PopupMenuItem(value: 'Santa Filomena', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Santa Filomena'))),
+        PopupMenuItem(value: 'all', child: Text(l10n.allAccounts)),
+        if (_accounts.isNotEmpty) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(enabled: false, child: Text('My accounts', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+          ..._accounts.map((acc) => PopupMenuItem(
+                value: acc.id.toString(),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(acc.name),
+                ),
+              )),
+        ],
       ],
     );
   }
@@ -233,7 +277,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
       ),
       child: Column(
         children: [
-          _buildSidebarItem(0, Icons.dashboard_outlined, 'Principal'),
+          _buildSidebarItem(0, Icons.dashboard_outlined, 'Dashboard'),
           const Divider(height: 1),
           _buildSidebarSection('OPERATIONS'),
           _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
@@ -245,9 +289,36 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
           const Spacer(),
           const Divider(height: 1),
           _buildSidebarItem(99, Icons.help_outline, 'Help'),
+          const Divider(height: 1),
+          _buildLanguageSidebarItem(l10n),
           const SizedBox(height: 10),
         ],
       ),
+    );
+  }
+
+  Widget _buildLanguageSidebarItem(AppLocalizations l10n) {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        _appLocale.value = Locale(value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.language, size: 18, color: AppColors.primaryText),
+            const SizedBox(width: 10),
+            Text('Language', style: AppTextStyles.sidebarItem),
+            const Spacer(),
+            const Icon(Icons.arrow_right, size: 16, color: AppColors.secondaryText),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'en', child: Text('English')),
+        const PopupMenuItem(value: 'es', child: Text('Español')),
+        const PopupMenuItem(value: 'pt', child: Text('Português')),
+      ],
     );
   }
 
@@ -295,9 +366,10 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AccountFormDialog(),
+      builder: (context) => const AccountFormDialog(),
     ).then((saved) {
       if (saved == true) {
+        _refreshAccounts();
         setState(() {
           _screenKey = UniqueKey();
         });

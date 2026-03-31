@@ -1,6 +1,7 @@
 {
   "@@locale": "en",
   "appTitle": "Cash Organizer",
+  "allAccounts": "All accounts",
   "accounts": "Accounts",
   "transactions": "Transactions",
   "categories": "Categories",

@@ -12,6 +12,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Cash Organizer';
 
   @override
+  String get allAccounts => 'All accounts';
+
+  @override
   String get accounts => 'Accounts';
 
   @override

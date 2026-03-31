@@ -12,6 +12,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get appTitle => 'Organizador de Gastos';
 
   @override
+  String get allAccounts => 'Todas as contas';
+
+  @override
   String get accounts => 'Contas';
 
   @override

@@ -1,3 +1,5 @@
+import 'financial_entity.dart';
+
 class Amount {
   final int value;
   final String currency;
@@ -18,11 +20,13 @@ abstract class AccountBase {
   int id;
   String name;
   Amount amount;
+  FinancialEntity? entity;
 
   AccountBase({
     required this.id,
     required this.name,
     required this.amount,
+    this.entity,
   });
 }
 
@@ -54,6 +58,7 @@ class AccountItem extends AccountBase {
     required super.id,
     required super.name,
     required super.amount,
+    super.entity,
     this.description,
     this.accountType,
     required this.flags,
@@ -69,6 +74,7 @@ class AccountItem extends AccountBase {
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
       amount: Amount.fromJson(json['amount'] ?? {}),
+      entity: json['entity'] != null ? FinancialEntity.fromJson(json['entity']) : null,
       description: json['description'],
       accountType: json['accountType'],
       flags: json['flags'] ?? 0,

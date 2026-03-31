@@ -1,6 +1,7 @@
 {
   "@@locale": "es",
   "appTitle": "Organizador de Gastos",
+  "allAccounts": "Todas las cuentas",
   "accounts": "Cuentas",
   "transactions": "Transacciones",
   "categories": "Categorías",

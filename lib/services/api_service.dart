@@ -13,16 +13,14 @@ class ApiService {
   static const String _port = '8084';
   
   static String get baseUrl {
-    if (kIsWeb) {
-      // Para web, usamos la IP del servidor en lugar de localhost
-      return 'http://$_pcIp:$_port/api';
-    }
+    // Eliminamos el localhost para Web y forzamos la IP del servidor 192.168.1.145:8084
     return 'http://$_pcIp:$_port/api'; 
   }
 
   // --- AUTH ---
   Future<Map<String, dynamic>?> login(String email, String password) async {
     try {
+      // El endpoint real en el backend es /api/v2/auth/login
       final response = await http.post(
         Uri.parse('$baseUrl/v2/auth/login'),
         headers: {'Content-Type': 'application/json'},

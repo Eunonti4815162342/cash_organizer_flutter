@@ -7,12 +7,48 @@ import '../domain/models/category.dart';
 import '../domain/models/financial_entity.dart';
 
 class ApiService {
-  // En Web, 'localhost' es lo correcto. En emulador Android, se usa 10.0.2.2
+  // IP del servidor Jenkins/API
+  static const String _pcIp = '192.168.1.145'; 
+  // Puerto configurado en Jenkins para el contenedor
+  static const String _port = '8084';
+  
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://127.0.0.1:8080/api';
+      // Para web, usamos la IP del servidor en lugar de localhost
+      return 'http://$_pcIp:$_port/api';
     }
-    return 'http://10.0.2.2:8080/api'; 
+    return 'http://$_pcIp:$_port/api'; 
+  }
+
+  // --- AUTH ---
+  Future<Map<String, dynamic>?> login(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/v2/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Login error: $e');
+    }
+    return null;
+  }
+
+  Future<bool> register(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/v2/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Register error: $e');
+      return false;
+    }
   }
 
   // --- ACCOUNTS ---

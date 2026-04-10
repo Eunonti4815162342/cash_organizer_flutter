@@ -66,16 +66,18 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
 
   Future<void> _loadEntities() async {
     final list = await _apiService.fetchEntities();
-    setState(() {
-      _entities = list;
-      if (widget.account?.entity != null) {
-        try {
-          _selectedEntity = _entities.firstWhere((e) => e.id == widget.account!.entity!.id);
-        } catch (e) {
-          _selectedEntity = null;
+    if (mounted) {
+      setState(() {
+        _entities = list;
+        if (widget.account?.entity != null) {
+          try {
+            _selectedEntity = _entities.firstWhere((e) => e.id == widget.account!.entity!.id);
+          } catch (e) {
+            _selectedEntity = null;
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   void _showNewEntityDialog() {
@@ -103,33 +105,34 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isMobile = MediaQuery.of(context).size.width < 800;
     final greyInputStyle = TextStyle(color: Colors.grey.shade600, fontSize: 14);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 100, vertical: 50),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 100, vertical: 50),
       child: Container(
-        width: 1000, 
-        height: 600,
+        width: isMobile ? double.infinity : 1000, 
+        height: isMobile ? double.infinity : 600,
         decoration: BoxDecoration(
           color: AppColors.windowBackground,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 8),
+          boxShadow: isMobile ? null : const [BoxShadow(color: Colors.black26, blurRadius: 20)],
         ),
         child: Column(
           children: [
             // HEADER
             Container(
-              height: 50,
+              height: 60,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: const BoxDecoration(
                 color: AppColors.cardBackground,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
                 border: Border(bottom: BorderSide(color: Colors.black12)),
               ),
               child: Row(
                 children: [
-                  Text(widget.account == null ? 'New Account' : 'Edit Account', style: const TextStyle(fontSize: 18, color: AppColors.primaryText)),
+                  if (isMobile) IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
+                  Text(widget.account == null ? l10n.newAccount : l10n.editAccount, style: const TextStyle(fontSize: 18, color: AppColors.primaryText, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   ElevatedButton(
                     onPressed: () async {
@@ -156,169 +159,111 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                             : await _apiService.updateAccount(widget.account!.id, data);
 
                         if (result != null) {
-                          if (widget.account != null && val != (widget.account!.amount.value / 100)) {
-                            if ((result.amount.value / 100) != val && mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Note: Balance cannot be changed because this account has transactions.')),
-                              );
-                            }
-                          }
                           if (mounted) Navigator.pop(context, true);
                         } else {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Error: Could not save account')),
-                            );
-                          }
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noData)));
                         }
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
                     child: Text(l10n.save, style: const TextStyle(color: Colors.white)),
                   ),
-                  const SizedBox(width: 10),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.secondaryText),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 10),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                  ]
                 ],
               ),
             ),
             
             Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 6,
-                    child: Container(
-                      color: AppColors.cardBackground,
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text('Property', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                                    Container(height: 2, width: 80, color: AppColors.primaryBlue),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1),
-                          Expanded(
-                            child: ListView(
-                              children: [
-                                _buildInputRow('Entity', Row(
-                                  children: [
-                                    Expanded(
-                                      child: DropdownButton<FinancialEntity>(
-                                        value: _selectedEntity,
-                                        isExpanded: true,
-                                        underline: const SizedBox(),
-                                        hint: const Text('Select Entity...'),
-                                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name, style: greyInputStyle))).toList(),
-                                        onChanged: (v) => setState(() => _selectedEntity = v),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
-                                      onPressed: _showNewEntityDialog,
-                                    ),
-                                  ],
-                                )),
-                                _buildInputRow('Name*', TextField(
-                                  controller: _nameController,
-                                  focusNode: _nameFocus,
-                                  style: greyInputStyle,
-                                  decoration: const InputDecoration(hintText: 'Account name', border: InputBorder.none),
-                                )),
-                                _buildInputRow('Description', TextField(
-                                  controller: _descriptionController,
-                                  focusNode: _descFocus,
-                                  style: greyInputStyle,
-                                  decoration: const InputDecoration(hintText: 'Optional description', border: InputBorder.none),
-                                )),
-                                _buildInputRow('Currency', DropdownButton<String>(
-                                  value: _selectedCurrency,
-                                  isExpanded: true,
-                                  underline: const SizedBox(),
-                                  items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e, style: greyInputStyle))).toList(),
-                                  onChanged: (v) => setState(() => _selectedCurrency = v!),
-                                )),
-                                _buildInputRow('Type', DropdownButton<String>(
-                                  value: _selectedType,
-                                  isExpanded: true,
-                                  underline: const SizedBox(),
-                                  items: [
-                                    DropdownMenuItem(value: 'CASH', child: Text('Cash', style: greyInputStyle)),
-                                    DropdownMenuItem(value: 'BANK', child: Text('Bank', style: greyInputStyle)),
-                                    DropdownMenuItem(value: 'CARD', child: Text('Card', style: greyInputStyle)),
-                                  ],
-                                  onChanged: (v) => setState(() => _selectedType = v!),
-                                )),
-                                _buildInputRow('Initial Balance', TextField(
-                                  controller: _initialBalanceController,
-                                  focusNode: _balanceFocus,
-                                  style: greyInputStyle,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(border: InputBorder.none),
-                                )),
-                                _buildInputRow('Notes', TextField(
-                                  controller: _notesController,
-                                  focusNode: _notesFocus,
-                                  style: greyInputStyle,
-                                  maxLines: 3,
-                                  decoration: const InputDecoration(border: InputBorder.none),
-                                )),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  Expanded(
-                    flex: 4,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.sidebarBackground,
-                        border: Border(left: BorderSide(color: Colors.black12)),
-                      ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Account Properties', style: TextStyle(fontSize: 16, color: AppColors.secondaryText)),
-                          const SizedBox(height: 30),
-                          _buildPropertyItem('Name', _nameController.text.isEmpty ? 'New Account' : _nameController.text, isBoldValue: true),
-                          _buildPropertyItem('Currency', _selectedCurrency, isBoldValue: true),
-                          _buildPropertyItem('Total Balance', '€ ${_initialBalanceController.text}', valueColor: Colors.black, isBoldValue: true),
-                          const Spacer(),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              child: const Text('New Transaction', style: TextStyle(color: AppColors.primaryText)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              child: isMobile 
+                ? _buildMobileForm(l10n, greyInputStyle) 
+                : _buildDesktopForm(l10n, greyInputStyle),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopForm(AppLocalizations l10n, TextStyle style) {
+    return Row(
+      children: [
+        Expanded(flex: 6, child: _buildFormFields(l10n, style)),
+        Expanded(flex: 4, child: _buildPropertiesSidebar(l10n)),
+      ],
+    );
+  }
+
+  Widget _buildMobileForm(AppLocalizations l10n, TextStyle style) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildFormFields(l10n, style),
+          const Divider(),
+          _buildPropertiesSidebar(l10n),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormFields(AppLocalizations l10n, TextStyle style) {
+    return Container(
+      color: AppColors.cardBackground,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              children: [
+                _buildInputRow(l10n.entity, Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButton<FinancialEntity>(
+                        value: _selectedEntity,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        hint: const Text('Select Entity...'),
+                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name, style: style))).toList(),
+                        onChanged: (v) => setState(() => _selectedEntity = v),
+                      ),
+                    ),
+                    IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue), onPressed: _showNewEntityDialog),
+                  ],
+                )),
+                _buildInputRow('Name*', TextField(controller: _nameController, focusNode: _nameFocus, style: style, decoration: const InputDecoration(hintText: 'Account name', border: InputBorder.none))),
+                _buildInputRow(l10n.description, TextField(controller: _descriptionController, focusNode: _descFocus, style: style, decoration: const InputDecoration(hintText: 'Optional description', border: InputBorder.none))),
+                _buildInputRow('Currency', DropdownButton<String>(value: _selectedCurrency, isExpanded: true, underline: const SizedBox(), items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e, style: style))).toList(), onChanged: (v) => setState(() => _selectedCurrency = v!))),
+                _buildInputRow(l10n.type, DropdownButton<String>(value: _selectedType, isExpanded: true, underline: const SizedBox(), items: [
+                  DropdownMenuItem(value: 'CASH', child: Text('Cash', style: style)),
+                  DropdownMenuItem(value: 'BANK', child: Text('Bank', style: style)),
+                  DropdownMenuItem(value: 'CARD', child: Text('Card', style: style)),
+                ], onChanged: (v) => setState(() => _selectedType = v!))),
+                _buildInputRow(l10n.initialBalance, TextField(controller: _initialBalanceController, focusNode: _balanceFocus, style: style, keyboardType: TextInputType.number, decoration: const InputDecoration(border: InputBorder.none))),
+                _buildInputRow(l10n.notes, TextField(controller: _notesController, focusNode: _notesFocus, style: style, maxLines: 3, decoration: const InputDecoration(border: InputBorder.none))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPropertiesSidebar(AppLocalizations l10n) {
+    return Container(
+      decoration: const BoxDecoration(color: AppColors.sidebarBackground),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.accountProperties, style: const TextStyle(fontSize: 16, color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          _buildPropertyItem(l10n.accountName, _nameController.text.isEmpty ? 'New Account' : _nameController.text, isBoldValue: true),
+          _buildPropertyItem('Currency', _selectedCurrency, isBoldValue: true),
+          _buildPropertyItem(l10n.totalBalance, '€ ${_initialBalanceController.text}', valueColor: Colors.black, isBoldValue: true),
+        ],
       ),
     );
   }
@@ -328,19 +273,8 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
       child: Row(
         children: [
-          Container(
-            width: 150,
-            padding: const EdgeInsets.all(16),
-            alignment: Alignment.centerRight,
-            child: Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 14)),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              color: const Color(0xFFF9F9F9),
-              child: input,
-            ),
-          ),
+          Container(width: 120, padding: const EdgeInsets.all(16), alignment: Alignment.centerRight, child: Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 13))),
+          Expanded(child: Container(padding: const EdgeInsets.symmetric(horizontal: 16), color: const Color(0xFFF9F9F9), child: input)),
         ],
       ),
     );
@@ -352,8 +286,8 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 13)),
-          Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 15, fontWeight: isBoldValue ? FontWeight.bold : FontWeight.normal)),
+          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
+          Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 14, fontWeight: isBoldValue ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );

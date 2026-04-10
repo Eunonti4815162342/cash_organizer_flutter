@@ -34,60 +34,82 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
         _apiService.fetchEntities(),
         _apiService.fetchAccounts(),
       ]);
-      setState(() {
-        _entities = results[0] as List<FinancialEntity>;
-        _allAccounts = results[1] as List<AccountItem>;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _entities = results[0] as List<FinancialEntity>;
+          _allAccounts = results[1] as List<AccountItem>;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+    
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     final orphans = _allAccounts.where((a) => a.entity == null).toList();
 
-    return Row(
+    // Diseño para Escritorio (Row)
+    Widget desktopLayout = Row(
       children: [
-        Expanded(
-          flex: 7,
-          child: Container(
-            color: AppColors.cardBackground,
-            child: Column(
+        Expanded(flex: 7, child: _buildMainContent(l10n, orphans)),
+        _buildPropertiesPanel(l10n, false),
+      ],
+    );
+
+    // Diseño para Móvil (Column)
+    Widget mobileLayout = SingleChildScrollView(
+      child: Column(
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: _buildMainContent(l10n, orphans),
+          ),
+          const Divider(height: 1),
+          _buildPropertiesPanel(l10n, true),
+        ],
+      ),
+    );
+
+    return isMobile ? mobileLayout : desktopLayout;
+  }
+
+  Widget _buildMainContent(AppLocalizations l10n, List<AccountItem> orphans) {
+    return Container(
+      color: AppColors.cardBackground,
+      child: Column(
+        children: [
+          Container(
+            height: 35,
+            color: AppColors.tableHeader,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
-                Container(
-                  height: 35,
-                  color: AppColors.tableHeader,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text('${l10n.entity} / ${l10n.accountName}', style: AppTextStyles.tableHeader)),
-                      Text(l10n.totalBalance, style: AppTextStyles.tableHeader),
-                      const SizedBox(width: 40),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      ..._entities.map((entity) => _buildEntitySection(entity, l10n)),
-                      if (orphans.isNotEmpty) 
-                        _buildSimpleSection('Individual / No ${l10n.entity}', orphans),
-                    ],
-                  ),
-                ),
-                _buildFooter(l10n),
+                Expanded(child: Text('${l10n.entity} / ${l10n.accountName}', style: AppTextStyles.tableHeader)),
+                Text(l10n.totalBalance, style: AppTextStyles.tableHeader),
+                const SizedBox(width: 40),
               ],
             ),
           ),
-        ),
-        _buildPropertiesPanel(l10n),
-      ],
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              children: [
+                ..._entities.map((entity) => _buildEntitySection(entity, l10n)),
+                if (orphans.isNotEmpty) 
+                  _buildSimpleSection('Individual / No ${l10n.entity}', orphans),
+              ],
+            ),
+          ),
+          _buildFooter(l10n),
+        ],
+      ),
     );
   }
 
@@ -105,12 +127,12 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           children: [
             Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, color: AppColors.primaryBlue, size: 20),
             const SizedBox(width: 10),
-            Expanded(child: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+            Expanded(child: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18, color: Colors.black12),
               onPressed: () => _confirmDeleteEntity(entity, l10n),
             ),
-            Text('€ ${entityTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: entityTotal < 0 ? AppColors.expenseRed : AppColors.primaryBlue)),
+            Text('€ ${entityTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: entityTotal < 0 ? AppColors.expenseRed : AppColors.primaryBlue)),
           ],
         ),
         children: entityAccounts.map((acc) => _buildAccountRow(acc, indent: 32)).toList(),
@@ -130,7 +152,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
               Text('€ ${subtotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: subtotal < 0 ? AppColors.expenseRed : Colors.grey)),
             ],
           ),
@@ -153,9 +175,9 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
             Expanded(child: Row(children: [
               Icon(account.isUnbalanced ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined, size: 18, color: account.isUnbalanced ? AppColors.warningOrange : AppColors.primaryBlue),
               const SizedBox(width: 10),
-              Text(account.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+              Expanded(child: Text(account.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), overflow: TextOverflow.ellipsis)),
             ])),
-            Text('€ ${balance.toStringAsFixed(2)}', style: TextStyle(color: (balance < 0 || account.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, fontWeight: FontWeight.w600)),
+            Text('€ ${balance.toStringAsFixed(2)}', style: TextStyle(color: (balance < 0 || account.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(width: 10),
             const Icon(Icons.more_vert, size: 18, color: AppColors.secondaryText),
           ],
@@ -172,61 +194,64 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text('${l10n.totalBalance}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-          Text('€ ${total.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: total < 0 ? AppColors.expenseRed : Colors.black)),
+          Text('${l10n.totalBalance}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          Text('€ ${total.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: total < 0 ? AppColors.expenseRed : Colors.black)),
           const Icon(Icons.arrow_drop_down, size: 16),
         ],
       ),
     );
   }
 
-  Widget _buildPropertiesPanel(AppLocalizations l10n) {
-    return Expanded(
-      flex: 3,
-      child: Container(
-        decoration: const BoxDecoration(color: AppColors.sidebarBackground, border: Border(left: BorderSide(color: Colors.black12))),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildPropertiesPanel(AppLocalizations l10n, bool isMobile) {
+    Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(l10n.accountProperties, style: const TextStyle(fontSize: 16, color: AppColors.secondaryText)),
-                if (_selectedAccount != null) IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _selectedAccount = null)),
-              ],
-            ),
-            const SizedBox(height: 30),
-            if (_selectedAccount != null) ...[
-              Row(children: [
-                Expanded(child: _buildProp(l10n.accountName, _selectedAccount!.name, isBold: true)),
-                IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue), onPressed: () => _showEditAccountDialog(_selectedAccount!)),
-                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _confirmDeleteAccount(_selectedAccount!, l10n)),
-              ]),
-              _buildProp(l10n.entity, _selectedAccount!.entity?.name ?? 'None', isBold: true),
-              _buildProp(l10n.description, _selectedAccount!.description ?? 'N/A', isBold: true),
-              _buildProp('Currency', _selectedAccount!.amount.currency, isBold: true),
-              _buildProp(l10n.totalBalance, '€ ${(_selectedAccount!.amount.value / 100).toStringAsFixed(2)}', color: (_selectedAccount!.amount.value < 0 || _selectedAccount!.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, isBold: true),
-              _buildProp(l10n.type, _selectedAccount!.accountType ?? 'Cash', isBold: true),
-            ] else Center(child: Text(l10n.noData, style: const TextStyle(fontSize: 12))),
-            const Spacer(),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshData(); });
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200),
-              child: Text(l10n.newTransaction, style: const TextStyle(color: Colors.black)),
-            ))
+            Text(l10n.accountProperties, style: const TextStyle(fontSize: 16, color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+            if (_selectedAccount != null) IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _selectedAccount = null)),
           ],
         ),
+        const SizedBox(height: 20),
+        if (_selectedAccount != null) ...[
+          Row(children: [
+            Expanded(child: _buildProp(l10n.accountName, _selectedAccount!.name, isBold: true)),
+            IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue), onPressed: () => _showEditAccountDialog(_selectedAccount!)),
+            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _confirmDeleteAccount(_selectedAccount!, l10n)),
+          ]),
+          _buildProp(l10n.entity, _selectedAccount!.entity?.name ?? 'None', isBold: true),
+          _buildProp(l10n.description, _selectedAccount!.description ?? 'N/A', isBold: true),
+          _buildProp('Currency', _selectedAccount!.amount.currency, isBold: true),
+          _buildProp(l10n.totalBalance, '€ ${(_selectedAccount!.amount.value / 100).toStringAsFixed(2)}', color: (_selectedAccount!.amount.value < 0 || _selectedAccount!.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, isBold: true),
+          _buildProp(l10n.type, _selectedAccount!.accountType ?? 'Cash', isBold: true),
+        ] else Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(l10n.noData, style: const TextStyle(fontSize: 12)))),
+        const SizedBox(height: 20),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshData(); });
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, padding: const EdgeInsets.symmetric(vertical: 12)),
+          child: Text(l10n.newTransaction, style: const TextStyle(color: Colors.black)),
+        ))
+      ],
+    );
+
+    return Container(
+      width: isMobile ? double.infinity : 300,
+      decoration: BoxDecoration(
+        color: AppColors.sidebarBackground,
+        border: Border(left: isMobile ? BorderSide.none : const BorderSide(color: Colors.black12)),
       ),
+      padding: const EdgeInsets.all(20),
+      child: content,
     );
   }
 
   Widget _buildProp(String label, String value, {Color? color, bool isBold = false}) {
     return Padding(padding: const EdgeInsets.only(bottom: 15.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
-      Text(value, style: TextStyle(color: color ?? AppColors.primaryText, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
+      Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11)),
+      Text(value, style: TextStyle(color: color ?? AppColors.primaryText, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
     ]));
   }
 

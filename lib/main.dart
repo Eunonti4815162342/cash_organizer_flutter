@@ -7,84 +7,33 @@ import 'infrastructure/ui/screens/transaction_list_screen.dart';
 import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
+import 'infrastructure/ui/screens/login_screen.dart';
 import 'infrastructure/ui/widgets/account_form_dialog.dart';
 import 'services/api_service.dart';
-import 'domain/models/account_item.dart';
 
-final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
-
-void main() {
-  runApp(ValueListenableBuilder<Locale>(
-    valueListenable: _appLocale,
-    builder: (context, locale, child) {
-      return CashOrganizerApp(locale: locale);
-    },
-  ));
-}
-
-class CashOrganizerApp extends StatelessWidget {
-  final Locale locale;
-  const CashOrganizerApp({super.key, required this.locale});
+class ResponsiveMainLayout extends StatefulWidget {
+  const ResponsiveMainLayout({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cash Organizer',
-      debugShowCheckedModeBanner: false,
-      locale: locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en'), // English
-        Locale('es'), // Spanish
-        Locale('pt'), // Portuguese
-      ],
-      theme: ThemeData(
-        primaryColor: AppColors.primaryBlue,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primaryBlue,
-          primary: AppColors.primaryBlue,
-          surface: AppColors.cardBackground,
-        ),
-        scaffoldBackgroundColor: AppColors.scaffoldBackground,
-        fontFamily: 'Segoe UI',
-        useMaterial3: true,
-      ),
-      home: const DesktopMainLayout(),
-    );
-  }
+  State<ResponsiveMainLayout> createState() => _ResponsiveMainLayoutState();
 }
 
-class DesktopMainLayout extends StatefulWidget {
-  const DesktopMainLayout({super.key});
-
-  @override
-  State<DesktopMainLayout> createState() => _DesktopMainLayoutState();
-}
-
-class _DesktopMainLayoutState extends State<DesktopMainLayout> {
+class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
   final ApiService _apiService = ApiService();
   int _selectedIndex = 0;
   String? _selectedAccountName;
   String? _selectedAccountId; 
-  bool _isSidebarVisible = true;
   Key _screenKey = UniqueKey();
   List<AccountItem> _accounts = [];
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshAccounts();
   }
 
   Future<void> _refreshAccounts() async {
-    print('DEBUG: Requesting accounts from API...');
     final accs = await _apiService.fetchAccounts();
-    print('DEBUG: Received ${accs.length} accounts');
     if (mounted) {
       setState(() {
         _accounts = accs;
@@ -102,28 +51,33 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isLoggedIn) {
+      return LoginScreen(
+        onLoginSuccess: () {
+          setState(() => _isLoggedIn = true);
+          _refreshAccounts();
+        },
+      );
+    }
+
     final l10n = AppLocalizations.of(context)!;
+    final isMobile = MediaQuery.of(context).size.width < 800;
     _selectedAccountName ??= l10n.allAccounts;
 
     return Scaffold(
-      body: Column(
+      appBar: _buildAppBar(l10n, isMobile),
+      drawer: isMobile ? _buildDrawer(l10n) : null,
+      body: Row(
         children: [
-          _buildBlueTopBar(l10n),
+          if (!isMobile) _buildSidebar(l10n),
           Expanded(
-            child: Row(
+            child: Column(
               children: [
-                if (_isSidebarVisible) _buildSidebar(l10n),
+                _buildWhiteToolbar(l10n),
                 Expanded(
-                  child: Column(
-                    children: [
-                      _buildWhiteToolbar(l10n),
-                      Expanded(
-                        child: Container(
-                          color: const Color(0xFFEAEAEA),
-                          child: _screens[_selectedIndex < _screens.length ? _selectedIndex : 0],
-                        ),
-                      ),
-                    ],
+                  child: Container(
+                    color: const Color(0xFFEAEAEA),
+                    child: _screens[_selectedIndex < _screens.length ? _selectedIndex : 0],
                   ),
                 ),
               ],
@@ -134,75 +88,101 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
     );
   }
 
-  Widget _buildBlueTopBar(AppLocalizations l10n) {
-    return Container(
-      height: 50,
-      color: AppColors.primaryBlue,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white, size: 22),
-            onPressed: () => setState(() => _isSidebarVisible = !_isSidebarVisible),
-          ),
-          const SizedBox(width: 15),
-          Text(
-            l10n.appTitle,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w400),
-          ),
-          const Spacer(),
+  PreferredSizeWidget _buildAppBar(AppLocalizations l10n, bool isMobile) {
+    return AppBar(
+      backgroundColor: AppColors.primaryBlue,
+      elevation: 0,
+      iconTheme: const IconThemeData(color: Colors.white),
+      title: Text(
+        l10n.appTitle,
+        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w400),
+      ),
+      actions: [
+        if (!isMobile) ...[
           _buildLanguageToggle(),
-          const SizedBox(width: 10),
-          Text(l10n.save, style: const TextStyle(color: Colors.white70, fontSize: 13)),
           IconButton(
-            icon: const Icon(Icons.sync, color: Colors.white, size: 20), 
+            icon: const Icon(Icons.sync, size: 20), 
             onPressed: () {
               _refreshAccounts();
-              setState(() {
-                _screenKey = UniqueKey();
-              });
+              setState(() => _screenKey = UniqueKey());
             }
           ),
-          IconButton(icon: const Icon(Icons.calendar_today, color: Colors.white, size: 20), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.apps, color: Colors.white, size: 20), onPressed: () {}),
-          const SizedBox(width: 10),
-          Container(
-            width: 180,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: l10n.search,
-                hintStyle: const TextStyle(fontSize: 13),
-                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondaryText),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.only(bottom: 12),
-              ),
+        ],
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildDrawer(AppLocalizations l10n) {
+    return Drawer(
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: AppColors.primaryBlue),
+            child: Center(
+              child: Text(l10n.appTitle, style: const TextStyle(color: Colors.white, fontSize: 24)),
             ),
           ),
-          const SizedBox(width: 15),
-          const Icon(Icons.cloud_done_outlined, color: Colors.white70, size: 24),
-          const SizedBox(width: 8),
-          const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('user@email.com', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-              Text('Online', style: TextStyle(color: Colors.white70, fontSize: 10)),
-            ],
-          ),
-          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 16),
+          Expanded(child: _buildSidebarItems(l10n)),
+          const Divider(),
+          _buildLanguageSidebarItem(l10n),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
+  Widget _buildSidebar(AppLocalizations l10n) {
+    return Container(
+      width: 200,
+      decoration: const BoxDecoration(
+        color: AppColors.sidebarBackground,
+        border: Border(right: BorderSide(color: Colors.black12)),
+      ),
+      child: _buildSidebarItems(l10n),
+    );
+  }
+
+  Widget _buildSidebarItems(AppLocalizations l10n) {
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
+        _buildSidebarSection('OPERATIONS'),
+        _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
+        _buildSidebarItem(1, Icons.list_alt_outlined, l10n.transactions),
+        _buildSidebarSection('INFORMATION'),
+        _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
+        _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
+        const Divider(),
+        _buildSidebarItem(99, Icons.help_outline, 'Help'),
+      ],
+    );
+  }
+
+  Widget _buildSidebarSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 15, bottom: 5),
+      child: Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondaryText)),
+    );
+  }
+
+  Widget _buildSidebarItem(int index, IconData icon, String label) {
+    bool isSelected = _selectedIndex == index;
+    return ListTile(
+      leading: Icon(icon, size: 20, color: isSelected ? AppColors.primaryBlue : AppColors.primaryText),
+      title: Text(label, style: isSelected ? AppTextStyles.sidebarItemBold : AppTextStyles.sidebarItem),
+      selected: isSelected,
+      onTap: () {
+        setState(() => _selectedIndex = index);
+        if (MediaQuery.of(context).size.width < 800) Navigator.pop(context);
+      },
+    );
+  }
+
   Widget _buildWhiteToolbar(AppLocalizations l10n) {
     return Container(
-      height: 45,
+      height: 50,
       decoration: const BoxDecoration(
         color: AppColors.cardBackground,
         border: Border(bottom: BorderSide(color: Colors.black12)),
@@ -211,20 +191,13 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
       child: Row(
         children: [
           _buildAccountSelector(l10n),
-          const SizedBox(width: 12),
-          if (_selectedIndex == 2)
-            ElevatedButton.icon(
-              onPressed: () => _showNewAccountDialog(),
-              icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: Text(l10n.newAccount, style: const TextStyle(fontSize: 13, color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-            ),
           const Spacer(),
+          if (_selectedIndex == 2)
+            IconButton(
+              onPressed: () => _showNewAccountDialog(),
+              icon: const Icon(Icons.add_circle, color: AppColors.primaryBlue),
+              tooltip: l10n.newAccount,
+            ),
         ],
       ),
     );
@@ -255,105 +228,47 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
         PopupMenuItem(value: 'all', child: Text(l10n.allAccounts)),
         if (_accounts.isNotEmpty) ...[
           const PopupMenuDivider(),
-          PopupMenuItem(enabled: false, child: Text(l10n.accounts, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
-          ..._accounts.map((acc) => PopupMenuItem(
-                value: acc.id.toString(),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(acc.name),
-                ),
-              )),
+          ..._accounts.map((acc) => PopupMenuItem(value: acc.id.toString(), child: Text(acc.name))),
         ],
       ],
-    );
-  }
-
-  Widget _buildSidebar(AppLocalizations l10n) {
-    return Container(
-      width: 200,
-      decoration: const BoxDecoration(
-        color: AppColors.sidebarBackground,
-        border: Border(right: BorderSide(color: Colors.black12)),
-      ),
-      child: Column(
-        children: [
-          _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
-          const Divider(height: 1),
-          _buildSidebarSection('OPERATIONS'),
-          _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
-          _buildSidebarItem(1, Icons.list_alt_outlined, l10n.transactions),
-          _buildSidebarSection('INFORMATION'),
-          _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
-          _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
-          _buildSidebarItem(99, Icons.sell_outlined, 'Payees'),
-          const Spacer(),
-          const Divider(height: 1),
-          _buildSidebarItem(99, Icons.help_outline, 'Help'),
-          const Divider(height: 1),
-          _buildLanguageSidebarItem(l10n),
-          const SizedBox(height: 10),
-        ],
-      ),
     );
   }
 
   Widget _buildLanguageSidebarItem(AppLocalizations l10n) {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        _appLocale.value = Locale(value);
+    return ListTile(
+      leading: const Icon(Icons.language, size: 20),
+      title: Text(l10n.language),
+      trailing: const Icon(Icons.arrow_drop_down),
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => SimpleDialog(
+            title: Text(l10n.language),
+            children: [
+              _languageOption('en', 'English'),
+              _languageOption('es', 'Español'),
+              _languageOption('pt', 'Português'),
+            ],
+          ),
+        );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            const Icon(Icons.language, size: 18, color: AppColors.primaryText),
-            const SizedBox(width: 10),
-            Text(l10n.language, style: AppTextStyles.sidebarItem),
-            const Spacer(),
-            const Icon(Icons.arrow_right, size: 16, color: AppColors.secondaryText),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'en', child: Text('English')),
-        const PopupMenuItem(value: 'es', child: Text('Español')),
-        const PopupMenuItem(value: 'pt', child: Text('Português')),
-      ],
     );
   }
 
-  Widget _buildSidebarSection(String title) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(left: 16, top: 15, bottom: 5),
-      child: Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondaryText)),
-    );
-  }
-
-  Widget _buildSidebarItem(int index, IconData icon, String label) {
-    bool isSelected = _selectedIndex == index;
-    return InkWell(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: isSelected ? AppColors.cardBackground : Colors.transparent,
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isSelected ? AppColors.primaryBlue : AppColors.primaryText),
-            const SizedBox(width: 10),
-            Text(label, style: isSelected ? AppTextStyles.sidebarItemBold : AppTextStyles.sidebarItem),
-          ],
-        ),
-      ),
+  Widget _languageOption(String code, String name) {
+    return SimpleDialogOption(
+      onPressed: () {
+        _appLocale.value = Locale(code);
+        Navigator.pop(context);
+      },
+      child: Text(name),
     );
   }
 
   Widget _buildLanguageToggle() {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.language, color: Colors.white, size: 20),
-      onSelected: (value) {
-        _appLocale.value = Locale(value);
-      },
+      onSelected: (value) => _appLocale.value = Locale(value),
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'en', child: Text('English')),
         const PopupMenuItem(value: 'es', child: Text('Español')),
@@ -370,9 +285,7 @@ class _DesktopMainLayoutState extends State<DesktopMainLayout> {
     ).then((saved) {
       if (saved == true) {
         _refreshAccounts();
-        setState(() {
-          _screenKey = UniqueKey();
-        });
+        setState(() => _screenKey = UniqueKey());
       }
     });
   }

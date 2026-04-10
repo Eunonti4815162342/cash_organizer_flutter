@@ -76,6 +76,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+    
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     return Container(
@@ -84,17 +86,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(child: _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n))),
-                const SizedBox(width: 16),
-                Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector())),
-              ],
-            ),
+            // 1. TOP FILTERS (Responsive Row/Column)
+            isMobile 
+              ? Column(
+                  children: [
+                    _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n)),
+                    const SizedBox(height: 12),
+                    _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector()),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n))),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector())),
+                  ],
+                ),
             const SizedBox(height: 16),
+
+            // 2. BALANCE SUMMARY (UP)
             _buildBalanceSection(l10n),
             const SizedBox(height: 16),
-            _buildCategoriesSection(l10n),
+
+            // 3. CATEGORIES ANALYSIS (DOWN)
+            _buildCategoriesSection(l10n, isMobile),
           ],
         ),
       ),
@@ -198,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCategoriesSection(AppLocalizations l10n) {
+  Widget _buildCategoriesSection(AppLocalizations l10n, bool isMobile) {
     return Column(
       children: [
         _buildViewModeSelector(l10n),
@@ -207,42 +222,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: l10n.categoriesAnalysis.toUpperCase(),
           child: Column(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: SizedBox(
-                      height: 280,
-                      child: _categoryData.isEmpty 
-                        ? Center(child: Text(l10n.noData))
-                        : PieChart(
-                            PieChartData(
-                              pieTouchData: PieTouchData(
-                                touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                                  setState(() {
-                                    if (!event.isInterestedForInteractions || pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
-                                      _touchedIndex = -1;
-                                      return;
-                                    }
-                                    _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                                  });
-                                },
-                              ),
-                              sectionsSpace: 4,
-                              centerSpaceRadius: 50,
-                              sections: _buildChartSections(),
-                            ),
-                          ),
-                    ),
+              isMobile 
+                ? Column(
+                    children: [
+                      SizedBox(height: 250, child: _buildPieChartComponent(l10n)),
+                      const SizedBox(height: 32),
+                      _buildCategoryTable(l10n),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 4, child: SizedBox(height: 280, child: _buildPieChartComponent(l10n))),
+                      const SizedBox(width: 32),
+                      Expanded(flex: 6, child: _buildCategoryTable(l10n)),
+                    ],
                   ),
-                  const SizedBox(width: 32),
-                  Expanded(
-                    flex: 6,
-                    child: _buildCategoryTable(l10n),
-                  ),
-                ],
-              ),
               const Divider(height: 30),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -256,6 +251,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPieChartComponent(AppLocalizations l10n) {
+    if (_categoryData.isEmpty) return Center(child: Text(l10n.noData));
+    return PieChart(
+      PieChartData(
+        pieTouchData: PieTouchData(
+          touchCallback: (FlTouchEvent event, pieTouchResponse) {
+            setState(() {
+              if (!event.isInterestedForInteractions || pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+                _touchedIndex = -1;
+                return;
+              }
+              _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+            });
+          },
+        ),
+        sectionsSpace: 4,
+        centerSpaceRadius: 50,
+        sections: _buildChartSections(),
+      ),
     );
   }
 

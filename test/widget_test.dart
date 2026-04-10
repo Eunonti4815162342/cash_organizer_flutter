@@ -4,7 +4,7 @@ import 'package:cash_organizer_flutter/main.dart';
 void main() {
   testWidgets('App starts smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const CashOrganizerApp());
+    await tester.pumpWidget(const CashOrganizerApp(locale: Locale('en')));
 
     // Verify that the title Resumen exists in our navigation
     expect(find.text('Resumen'), findsWidgets);

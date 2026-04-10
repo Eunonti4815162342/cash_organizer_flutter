@@ -1,38 +1,65 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kReleaseMode, kIsWeb;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../domain/models/account_item.dart';
 import '../domain/models/transaction_item.dart';
 import '../domain/models/category.dart';
 import '../domain/models/financial_entity.dart';
 
 class ApiService {
-  // IP del servidor Jenkins/API
-  static const String _pcIp = '192.168.1.145'; 
-  // Puerto REAL configurado para el acceso externo
-  static const String _port = '8085';
+  final _storage = const FlutterSecureStorage();
+  
+  // CONFIGURACIÓN DE PRODUCCIÓN (Raspberry Pi / Jenkins)
+  static const String _prodIp = '192.168.1.145'; 
+  static const String _prodPort = '8085';
+
+  // CONFIGURACIÓN LOCAL (Tu PC)
+  static const String _localPort = '8085'; 
   
   static String get baseUrl {
-    // Restauramos el /api final para que coincida con el @RequestMapping del Backend
-    return 'http://$_pcIp:$_port/api'; 
+    if (kReleaseMode) {
+      return 'http://$_prodIp:$_prodPort/api';
+    } else {
+      if (kIsWeb) {
+        return 'http://localhost:$_localPort/api';
+      } else {
+        return 'http://10.0.2.2:$_localPort/api';
+      }
+    }
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _storage.read(key: 'jwt_token');
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   // --- AUTH ---
   Future<Map<String, dynamic>?> login(String email, String password) async {
     try {
-      // El endpoint real en el backend es /api/v2/auth/login
       final response = await http.post(
         Uri.parse('$baseUrl/v2/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 10));
+      
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print('Login error: $e');
+      print('[ApiService] Login Exception: $e');
     }
     return null;
+  }
+
+  Future<void> logout() async {
+    print('[ApiService] Logging out, clearing token...');
+    await _storage.delete(key: 'jwt_token');
   }
 
   Future<bool> register(String email, String password) async {
@@ -41,10 +68,10 @@ class ApiService {
         Uri.parse('$baseUrl/v2/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      );
-      return response.statusCode == 200;
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print('Register error: $e');
+      print('[ApiService] Register Exception: $e');
       return false;
     }
   }
@@ -52,56 +79,58 @@ class ApiService {
   // --- ACCOUNTS ---
   Future<List<AccountItem>> fetchAccounts() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/accounts'),
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 5));
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/accounts'), headers: headers)
+          .timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => AccountItem.fromJson(json)).toList();
       }
     } catch (e) {
-      print('Exception fetching accounts: $e');
+      print('[ApiService] Fetch Accounts Exception: $e');
     }
     return []; 
   }
 
   Future<AccountItem?> createAccount(Map<String, dynamic> accountData) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/accounts'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(accountData),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return AccountItem.fromJson(jsonDecode(response.body));
       }
     } catch (e) {
-      print('Exception creating account: $e');
+      print('[ApiService] Create Account Exception: $e');
     }
     return null;
   }
 
   Future<AccountItem?> updateAccount(int id, Map<String, dynamic> accountData) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl/accounts/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(accountData),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return AccountItem.fromJson(jsonDecode(response.body));
       }
     } catch (e) {
-      print('Exception updating account: $e');
+      print('[ApiService] Update Account Exception: $e');
     }
     return null;
   }
 
   Future<bool> deleteAccount(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id'), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       return false;
@@ -110,7 +139,8 @@ class ApiService {
 
   Future<bool> deleteAccountPermanently(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id/permanent'));
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/accounts/$id/permanent'), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       return false;
@@ -120,23 +150,25 @@ class ApiService {
   // --- ENTITIES ---
   Future<List<FinancialEntity>> fetchEntities() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/entities'))
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/entities'), headers: headers)
           .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => FinancialEntity.fromJson(json)).toList();
       }
     } catch (e) {
-      print('Exception fetching entities: $e');
+      print('[ApiService] Fetch Entities Exception: $e');
     }
     return [];
   }
 
   Future<FinancialEntity?> createEntity(Map<String, dynamic> entityData) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/entities'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(entityData),
       );
       return (response.statusCode == 200 || response.statusCode == 201)
@@ -149,7 +181,8 @@ class ApiService {
 
   Future<bool> deleteEntity(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/entities/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/entities/$id'), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       return false;
@@ -159,61 +192,63 @@ class ApiService {
   // --- TRANSACTIONS ---
   Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
     try {
+      final headers = await _getHeaders();
       Map<String, String> queryParams = {};
       if (startDate != null) queryParams['startDate'] = startDate;
       if (endDate != null) queryParams['endDate'] = endDate;
       if (accountId != null) queryParams['accountId'] = accountId;
 
       final uri = Uri.parse('$baseUrl/transactions').replace(queryParameters: queryParams);
-      
-      final response = await http.get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 5));
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
           
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => TransactionItem.fromJson(json)).toList();
       }
     } catch (e) {
-      print('Exception fetching transactions: $e');
+      print('[ApiService] Fetch Transactions Exception: $e');
     }
     return [];
   }
 
   Future<TransactionItem?> createTransaction(Map<String, dynamic> transactionData) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/transactions'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(transactionData),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return TransactionItem.fromJson(jsonDecode(response.body));
       }
     } catch (e) {
-      print('Exception creating transaction: $e');
+      print('[ApiService] Create Transaction Exception: $e');
     }
     return null;
   }
 
   Future<TransactionItem?> updateTransaction(int id, Map<String, dynamic> transactionData) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl/transactions/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(transactionData),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return TransactionItem.fromJson(jsonDecode(response.body));
       }
     } catch (e) {
-      print('Exception updating transaction: $e');
+      print('[ApiService] Update Transaction Exception: $e');
     }
     return null;
   }
 
   Future<bool> deleteTransaction(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/transactions/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/transactions/$id'), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       return false;
@@ -223,22 +258,24 @@ class ApiService {
   // --- CATEGORIES ---
   Future<List<Category>> fetchCategories() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/categories'));
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/categories'), headers: headers);
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
         return jsonList.map((json) => Category.fromJson(json)).toList();
       }
     } catch (e) {
-      print('Exception fetching categories: $e');
+      print('[ApiService] Fetch Categories Exception: $e');
     }
     return [];
   }
 
   Future<Category?> createCategory(Category category, {int? parentId}) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/categories'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode({
           'name': category.name,
           'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
@@ -249,16 +286,52 @@ class ApiService {
         return Category.fromJson(jsonDecode(response.body));
       }
     } catch (e) {
-      print('Exception creating category: $e');
+      print('[ApiService] Create Category Exception: $e');
+    }
+    return null;
+  }
+
+  Future<Uint8List?> downloadPdfReport({
+    required String title,
+    required String chartType,
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+    List<int>? categoryIds,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      
+      final Map<String, String> queryParams = {
+        'title': title,
+        'chartType': chartType,
+      };
+      
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (accountIds != null && accountIds.isNotEmpty) queryParams['accountIds'] = accountIds.join(',');
+      if (categoryIds != null && categoryIds.isNotEmpty) queryParams['categoryIds'] = categoryIds.join(',');
+
+      final uri = Uri.parse('$baseUrl/reports/pdf').replace(queryParameters: queryParams);
+      
+      print('[ApiService] Downloading PDF from: $uri');
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
+      
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+    } catch (e) {
+      print('[ApiService] PDF Download Exception: $e');
     }
     return null;
   }
 
   Future<Category?> updateCategory(int id, Category category) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl/categories/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(category.toJson()),
       );
       return response.statusCode == 200 ? Category.fromJson(jsonDecode(response.body)) : null;
@@ -269,9 +342,10 @@ class ApiService {
 
   Future<Subcategory?> updateSubcategory(int id, Subcategory subcategory) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl/categories/subcategories/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(subcategory.toJson()),
       );
       return response.statusCode == 200 ? Subcategory.fromJson(jsonDecode(response.body)) : null;
@@ -282,9 +356,10 @@ class ApiService {
 
   Future<Subcategory?> createSubcategory(int categoryId, Subcategory subcategory) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/categories/$categoryId/subcategories'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(subcategory.toJson()),
       );
       return (response.statusCode == 200 || response.statusCode == 201)

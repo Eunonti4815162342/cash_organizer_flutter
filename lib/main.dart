@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'l10n/app_localizations.dart';
 import 'infrastructure/ui/styles/app_styles.dart';
 import 'infrastructure/ui/screens/dashboard_screen.dart';
@@ -7,6 +8,7 @@ import 'infrastructure/ui/screens/transaction_list_screen.dart';
 import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
+import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'domain/models/account_item.dart';
 
@@ -21,16 +23,54 @@ void main() {
   ));
 }
 
-class CashOrganizerApp extends StatelessWidget {
+class CashOrganizerApp extends StatefulWidget {
   final Locale locale;
   const CashOrganizerApp({super.key, required this.locale});
 
   @override
+  State<CashOrganizerApp> createState() => _CashOrganizerAppState();
+}
+
+class _CashOrganizerAppState extends State<CashOrganizerApp> {
+  final _storage = const FlutterSecureStorage();
+  bool _isLoggedIn = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    print('[AppStart] Checking login status...');
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      print('[AppStart] Token found: ${token != null}');
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = token != null;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('[AppStart] Error reading token: $e');
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = false;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    print('[AppBuild] IsLoading: $_isLoading, IsLoggedIn: $_isLoggedIn');
     return MaterialApp(
       title: 'Cash Organizer',
       debugShowCheckedModeBanner: false,
-      locale: locale,
+      locale: widget.locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -50,10 +90,13 @@ class CashOrganizerApp extends StatelessWidget {
           surface: AppColors.cardBackground,
         ),
         scaffoldBackgroundColor: AppColors.scaffoldBackground,
-        fontFamily: 'Segoe UI',
         useMaterial3: true,
       ),
-      home: const ResponsiveMainLayout(),
+      home: _isLoading 
+        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+        : _isLoggedIn 
+          ? const ResponsiveMainLayout() 
+          : LoginScreen(onLoginSuccess: () => setState(() => _isLoggedIn = true)),
     );
   }
 }
@@ -194,6 +237,19 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
         _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
         const Divider(),
         _buildSidebarItem(99, Icons.help_outline, 'Help'),
+        ListTile(
+          leading: const Icon(Icons.logout, size: 20, color: Colors.redAccent),
+          title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
+          onTap: () async {
+            await _apiService.logout();
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => CashOrganizerApp(locale: _appLocale.value)),
+                (route) => false,
+              );
+            }
+          },
+        ),
       ],
     );
   }

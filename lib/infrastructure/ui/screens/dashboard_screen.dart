@@ -56,11 +56,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double sum = 0;
 
     for (var tx in txs) {
-      if (_selectedAccount != null && tx.account.id != _selectedAccount!.id) continue;
+      if (tx.account == null) continue; 
+      if (_selectedAccount != null && tx.account?.id != _selectedAccount!.id) continue;
       
       if (tx.type.name == _categoryMode) {
         String catName = tx.category?.name ?? 'General';
-        double val = (tx.amount.value / 100).abs();
+        double val = ((tx.amount?.value ?? 0) / 100).abs();
         catTotals[catName] = (catTotals[catName] ?? 0) + val;
         sum += val;
       }
@@ -184,14 +185,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBalanceSection(AppLocalizations l10n) {
-    double netWorth = _accounts.fold(0, (sum, a) => sum + (a.amount.value / 100));
+    double netWorth = _accounts.fold(0, (sum, a) => sum + ((a.amount?.value ?? 0) / 100));
     return _buildSectionCard(
       title: l10n.balanceSummary.toUpperCase(),
       child: Column(
         children: [
           _buildBalanceRow(l10n.netWorth, netWorth, isBold: true),
           const Divider(),
-          ..._accounts.map((a) => _buildBalanceRow(a.name, a.amount.value / 100)),
+          ..._accounts.map((a) => _buildBalanceRow(a.name, (a.amount?.value ?? 0) / 100)),
         ],
       ),
     );

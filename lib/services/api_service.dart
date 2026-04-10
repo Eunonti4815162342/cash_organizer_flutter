@@ -9,11 +9,11 @@ import '../domain/models/financial_entity.dart';
 class ApiService {
   // IP del servidor Jenkins/API
   static const String _pcIp = '192.168.1.145'; 
-  // Puerto configurado en Jenkins para el contenedor
-  static const String _port = '8084';
+  // Puerto REAL configurado para el acceso externo
+  static const String _port = '8085';
   
   static String get baseUrl {
-    // Eliminamos el localhost para Web y forzamos la IP del servidor 192.168.1.145:8084
+    // Restauramos el /api final para que coincida con el @RequestMapping del Backend
     return 'http://$_pcIp:$_port/api'; 
   }
 

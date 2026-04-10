@@ -7,9 +7,56 @@ import 'infrastructure/ui/screens/transaction_list_screen.dart';
 import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
-import 'infrastructure/ui/screens/login_screen.dart';
-import 'infrastructure/ui/widgets/account_form_dialog.dart';
 import 'services/api_service.dart';
+import 'domain/models/account_item.dart';
+
+final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
+
+void main() {
+  runApp(ValueListenableBuilder<Locale>(
+    valueListenable: _appLocale,
+    builder: (context, locale, child) {
+      return CashOrganizerApp(locale: locale);
+    },
+  ));
+}
+
+class CashOrganizerApp extends StatelessWidget {
+  final Locale locale;
+  const CashOrganizerApp({super.key, required this.locale});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Cash Organizer',
+      debugShowCheckedModeBanner: false,
+      locale: locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'), 
+        Locale('es'), 
+        Locale('pt'), 
+      ],
+      theme: ThemeData(
+        primaryColor: AppColors.primaryBlue,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primaryBlue,
+          primary: AppColors.primaryBlue,
+          surface: AppColors.cardBackground,
+        ),
+        scaffoldBackgroundColor: AppColors.scaffoldBackground,
+        fontFamily: 'Segoe UI',
+        useMaterial3: true,
+      ),
+      home: const ResponsiveMainLayout(),
+    );
+  }
+}
 
 class ResponsiveMainLayout extends StatefulWidget {
   const ResponsiveMainLayout({super.key});
@@ -183,12 +230,6 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
         children: [
           _buildAccountSelector(l10n),
           const Spacer(),
-          if (_selectedIndex == 2)
-            IconButton(
-              onPressed: () => _showNewAccountDialog(),
-              icon: const Icon(Icons.add_circle, color: AppColors.primaryBlue),
-              tooltip: l10n.newAccount,
-            ),
         ],
       ),
     );
@@ -266,18 +307,5 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
         const PopupMenuItem(value: 'pt', child: Text('Português')),
       ],
     );
-  }
-
-  void _showNewAccountDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AccountFormDialog(),
-    ).then((saved) {
-      if (saved == true) {
-        _refreshAccounts();
-        setState(() => _screenKey = UniqueKey());
-      }
-    });
   }
 }

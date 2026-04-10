@@ -25,11 +25,11 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
   String? _selectedAccountId; 
   Key _screenKey = UniqueKey();
   List<AccountItem> _accounts = [];
-  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
+    _refreshAccounts();
   }
 
   Future<void> _refreshAccounts() async {
@@ -51,15 +51,6 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoggedIn) {
-      return LoginScreen(
-        onLoginSuccess: () {
-          setState(() => _isLoggedIn = true);
-          _refreshAccounts();
-        },
-      );
-    }
-
     final l10n = AppLocalizations.of(context)!;
     final isMobile = MediaQuery.of(context).size.width < 800;
     _selectedAccountName ??= l10n.allAccounts;

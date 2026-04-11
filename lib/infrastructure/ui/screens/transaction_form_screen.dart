@@ -3,6 +3,7 @@ import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart';
 import '../../../services/api_service.dart';
+import '../../../services/session_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 class TransactionFormScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class TransactionFormScreen extends StatefulWidget {
 
 class _TransactionFormScreenState extends State<TransactionFormScreen> {
   final ApiService _apiService = ApiService();
+  final SessionService _sessionService = SessionService();
   
   String _selectedTypeLabel = 'EXPENSE'; 
   AccountItem? _selectedAccount;
@@ -33,6 +35,12 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Initialize from session if available
+    if (_sessionService.lastSelectedDate != null) {
+      _selectedDate = _sessionService.lastSelectedDate!;
+    }
+    
     _loadData();
     _amountFocus.addListener(() { if (_amountFocus.hasFocus && (_amountController.text == '0.00' || _amountController.text == '0')) _amountController.clear(); });
     _descriptionFocus.addListener(() { if (_descriptionFocus.hasFocus) _descriptionController.clear(); });
@@ -43,6 +51,11 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       _descriptionController.text = widget.transaction!.description;
       _selectedDate = DateTime.parse(widget.transaction!.date);
     }
+
+    // Request focus on amount field automatically (TRA-003)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _amountFocus.requestFocus();
+    });
   }
 
   @override
@@ -152,7 +165,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       'type': _selectedTypeLabel, 'description': _descriptionController.text, 'date': _selectedDate.toIso8601String(), 'statusFlags': 0, 'isScheduled': false, 'isHeader': false,
     };
     final result = widget.transaction == null ? await _apiService.createTransaction(transactionData) : await _apiService.updateTransaction(widget.transaction!.id, transactionData);
-    if (result != null && mounted) Navigator.of(context).pop(true);
+    if (result != null && mounted) {
+      _sessionService.lastSelectedDate = _selectedDate;
+      Navigator.of(context).pop(true);
+    }
   }
 
   void _showAccountPicker(bool isFrom, AppLocalizations l10n) {

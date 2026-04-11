@@ -10,11 +10,15 @@ import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'services/sync_service.dart';
 import 'domain/models/account_item.dart';
 
 final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SyncService().startAutoSync(); // Iniciar sincronización automática
+  
   runApp(ValueListenableBuilder<Locale>(
     valueListenable: _appLocale,
     builder: (context, locale, child) {

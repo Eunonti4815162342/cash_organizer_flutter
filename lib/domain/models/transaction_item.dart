@@ -10,6 +10,7 @@ class TransactionItem {
   final Amount amount;
   final AccountItem account;
   final Category? category;
+  final Subcategory? subcategory;
   final AccountItem? toAccount;
   final TransactionType type;
   final String? notes;
@@ -25,6 +26,7 @@ class TransactionItem {
     required this.amount,
     required this.account,
     this.category,
+    this.subcategory,
     this.toAccount,
     required this.type,
     this.notes,
@@ -42,6 +44,7 @@ class TransactionItem {
       amount: Amount.fromJson(json['amount'] ?? {}),
       account: AccountItem.fromJson(json['account'] ?? {}),
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
+      subcategory: json['subcategory'] != null ? Subcategory.fromJson(json['subcategory']) : null,
       toAccount: json['toAccount'] != null ? AccountItem.fromJson(json['toAccount']) : null,
       type: TransactionType.values.firstWhere(
         (e) => e.name == (json['type'] ?? 'EXPENSE'),

@@ -30,6 +30,16 @@ class ApiService {
     }
   }
 
+  Future<bool> isOnline() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/v2/auth/login')).timeout(const Duration(seconds: 3));
+      // Si responde (incluso con error de auth 405/400), el servidor está vivo.
+      return response.statusCode != 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, String>> _getHeaders() async {
     final token = await _storage.read(key: 'jwt_token');
     return {
@@ -368,5 +378,32 @@ class ApiService {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<Map<String, double>> fetchCategoryStats({
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+    bool groupBySubcategory = false,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final Map<String, String> queryParams = {};
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (accountIds != null && accountIds.isNotEmpty) queryParams['accountIds'] = accountIds.join(',');
+      if (groupBySubcategory) queryParams['groupBySubcategory'] = 'true';
+
+      final uri = Uri.parse('$baseUrl/reports/category-stats').replace(queryParameters: queryParams);
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+      }
+    } catch (e) {
+      print('[ApiService] Fetch Category Stats Exception: $e');
+    }
+    return {};
   }
 }

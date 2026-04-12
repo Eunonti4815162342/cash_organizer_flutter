@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'l10n/app_localizations.dart';
@@ -9,30 +11,33 @@ import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
-import 'package:flutter/services.dart';
 import 'services/api_service.dart';
-import 'services/sync_service.dart';
 import 'domain/models/account_item.dart';
+
+// Importación condicional
+import 'services/background_sync.dart'
+    if (dart.library.io) 'services/background_sync_mobile.dart'
+    if (dart.library.html) 'services/background_sync_web.dart';
 
 final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Configuración de visualización del sistema (Edge-to-Edge)
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.dark,
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
+  if (!kIsWeb) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
   
-  // Habilitar el modo que permite a la app ir por debajo de las barras del sistema
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  
-  final syncService = SyncService();
-  await syncService.initializeWorkmanager();
-  syncService.scheduleSyncTask(); // Programar tarea nativa
+  // Usar el manager que corresponda a la plataforma
+  final syncManager = getSyncManager();
+  await syncManager.initialize();
+  syncManager.scheduleTask();
   
   runApp(ValueListenableBuilder<Locale>(
     valueListenable: _appLocale,
@@ -51,9 +56,8 @@ class CashOrganizerApp extends StatefulWidget {
 }
 
 class _CashOrganizerAppState extends State<CashOrganizerApp> {
-  final _storage = const FlutterSecureStorage();
   bool _isLoggedIn = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -62,8 +66,7 @@ class _CashOrganizerAppState extends State<CashOrganizerApp> {
   }
 
   Future<void> _checkLoginStatus() async {
-    print('[AppStart] Checking session status...');
-    // Siempre mostramos el Login primero para que gestione la biometría
+    // Siempre mostramos el Login primero para que gestione la biometría/sesión
     if (mounted) {
       setState(() {
         _isLoggedIn = false; 
@@ -74,7 +77,6 @@ class _CashOrganizerAppState extends State<CashOrganizerApp> {
 
   @override
   Widget build(BuildContext context) {
-    print('[AppBuild] IsLoading: $_isLoading, IsLoggedIn: $_isLoggedIn');
     return MaterialApp(
       title: 'Cash Organizer',
       debugShowCheckedModeBanner: false,
@@ -157,7 +159,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       appBar: _buildAppBar(l10n, isMobile),
       drawer: isMobile ? _buildDrawer(l10n) : null,
       body: SafeArea(
-        top: false, // El AppBar ya gestiona la parte superior
+        top: false, 
         child: Row(
           children: [
             if (!isMobile) _buildSidebar(l10n),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/category.dart';
+import '../../../domain/models/transaction_item.dart';
 import '../../../services/api_service.dart';
 import '../widgets/category_form_dialog.dart';
 
@@ -15,11 +16,19 @@ class CategoryListScreen extends StatefulWidget {
 class _CategoryListScreenState extends State<CategoryListScreen> {
   final ApiService _apiService = ApiService();
   late Future<List<Category>> _categoriesFuture;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _refresh() {
@@ -45,112 +54,301 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Column(
-      children: [
-        Container(
-          height: 45,
-          color: AppColors.cardBackground,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Text('Categories', style: AppTextStyles.sidebarItemBold),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _showCategoryForm(),
-                icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                label: Text(l10n.newCategory, style: const TextStyle(fontSize: 13, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F9),
+      body: Column(
+        children: [
+          _buildHeader(l10n, isMobile),
+          _buildSearchBar(l10n),
+          Expanded(
+            child: FutureBuilder<List<Category>>(
+              future: _categoriesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                
+                final allCategories = snapshot.data ?? [];
+                
+                // Aplicar orden alfabético
+                allCategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                for (var cat in allCategories) {
+                  cat.subcategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                }
+
+                final filtered = allCategories.where((c) => 
+                  c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  c.subcategories.any((s) => s.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+                ).toList();
+
+                if (filtered.isEmpty) {
+                  return Center(child: Text(l10n.noData, style: const TextStyle(color: Colors.grey)));
+                }
+
+                return ListView.builder(
+                  padding: EdgeInsets.all(isMobile ? 12 : 24),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) => _buildCategoryCard(filtered[index], l10n, isMobile),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(AppLocalizations l10n, bool isMobile) {
+    return Container(
+      height: 65,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.black12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.category_outlined, color: AppColors.primaryBlue, size: 24),
+          const SizedBox(width: 12),
+          Text(l10n.categories.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, color: AppColors.primaryText)),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: () => _showCategoryForm(),
+            icon: const Icon(Icons.add, size: 16, color: Colors.white),
+            label: Text(l10n.newCategory.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(AppLocalizations l10n) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => setState(() => _searchQuery = v),
+        decoration: InputDecoration(
+          hintText: l10n.search,
+          hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+          prefixIcon: const Icon(Icons.search, size: 20, color: Colors.grey),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFB),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(Category category, AppLocalizations l10n, bool isMobile) {
+    bool isExpense = category.type == CategoryType.expense;
+    Color statusColor = isExpense ? AppColors.expenseRed : AppColors.incomeGreen;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: statusColor, width: 4)),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: Icon(Icons.folder_open_outlined, color: statusColor, size: 20),
               ),
-              const Spacer(),
-              IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _refresh),
-            ],
+              title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText, fontSize: 14)),
+              subtitle: Text(
+                isExpense ? l10n.expense.toUpperCase() : l10n.income.toUpperCase(),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor.withOpacity(0.7)),
+              ),
+              trailing: _buildActionButtons(category),
+              children: [
+                const Divider(height: 1, indent: 20, endIndent: 20),
+                ...category.subcategories.map((sub) => _buildSubcategoryItem(sub, category.id)),
+                _buildAddSubcategoryButton(category.id, statusColor),
+              ],
+            ),
           ),
         ),
-        const Divider(height: 1),
-        Expanded(
-          child: FutureBuilder<List<Category>>(
-            future: _categoriesFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final categories = snapshot.data ?? [];
-              return ListView.builder(
-                itemCount: categories.length,
-                itemBuilder: (context, index) => _buildCategoryTile(categories[index], l10n),
-              );
-            },
-          ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(Category category) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+          onPressed: () => _showCategoryForm(category: category),
+        ),
+        IconButton(
+          icon: Icon(Icons.delete_outline, size: 18, color: Colors.redAccent.withOpacity(0.5)),
+          onPressed: () => _handleDeleteCategory(category),
         ),
       ],
     );
   }
 
-  Widget _buildCategoryTile(Category category, AppLocalizations l10n) {
-    bool isExpense = category.type == CategoryType.expense;
-    
-    return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-          leading: Icon(
-            category.subcategories.isNotEmpty ? Icons.arrow_right : Icons.circle,
-            size: 18,
-            color: AppColors.secondaryText,
-          ),
-          title: Text(category.name, style: AppTextStyles.bodyText),
-          trailing: Row(
+  Future<void> _handleDeleteCategory(Category category) async {
+    final transactions = await _apiService.fetchTransactionsByCategory(category.id);
+    if (transactions.isNotEmpty) {
+      _showLinkedTransactionsModal(category, transactions);
+    } else {
+      _confirmDeleteCategory(category);
+    }
+  }
+
+  void _showLinkedTransactionsModal(Category category, List<TransactionItem> transactions) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Text('Action Required', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                isExpense ? l10n.expense : l10n.income,
-                style: TextStyle(fontSize: 12, color: isExpense ? AppColors.expenseRed : AppColors.incomeGreen),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, size: 18, color: AppColors.primaryBlue),
-                onPressed: () => _showCategoryForm(parentId: category.id),
-                tooltip: 'Add Subcategory',
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
-                onPressed: () => _showCategoryForm(category: category),
-                tooltip: 'Edit Category',
+              Text('Cannot delete "${category.name}" because it has ${transactions.length} transactions assigned.'),
+              const SizedBox(height: 16),
+              const Text('Please reassign these transactions first:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: transactions.length > 5 ? 5 : transactions.length,
+                  itemBuilder: (context, index) {
+                    final tx = transactions[index];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(tx.description, style: const TextStyle(fontSize: 12)),
+                      subtitle: Text('${tx.date.split("T")[0]} • €${(tx.amount.value / 100).toStringAsFixed(2)}', style: const TextStyle(fontSize: 10)),
+                      trailing: const Icon(Icons.chevron_right, size: 14),
+                    );
+                  },
+                ),
               ),
             ],
           ),
-          children: category.subcategories
-              .map((sub) => _buildSubcategoryTile(sub))
-              .toList(),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('GOT IT')),
+        ],
       ),
     );
   }
 
-  Widget _buildSubcategoryTile(Subcategory subcategory) {
-    return Container(
-      padding: const EdgeInsets.only(left: 40, top: 4, bottom: 4, right: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
-        color: Color(0xFFFAFAFA),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.subdirectory_arrow_right, size: 14, color: Colors.grey),
-          const SizedBox(width: 10),
-          Expanded(child: Text(subcategory.name, style: const TextStyle(fontSize: 13))),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
-            onPressed: () => _showCategoryForm(subcategory: subcategory),
-            tooltip: 'Edit Subcategory',
+  void _confirmDeleteCategory(Category category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text('Are you sure you want to delete "${category.name}"? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(context);
+              final result = await _apiService.deleteCategory(category.id);
+              if (result['success']) {
+                _refresh();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+              }
+            },
+            child: const Text('DELETE', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSubcategoryItem(Subcategory subcategory, int parentId) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.subdirectory_arrow_right, size: 16, color: Colors.black12),
+          const SizedBox(width: 12),
+          Expanded(child: Text(subcategory.name, style: const TextStyle(fontSize: 13, color: AppColors.primaryText))),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.black26),
+            onPressed: () => _showCategoryForm(subcategory: subcategory, parentId: parentId),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete_outline, size: 16, color: Colors.redAccent.withOpacity(0.5)),
+            onPressed: () => _confirmDeleteSubcategory(subcategory),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteSubcategory(Subcategory sub) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Subcategory', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete "${sub.name}"? Transactions will be moved to the parent category.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await _apiService.deleteSubcategory(sub.id);
+              if (success) _refresh();
+            },
+            child: const Text('DELETE', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddSubcategoryButton(int parentId, Color statusColor) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 56, bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => _showCategoryForm(parentId: parentId),
+          icon: const Icon(Icons.add, size: 14),
+          label: const Text('ADD SUBCATEGORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          style: TextButton.styleFrom(foregroundColor: statusColor),
+        ),
       ),
     );
   }

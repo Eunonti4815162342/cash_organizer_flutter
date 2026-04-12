@@ -11,29 +11,22 @@ import '../domain/models/financial_entity.dart';
 class ApiService {
   final _storage = const FlutterSecureStorage();
   
-  // CONFIGURACIÓN DE PRODUCCIÓN (Cloudflare Tunnel)
-  static const String _prodUrl = 'api.eunonti.com'; 
-  
-  // CONFIGURACIÓN LOCAL (Tu PC)
-  static const String _localIp = '192.168.1.192'; 
-  static const String _localPort = '8085'; 
-  
+  // IP DE LA RASPBERRY EN TAILSCALE
+  static const String _rpiTailscaleIp = '100.86.48.34'; 
+  static const String _port = '8085';
+
   static String get baseUrl {
-    if (kReleaseMode) {
-      return 'https://$_prodUrl/api'; // Producción siempre por HTTPS vía Cloudflare
-    } else {
-      if (kIsWeb) {
-        return 'http://localhost:$_localPort/api';
-      } else {
-        return 'http://$_localIp:$_localPort/api';
-      }
+    // Si estamos en la Web (PC), usamos localhost
+    if (kIsWeb) {
+      return 'http://localhost:$_port/api';
     }
+    // Para la APK (Release o Debug), apuntamos siempre a la Raspberry vía Tailscale
+    return 'http://$_rpiTailscaleIp:$_port/api';
   }
 
   Future<bool> isOnline() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/v2/auth/login')).timeout(const Duration(seconds: 3));
-      // Si responde (incluso con error de auth 405/400), el servidor está vivo.
       return response.statusCode != 0;
     } catch (_) {
       return false;
@@ -52,6 +45,7 @@ class ApiService {
   // --- AUTH ---
   Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) async {
     try {
+      print('[ApiService] Login Request to: $baseUrl/v2/auth/login');
       final response = await http.post(
         Uri.parse('$baseUrl/v2/auth/login'),
         headers: {'Content-Type': 'application/json'},
@@ -62,27 +56,31 @@ class ApiService {
         }),
       ).timeout(const Duration(seconds: 10));
       
+      print('[ApiService] Login Status: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
+      } else {
+        throw 'Server responded with status ${response.statusCode}: ${response.body}';
       }
     } catch (e) {
       print('[ApiService] Login Exception: $e');
+      throw e.toString();
     }
-    return null;
   }
 
   Future<void> logout() async {
-    print('[ApiService] Logging out, clearing token...');
     await _storage.delete(key: 'jwt_token');
   }
 
   Future<bool> register(String email, String password) async {
     try {
+      print('[ApiService] Register Request to: $baseUrl/v2/auth/register');
       final response = await http.post(
         Uri.parse('$baseUrl/v2/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       ).timeout(const Duration(seconds: 10));
+      print('[ApiService] Register Status: ${response.statusCode}');
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('[ApiService] Register Exception: $e');
@@ -217,7 +215,7 @@ class ApiService {
           
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = jsonDecode(response.body);
-        final List<dynamic> jsonList = body['content']; // Extraer contenido de la página
+        final List<dynamic> jsonList = body['content']; 
         return jsonList.map((json) => TransactionItem.fromJson(json)).toList();
       }
     } catch (e) {
@@ -328,8 +326,6 @@ class ApiService {
       if (categoryIds != null && categoryIds.isNotEmpty) queryParams['categoryIds'] = categoryIds.join(',');
 
       final uri = Uri.parse('$baseUrl/reports/pdf').replace(queryParameters: queryParams);
-      
-      print('[ApiService] Downloading PDF from: $uri');
       final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
       
       if (response.statusCode == 200) {
@@ -344,45 +340,56 @@ class ApiService {
   Future<Category?> updateCategory(int id, Category category) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/categories/$id'),
-        headers: headers,
-        body: jsonEncode(category.toJson()),
-      );
+      final response = await http.put(Uri.parse('$baseUrl/categories/$id'), headers: headers, body: jsonEncode(category.toJson()));
       return response.statusCode == 200 ? Category.fromJson(jsonDecode(response.body)) : null;
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   }
 
   Future<Subcategory?> updateSubcategory(int id, Subcategory subcategory) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/categories/subcategories/$id'),
-        headers: headers,
-        body: jsonEncode(subcategory.toJson()),
-      );
+      final response = await http.put(Uri.parse('$baseUrl/categories/subcategories/$id'), headers: headers, body: jsonEncode(subcategory.toJson()));
       return response.statusCode == 200 ? Subcategory.fromJson(jsonDecode(response.body)) : null;
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   }
 
   Future<Subcategory?> createSubcategory(int categoryId, Subcategory subcategory) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/categories/$categoryId/subcategories'),
-        headers: headers,
-        body: jsonEncode(subcategory.toJson()),
-      );
-      return (response.statusCode == 200 || response.statusCode == 201)
-          ? Subcategory.fromJson(jsonDecode(response.body))
-          : null;
-    } catch (e) {
-      return null;
-    }
+      final response = await http.post(Uri.parse('$baseUrl/categories/$categoryId/subcategories'), headers: headers, body: jsonEncode(subcategory.toJson()));
+      return (response.statusCode == 200 || response.statusCode == 201) ? Subcategory.fromJson(jsonDecode(response.body)) : null;
+    } catch (e) { return null; }
+  }
+
+  Future<bool> deleteSubcategory(int id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/categories/subcategories/$id'), headers: headers);
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) { return false; }
+  }
+
+  Future<List<TransactionItem>> fetchTransactionsByCategory(int categoryId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/categories/$categoryId/transactions'), headers: headers);
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(response.body);
+        return jsonList.map((json) => TransactionItem.fromJson(json)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<Map<String, dynamic>> deleteCategory(int id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse('$baseUrl/categories/$id'), headers: headers);
+      if (response.statusCode == 400 || response.statusCode == 500) {
+        return {'success': false, 'message': jsonDecode(response.body)['message'] ?? 'Error'};
+      }
+      return {'success': response.statusCode == 200 || response.statusCode == 204};
+    } catch (e) { return {'success': false, 'message': e.toString()}; }
   }
 
   Future<Map<String, double>> fetchCategoryStats({

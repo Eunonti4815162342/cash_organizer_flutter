@@ -76,18 +76,47 @@ class _LoginScreenState extends State<LoginScreen> {
         print('[LoginScreen] Token saved, notifying success...');
         widget.onLoginSuccess();
       } else {
-        setState(() {
-          _error = 'Error de login. Verifica tus credenciales.';
-          _isLoading = false;
-        });
+        _showErrorDialog('Login Error', 'Respuesta inesperada del servidor.');
       }
     } catch (e) {
       print('[LoginScreen] Unexpected Exception: $e');
-      setState(() {
-        _error = 'Error inesperado: $e';
-        _isLoading = false;
-      });
+      _showErrorDialog('Connection Error', e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Technical Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(4)),
+              child: Text(message, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+            ),
+            const SizedBox(height: 16),
+            const Text('Verify Tailscale connection and server IP (100.86.48.34:8085)'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
   }
 
   @override

@@ -55,6 +55,13 @@
   "openReport": "Abrir Relatório",
   "exportPdf": "Exportar PDF",
   "noData": "Nenhum dado disponível",
+  "analysisLevel": "NÍVEL DE ANÁLISE",
+  "groupBySubcategory": "Agrupar por subcategoria",
+  "accountBalanceReport": "Resumo de Saldos",
+  "spendingByAccount": "Gastos por conta",
+  "categoryAnalysis": "Análise por Categoria",
+  "reportTypes": "TIPOS DE RELATÓRIO",
+  "filterByAccounts": "FILTRAR POR CONTAS",
   "newEntity": "Nova Entidade",
   "legalEntity": "Entidade Jurídica",
   "physicalPerson": "Pessoa Física"

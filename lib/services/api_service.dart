@@ -11,21 +11,21 @@ import '../domain/models/financial_entity.dart';
 class ApiService {
   final _storage = const FlutterSecureStorage();
   
-  // CONFIGURACIÓN DE PRODUCCIÓN (Raspberry Pi / Jenkins)
-  static const String _prodIp = '192.168.1.145'; 
-  static const String _prodPort = '8085';
-
+  // CONFIGURACIÓN DE PRODUCCIÓN (Cloudflare Tunnel)
+  static const String _prodUrl = 'api.eunonti.com'; 
+  
   // CONFIGURACIÓN LOCAL (Tu PC)
+  static const String _localIp = '192.168.1.192'; 
   static const String _localPort = '8085'; 
   
   static String get baseUrl {
     if (kReleaseMode) {
-      return 'http://$_prodIp:$_prodPort/api';
+      return 'https://$_prodUrl/api'; // Producción siempre por HTTPS vía Cloudflare
     } else {
       if (kIsWeb) {
         return 'http://localhost:$_localPort/api';
       } else {
-        return 'http://10.0.2.2:$_localPort/api';
+        return 'http://$_localIp:$_localPort/api';
       }
     }
   }
@@ -50,12 +50,16 @@ class ApiService {
   }
 
   // --- AUTH ---
-  Future<Map<String, dynamic>?> login(String email, String password) async {
+  Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/v2/auth/login'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'email': email, 
+          'password': password,
+          'rememberMe': rememberMe
+        }),
       ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
@@ -212,7 +216,8 @@ class ApiService {
       final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
           
       if (response.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(response.body);
+        final Map<String, dynamic> body = jsonDecode(response.body);
+        final List<dynamic> jsonList = body['content']; // Extraer contenido de la página
         return jsonList.map((json) => TransactionItem.fromJson(json)).toList();
       }
     } catch (e) {

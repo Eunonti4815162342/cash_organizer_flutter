@@ -9,15 +9,30 @@ import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
+import 'package:flutter/services.dart';
 import 'services/api_service.dart';
 import 'services/sync_service.dart';
 import 'domain/models/account_item.dart';
 
 final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SyncService().startAutoSync(); // Iniciar sincronización automática
+  
+  // Configuración de visualización del sistema (Edge-to-Edge)
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+  ));
+  
+  // Habilitar el modo que permite a la app ir por debajo de las barras del sistema
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  
+  final syncService = SyncService();
+  await syncService.initializeWorkmanager();
+  syncService.scheduleSyncTask(); // Programar tarea nativa
   
   runApp(ValueListenableBuilder<Locale>(
     valueListenable: _appLocale,
@@ -47,24 +62,13 @@ class _CashOrganizerAppState extends State<CashOrganizerApp> {
   }
 
   Future<void> _checkLoginStatus() async {
-    print('[AppStart] Checking login status...');
-    try {
-      final token = await _storage.read(key: 'jwt_token');
-      print('[AppStart] Token found: ${token != null}');
-      if (mounted) {
-        setState(() {
-          _isLoggedIn = token != null;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('[AppStart] Error reading token: $e');
-      if (mounted) {
-        setState(() {
-          _isLoggedIn = false;
-          _isLoading = false;
-        });
-      }
+    print('[AppStart] Checking session status...');
+    // Siempre mostramos el Login primero para que gestione la biometría
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = false; 
+        _isLoading = false;
+      });
     }
   }
 
@@ -152,23 +156,26 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
     return Scaffold(
       appBar: _buildAppBar(l10n, isMobile),
       drawer: isMobile ? _buildDrawer(l10n) : null,
-      body: Row(
-        children: [
-          if (!isMobile) _buildSidebar(l10n),
-          Expanded(
-            child: Column(
-              children: [
-                _buildWhiteToolbar(l10n),
-                Expanded(
-                  child: Container(
-                    color: const Color(0xFFEAEAEA),
-                    child: _screens[_selectedIndex < _screens.length ? _selectedIndex : 0],
+      body: SafeArea(
+        top: false, // El AppBar ya gestiona la parte superior
+        child: Row(
+          children: [
+            if (!isMobile) _buildSidebar(l10n),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildWhiteToolbar(l10n),
+                  Expanded(
+                    child: Container(
+                      color: const Color(0xFFEAEAEA),
+                      child: _screens[_selectedIndex < _screens.length ? _selectedIndex : 0],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

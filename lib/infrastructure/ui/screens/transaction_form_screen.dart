@@ -97,45 +97,47 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           TextButton(onPressed: () => _save(l10n), child: Text(l10n.save.toUpperCase(), style: const TextStyle(color: Color(0xFF009FFB), fontWeight: FontWeight.bold))),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(color: Colors.white, child: Row(children: [
-              _buildTypeTab('EXPENSE', l10n.expense.toUpperCase(), Colors.redAccent),
-              _buildTypeTab('INCOME', l10n.income.toUpperCase(), Colors.greenAccent),
-              _buildTypeTab('TRANSFER', l10n.transfer.toUpperCase(), Colors.blueAccent),
-            ])),
-            const Divider(height: 1),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16), width: double.infinity, color: themeColor.withOpacity(0.05),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(l10n.amount.toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                TextField(
-                  controller: _amountController, focusNode: _amountFocus, textAlign: TextAlign.right, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: themeColor.withOpacity(0.6)),
-                  decoration: const InputDecoration(border: InputBorder.none, prefixText: '€ ', prefixStyle: TextStyle(fontSize: 24, color: Colors.grey)),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            _buildSelectionTile(label: _selectedTypeLabel == 'TRANSFER' ? 'FROM ${l10n.accounts.toUpperCase()}' : l10n.accounts.toUpperCase(), value: _selectedAccount?.name ?? 'Select...', icon: Icons.account_balance_wallet_outlined, onTap: () => _showAccountPicker(true, l10n)),
-            _buildDivider(),
-            _buildSelectionTile(label: l10n.date.toUpperCase(), value: "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}", icon: Icons.calendar_today_outlined, onTap: () => _showDatePicker()),
-            _buildDivider(),
-            if (_selectedTypeLabel == 'TRANSFER') ...[
-              _buildSelectionTile(label: 'TO ${l10n.accounts.toUpperCase()}', value: _selectedToAccount?.name ?? 'Select...', icon: Icons.swap_horiz_outlined, onTap: () => _showAccountPicker(false, l10n)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(color: Colors.white, child: Row(children: [
+                _buildTypeTab('EXPENSE', l10n.expense.toUpperCase(), Colors.redAccent),
+                _buildTypeTab('INCOME', l10n.income.toUpperCase(), Colors.greenAccent),
+                _buildTypeTab('TRANSFER', l10n.transfer.toUpperCase(), Colors.blueAccent),
+              ])),
+              const Divider(height: 1),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16), width: double.infinity, color: themeColor.withOpacity(0.05),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(l10n.amount.toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  TextField(
+                    controller: _amountController, focusNode: _amountFocus, textAlign: TextAlign.right, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: themeColor.withOpacity(0.6)),
+                    decoration: const InputDecoration(border: InputBorder.none, prefixText: '€ ', prefixStyle: TextStyle(fontSize: 24, color: Colors.grey)),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              _buildSelectionTile(label: _selectedTypeLabel == 'TRANSFER' ? 'FROM ${l10n.accounts.toUpperCase()}' : l10n.accounts.toUpperCase(), value: _selectedAccount?.name ?? 'Select...', icon: Icons.account_balance_wallet_outlined, onTap: () => _showAccountPicker(true, l10n)),
               _buildDivider(),
-            ] else ...[
-              _buildSelectionTile(label: l10n.categories.toUpperCase(), value: _selectedCategory?.name ?? 'Select...', icon: Icons.category_outlined, onTap: () => _showCategoryPicker(filteredCategories, l10n)),
+              _buildSelectionTile(label: l10n.date.toUpperCase(), value: "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}", icon: Icons.calendar_today_outlined, onTap: () => _showDatePicker()),
+              _buildDivider(),
+              if (_selectedTypeLabel == 'TRANSFER') ...[
+                _buildSelectionTile(label: 'TO ${l10n.accounts.toUpperCase()}', value: _selectedToAccount?.name ?? 'Select...', icon: Icons.swap_horiz_outlined, onTap: () => _showAccountPicker(false, l10n)),
+                _buildDivider(),
+              ] else ...[
+                _buildSelectionTile(label: l10n.categories.toUpperCase(), value: _selectedCategory?.name ?? 'Select...', icon: Icons.category_outlined, onTap: () => _showCategoryPicker(filteredCategories, l10n)),
+                _buildDivider(),
+              ],
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: TextField(
+                controller: _descriptionController, focusNode: _descriptionFocus, style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                decoration: InputDecoration(labelText: l10n.description.toUpperCase(), labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF009FFB), fontWeight: FontWeight.bold), hintText: 'Add a note...', floatingLabelBehavior: FloatingLabelBehavior.always, border: InputBorder.none),
+                maxLines: 2,
+              )),
               _buildDivider(),
             ],
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: TextField(
-              controller: _descriptionController, focusNode: _descriptionFocus, style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
-              decoration: InputDecoration(labelText: l10n.description.toUpperCase(), labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF009FFB), fontWeight: FontWeight.bold), hintText: 'Add a note...', floatingLabelBehavior: FloatingLabelBehavior.always, border: InputBorder.none),
-              maxLines: 2,
-            )),
-            _buildDivider(),
-          ],
+          ),
         ),
       ),
     );

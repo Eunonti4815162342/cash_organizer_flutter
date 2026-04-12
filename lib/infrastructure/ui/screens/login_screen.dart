@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../services/api_service.dart';
+import '../../../services/biometric_service.dart';
 import '../styles/app_styles.dart';
 import 'register_screen.dart';
 
@@ -16,10 +17,43 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _apiService = ApiService();
+  final _biometricService = BiometricService();
   final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
   bool _showRegister = false;
+  bool _rememberMe = true;
+  bool _canUseBiometrics = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    final canCheck = await _biometricService.canCheckBiometrics();
+    final hasToken = await _storage.containsKey(key: 'jwt_token');
+    
+    if (mounted) {
+      setState(() => _canUseBiometrics = canCheck && hasToken);
+    }
+
+    // Auto-lanzar biometría si es posible para mayor comodidad
+    if (_canUseBiometrics) {
+      _handleBiometricLogin();
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    final authenticated = await _biometricService.authenticate(
+      localizedReason: 'Escanea tu huella o usa FaceID para ingresar',
+    );
+
+    if (authenticated && mounted) {
+      widget.onLoginSuccess();
+    }
+  }
 
   Future<void> _handleLogin() async {
     print('[LoginScreen] Attempting login for: ${_emailController.text}');
@@ -32,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await _apiService.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        rememberMe: _rememberMe,
       );
 
       print('[LoginScreen] API Login Result: ${response != null}');
@@ -102,6 +137,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                title: const Text('Recordar en este dispositivo', style: TextStyle(fontSize: 13)),
+                value: _rememberMe,
+                activeColor: AppColors.primaryBlue,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (val) => setState(() => _rememberMe = val ?? false),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -122,6 +166,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     : const Text('INGRESAR'),
                 ),
               ),
+              if (_canUseBiometrics) ...[
+                const SizedBox(height: 16),
+                IconButton(
+                  icon: const Icon(Icons.fingerprint, size: 48, color: AppColors.primaryBlue),
+                  onPressed: _handleBiometricLogin,
+                  tooltip: 'Ingresar con biometría',
+                ),
+                const Text('Usar Biometría', style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+              ],
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => setState(() => _showRegister = true),

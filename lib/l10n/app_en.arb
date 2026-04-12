@@ -55,6 +55,13 @@
   "openReport": "Open Report",
   "exportPdf": "Export PDF",
   "noData": "No data available",
+  "analysisLevel": "ANALYSIS LEVEL",
+  "groupBySubcategory": "Group by subcategory",
+  "accountBalanceReport": "Account Balance Report",
+  "spendingByAccount": "Spending by account",
+  "categoryAnalysis": "Category Analysis",
+  "reportTypes": "REPORT TYPES",
+  "filterByAccounts": "FILTER BY ACCOUNTS",
   "newEntity": "New Entity",
   "legalEntity": "Legal Entity",
   "physicalPerson": "Physical Person"

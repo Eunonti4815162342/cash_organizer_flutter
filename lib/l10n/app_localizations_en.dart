@@ -175,6 +175,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noData => 'No data available';
 
   @override
+  String get analysisLevel => 'ANALYSIS LEVEL';
+
+  @override
+  String get groupBySubcategory => 'Group by subcategory';
+
+  @override
+  String get accountBalanceReport => 'Account Balance Report';
+
+  @override
+  String get spendingByAccount => 'Spending by account';
+
+  @override
+  String get categoryAnalysis => 'Category Analysis';
+
+  @override
+  String get reportTypes => 'REPORT TYPES';
+
+  @override
+  String get filterByAccounts => 'FILTER BY ACCOUNTS';
+
+  @override
   String get newEntity => 'New Entity';
 
   @override

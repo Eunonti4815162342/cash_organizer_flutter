@@ -430,6 +430,48 @@ abstract class AppLocalizations {
   /// **'No data available'**
   String get noData;
 
+  /// No description provided for @analysisLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'ANALYSIS LEVEL'**
+  String get analysisLevel;
+
+  /// No description provided for @groupBySubcategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Group by subcategory'**
+  String get groupBySubcategory;
+
+  /// No description provided for @accountBalanceReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Balance Report'**
+  String get accountBalanceReport;
+
+  /// No description provided for @spendingByAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending by account'**
+  String get spendingByAccount;
+
+  /// No description provided for @categoryAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Category Analysis'**
+  String get categoryAnalysis;
+
+  /// No description provided for @reportTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'REPORT TYPES'**
+  String get reportTypes;
+
+  /// No description provided for @filterByAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'FILTER BY ACCOUNTS'**
+  String get filterByAccounts;
+
   /// No description provided for @newEntity.
   ///
   /// In en, this message translates to:

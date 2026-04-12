@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:printing/printing.dart';
 import '../styles/app_styles.dart';
 import '../widgets/donut_chart.dart';
+import '../widgets/bar_chart.dart';
 import '../../../services/api_service.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/category.dart';
@@ -18,7 +19,7 @@ class ReportsListScreen extends StatefulWidget {
 class _ReportsListScreenState extends State<ReportsListScreen> {
   final ApiService _apiService = ApiService();
   
-  String? _selectedReportTitle = 'Category Analysis';
+  String? _selectedReportTitle;
   bool _isPieChart = true;
   
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -60,6 +61,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _accounts = accs;
           _categories = cats;
           _categoryStats = stats;
+          _selectedReportTitle ??= AppLocalizations.of(context)!.categoryAnalysis;
           _isLoading = false;
         });
       }
@@ -77,7 +79,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       backgroundColor: const Color(0xFFF4F7F9),
       body: Column(
         children: [
-          _buildTopBar(l10n),
+          _buildTopBar(l10n, isMobile),
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
@@ -88,34 +90,33 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Widget _buildTopBar(AppLocalizations l10n) {
+  Widget _buildTopBar(AppLocalizations l10n, bool isMobile) {
     return Container(
       height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.black12)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.analytics_outlined, color: AppColors.primaryBlue),
-          const SizedBox(width: 12),
-          Text(l10n.reports.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, color: AppColors.primaryText)),
-          const Spacer(),
-          _buildDateRangeChip(),
-          const SizedBox(width: 16),
-          IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadData),
+          Icon(Icons.analytics_outlined, color: AppColors.primaryBlue, size: isMobile ? 20 : 24),
+          const SizedBox(width: 8),
+          Expanded(child: Text(l10n.reports.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14, letterSpacing: 1.2, color: AppColors.primaryText), overflow: TextOverflow.ellipsis)),
+          _buildDateRangeChip(isMobile),
+          IconButton(icon: Icon(Icons.refresh, size: isMobile ? 18 : 20), onPressed: _loadData),
         ],
       ),
     );
   }
 
-  Widget _buildDateRangeChip() {
+  Widget _buildDateRangeChip(bool isMobile) {
     return ActionChip(
       backgroundColor: Colors.white,
+      padding: EdgeInsets.zero,
       side: const BorderSide(color: Colors.black12),
-      avatar: const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryBlue),
-      label: Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: const TextStyle(fontSize: 12)),
+      avatar: const Icon(Icons.calendar_today, size: 12, color: AppColors.primaryBlue),
+      label: Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: TextStyle(fontSize: isMobile ? 10 : 12)),
       onPressed: _selectDateRange,
     );
   }
@@ -152,32 +153,32 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildMobileLayout(AppLocalizations l10n) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       child: Column(
         children: [
-          _buildMainContent(l10n),
-          const SizedBox(height: 16),
-          _buildSidebar(l10n),
+          _buildMainContent(l10n, isMobile: true),
+          const SizedBox(height: 12),
+          _buildSidebar(l10n, isMobile: true),
         ],
       ),
     );
   }
 
-  Widget _buildSidebar(AppLocalizations l10n) {
+  Widget _buildSidebar(AppLocalizations l10n, {bool isMobile = false}) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('REPORT TYPES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text(l10n.reportTypes, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 16),
-          _buildReportTypeCard('Category Analysis', 'Spending by category', Icons.category_outlined),
-          _buildReportTypeCard('Account Balance Report', 'Total wealth view', Icons.account_balance_wallet_outlined),
-          const SizedBox(height: 32),
-          const Text('FILTER BY ACCOUNTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 12),
+          _buildReportTypeCard(l10n.categoryAnalysis, l10n.categoriesAnalysis, Icons.category_outlined),
+          _buildReportTypeCard(l10n.accountBalanceReport, l10n.spendingByAccount, Icons.account_balance_wallet_outlined),
+          const SizedBox(height: 24),
+          Text(l10n.filterByAccounts, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
           ..._accounts.take(5).map((acc) => CheckboxListTile(
-            title: Text(acc.name, style: const TextStyle(fontSize: 13)),
+            title: Text(acc.name, style: const TextStyle(fontSize: 12)),
             value: _selectedAccountIds.contains(acc.id),
             dense: true,
             visualDensity: VisualDensity.compact,
@@ -188,11 +189,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
               _loadData();
             },
           )),
-          const SizedBox(height: 32),
-          const Text('OPTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
+          Text(l10n.analysisLevel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
           SwitchListTile(
-            title: const Text('Group by Subcategory', style: TextStyle(fontSize: 13)),
+            title: Text(l10n.groupBySubcategory, style: const TextStyle(fontSize: 12)),
             value: _groupBySubcategory,
             activeColor: AppColors.primaryBlue,
             dense: true,
@@ -213,7 +214,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       onTap: () => setState(() => _selectedReportTitle = title),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primaryBlue : Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -221,12 +222,12 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? Colors.white : AppColors.primaryBlue, size: 24),
+            Icon(icon, color: isSelected ? Colors.white : AppColors.primaryBlue, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.primaryText)),
-                Text(subtitle, style: TextStyle(fontSize: 10, color: isSelected ? Colors.white70 : Colors.grey)),
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.primaryText)),
+                Text(subtitle, style: TextStyle(fontSize: 9, color: isSelected ? Colors.white70 : Colors.grey)),
               ]),
             ),
           ],
@@ -235,17 +236,17 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Widget _buildMainContent(AppLocalizations l10n) {
+  Widget _buildMainContent(AppLocalizations l10n, {bool isMobile = false}) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.all(isMobile ? 4.0 : 24.0),
       child: Column(
         children: [
           // Main Chart Card
           Container(
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.all(isMobile ? 16 : 32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))],
             ),
             child: Column(
@@ -253,19 +254,38 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_selectedReportTitle!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
-                    _buildExportButton(l10n),
+                    Expanded(child: Text(_selectedReportTitle ?? '', style: TextStyle(fontSize: isMobile ? 15 : 18, fontWeight: FontWeight.bold, color: AppColors.primaryText), overflow: TextOverflow.ellipsis)),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.pie_chart_outline, size: isMobile ? 20 : 24, color: _isPieChart ? AppColors.primaryBlue : Colors.grey),
+                          onPressed: () => setState(() => _isPieChart = true),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.bar_chart_outlined, size: isMobile ? 20 : 24, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey),
+                          onPressed: () => setState(() => _isPieChart = false),
+                        ),
+                        if (!isMobile) ...[
+                          const SizedBox(width: 16),
+                          _buildExportButton(l10n),
+                        ]
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 40),
+                if (isMobile) ...[
+                  const SizedBox(height: 8),
+                  _buildExportButton(l10n, isMobile: true),
+                ],
+                const SizedBox(height: 24),
                 SizedBox(
-                  height: 300,
-                  child: _selectedReportTitle == 'Category Analysis' 
-                    ? DonutChart(data: _categoryStats, thickness: 50)
-                    : _buildPieChart(),
+                  height: isMobile ? 220 : 300,
+                  child: _isPieChart 
+                    ? DonutChart(data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), thickness: isMobile ? 35 : 50)
+                    : CustomBarChart(data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), barWidth: isMobile ? 20 : 30),
                 ),
-                const SizedBox(height: 40),
-                _buildModernLegend(_selectedReportTitle == 'Category Analysis' ? _categoryStats : _getAccountStats()),
+                const SizedBox(height: 32),
+                _buildModernLegend(_selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), isMobile: isMobile),
               ],
             ),
           ),
@@ -274,29 +294,24 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Map<String, double> _getAccountStats() {
-    final filtered = _accounts.where((a) => _selectedAccountIds.contains(a.id)).toList();
-    return {for (var a in filtered) a.name: (a.amount.value / 100).abs().toDouble()};
-  }
-
-  Widget _buildModernLegend(Map<String, double> stats) {
+  Widget _buildModernLegend(Map<String, double> stats, {bool isMobile = false}) {
     if (stats.isEmpty) return const Text('No data for this selection', style: TextStyle(color: Colors.grey));
     final total = stats.values.fold(0.0, (sum, val) => sum + val);
     
     return Wrap(
-      spacing: 24,
-      runSpacing: 16,
+      spacing: isMobile ? 12 : 24,
+      runSpacing: isMobile ? 12 : 16,
       children: stats.entries.toList().asMap().entries.map((entry) {
-        final percentage = (entry.value.value / total * 100).toStringAsFixed(1);
+        final percentage = total == 0 ? "0" : (entry.value.value / total * 100).toStringAsFixed(1);
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 12, height: 12, decoration: BoxDecoration(color: _getPaletteColor(entry.key), borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 8),
+            Container(width: 10, height: 10, decoration: BoxDecoration(color: _getPaletteColor(entry.key), borderRadius: BorderRadius.circular(3))),
+            const SizedBox(width: 6),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.value.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
+                Text(entry.value.key, style: TextStyle(fontSize: isMobile ? 11 : 12, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
                 Text('$percentage% • €${entry.value.value.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
@@ -306,19 +321,21 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Widget _buildPieChart() {
-    return DonutChart(data: _getAccountStats(), thickness: 50);
+  Map<String, double> _getAccountStats() {
+    final filtered = _accounts.where((a) => _selectedAccountIds.contains(a.id)).toList();
+    return {for (var a in filtered) a.name: (a.amount.value / 100).abs().toDouble()};
   }
 
-  Widget _buildExportButton(AppLocalizations l10n) {
+  Widget _buildExportButton(AppLocalizations l10n, {bool isMobile = false}) {
     return ElevatedButton.icon(
       onPressed: _isLoading ? null : _generatePdf,
-      icon: const Icon(Icons.picture_as_pdf, size: 16),
-      label: Text(l10n.exportPdf.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      icon: Icon(Icons.picture_as_pdf, size: isMobile ? 14 : 16),
+      label: Text(l10n.exportPdf.toUpperCase(), style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );

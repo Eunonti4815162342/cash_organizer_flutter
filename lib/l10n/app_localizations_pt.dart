@@ -176,6 +176,27 @@ class AppLocalizationsPt extends AppLocalizations {
   String get noData => 'Nenhum dado disponível';
 
   @override
+  String get analysisLevel => 'NÍVEL DE ANÁLISE';
+
+  @override
+  String get groupBySubcategory => 'Agrupar por subcategoria';
+
+  @override
+  String get accountBalanceReport => 'Resumo de Saldos';
+
+  @override
+  String get spendingByAccount => 'Gastos por conta';
+
+  @override
+  String get categoryAnalysis => 'Análise por Categoria';
+
+  @override
+  String get reportTypes => 'TIPOS DE RELATÓRIO';
+
+  @override
+  String get filterByAccounts => 'FILTRAR POR CONTAS';
+
+  @override
   String get newEntity => 'Nova Entidade';
 
   @override

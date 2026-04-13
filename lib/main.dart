@@ -78,7 +78,7 @@ class _CashOrganizerAppState extends State<CashOrganizerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cash Organizer',
+      title: 'CashKeep',
       debugShowCheckedModeBanner: false,
       locale: widget.locale,
       localizationsDelegates: const [

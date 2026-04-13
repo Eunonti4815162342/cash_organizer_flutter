@@ -9,7 +9,7 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
-  String get appTitle => 'Cash Organizer';
+  String get appTitle => 'CashKeep';
 
   @override
   String get allAccounts => 'Todas as contas';

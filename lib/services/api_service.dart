@@ -13,8 +13,9 @@ class ApiService {
   static const String _serverUrl = "http://100.86.48.34:8085/api";
 
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8085/api';
-    return _serverUrl;
+    String url = _serverUrl.trim();
+    if (kIsWeb) url = 'http://localhost:8085/api';
+    return url;
   }
 
   Future<Map<String, String>> _getHeaders() async {
@@ -27,6 +28,7 @@ class ApiService {
   }
 
   dynamic _processResponse(http.Response response) {
+    print('DEBUG [ApiService] Response: ${response.statusCode}');
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
     } else if (response.statusCode == 401 || response.statusCode == 403) {
@@ -38,14 +40,22 @@ class ApiService {
 
   Future<bool> isOnline() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/auth/login')).timeout(const Duration(seconds: 2));
+      final url = '$baseUrl/auth/login';
+      print('DEBUG [ApiService] Testing: $url');
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 2));
       return response.statusCode != 0;
     } catch (_) { return false; }
   }
 
   // --- AUTH ---
   Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) async {
-    final response = await http.post(Uri.parse('$baseUrl/auth/login'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password, 'rememberMe': rememberMe})).timeout(const Duration(seconds: 15));
+    final url = '$baseUrl/auth/login';
+    print('DEBUG [ApiService] Calling login at: $url');
+    final response = await http.post(
+      Uri.parse(url), 
+      headers: {'Content-Type': 'application/json'}, 
+      body: jsonEncode({'email': email, 'password': password, 'rememberMe': rememberMe})
+    ).timeout(const Duration(seconds: 15));
     return _processResponse(response);
   }
 

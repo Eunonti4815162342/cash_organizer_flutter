@@ -10,10 +10,10 @@ import '../domain/models/financial_entity.dart';
 
 class ApiService {
   final _storage = const FlutterSecureStorage();
-  static const String _serverUrl = "http://100.86.48.34:8080/api";
+  static const String _serverUrl = "http://100.86.48.34:8085/api";
 
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8080/api';
+    if (kIsWeb) return 'http://localhost:8085/api';
     return _serverUrl;
   }
 

@@ -10,10 +10,10 @@ import '../domain/models/financial_entity.dart';
 
 class ApiService {
   final _storage = const FlutterSecureStorage();
-  static const String _serverUrl = "http://100.86.48.34:8085/api";
+  static const String _serverUrl = "http://100.86.48.34:8080/api";
 
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8085/api';
+    if (kIsWeb) return 'http://localhost:8080/api';
     return _serverUrl;
   }
 
@@ -38,19 +38,19 @@ class ApiService {
 
   Future<bool> isOnline() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/v2/auth/login')).timeout(const Duration(seconds: 2));
+      final response = await http.get(Uri.parse('$baseUrl/auth/login')).timeout(const Duration(seconds: 2));
       return response.statusCode != 0;
     } catch (_) { return false; }
   }
 
   // --- AUTH ---
   Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) async {
-    final response = await http.post(Uri.parse('$baseUrl/v2/auth/login'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password, 'rememberMe': rememberMe})).timeout(const Duration(seconds: 15));
+    final response = await http.post(Uri.parse('$baseUrl/auth/login'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password, 'rememberMe': rememberMe})).timeout(const Duration(seconds: 15));
     return _processResponse(response);
   }
 
   Future<bool> register(String email, String password) async {
-    final response = await http.post(Uri.parse('$baseUrl/v2/auth/register'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password}));
+    final response = await http.post(Uri.parse('$baseUrl/auth/register'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': email, 'password': password}));
     return response.statusCode == 200 || response.statusCode == 201;
   }
 

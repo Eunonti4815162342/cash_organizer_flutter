@@ -20,7 +20,7 @@ class SyncService {
 
     // 1. Descargar y persistir Categorías de la API
     try {
-      final categories = await _apiService.getCategories();
+      final categories = await _apiService.fetchCategories();
       if (categories.isNotEmpty) {
         await _categoryRepo.saveAll(categories);
       }

@@ -11,8 +11,20 @@ class TransactionListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNegative = transaction.amount.isNegative;
+    final isNegative = transaction.amount.isNegative || transaction.type == TransactionType.EXPENSE;
+    final isIncome = transaction.type == TransactionType.INCOME;
+    final isTransfer = transaction.type == TransactionType.TRANSFER;
     
+    Color indicatorColor = Colors.grey;
+    if (isIncome) indicatorColor = Colors.green.withOpacity(0.7);
+    if (isNegative && !isTransfer) indicatorColor = Colors.red.withOpacity(0.7);
+    if (isTransfer) indicatorColor = const Color(0xFF009FFB).withOpacity(0.7);
+
+    Color textColor = Colors.grey;
+    if (isIncome) textColor = Colors.green.shade700;
+    if (isNegative && !isTransfer) textColor = Colors.red.shade700;
+    if (isTransfer) textColor = const Color(0xFF4A636F);
+
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
@@ -37,7 +49,7 @@ class TransactionListItem extends StatelessWidget {
                   Container(
                     width: 6,
                     height: double.infinity,
-                    color: isNegative ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
+                    color: indicatorColor,
                   ),
                   const SizedBox(width: 10),
                   // Nombre y Categoría/Etiquetas
@@ -97,11 +109,11 @@ class TransactionListItem extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${isNegative ? '-' : ''}\$${(transaction.amount.value / 100).abs().toStringAsFixed(2)}',
+                          '${isNegative ? '-' : ''}€${(transaction.amount.value / 100).abs().toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isNegative ? Colors.red.shade700 : Colors.green.shade700,
+                            color: textColor,
                           ),
                         ),
                         Text(

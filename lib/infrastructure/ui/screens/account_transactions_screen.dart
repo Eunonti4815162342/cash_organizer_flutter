@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/financial_entity.dart';
+import '../../../domain/repositories/account_repository.dart';
+import '../../../infrastructure/repositories/cached_account_repository.dart';
 import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'transaction_form_screen.dart';
@@ -15,7 +17,9 @@ class AccountTransactionsScreen extends StatefulWidget {
 }
 
 class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
+  final IAccountRepository _accountRepo = CachedAccountRepository();
   final ApiService _apiService = ApiService();
+  
   List<FinancialEntity> _entities = [];
   List<AccountItem> _allAccounts = [];
   bool _isLoading = true;
@@ -30,14 +34,14 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        _apiService.fetchEntities(),
-        _apiService.fetchAccounts(),
-      ]);
+      // Entidades financieras todavía vienen de la API directamente (podríamos cachearlas luego)
+      final ents = await _apiService.fetchEntities();
+      final accs = await _accountRepo.fetchAccounts();
+      
       if (mounted) {
         setState(() {
-          _entities = results[0] as List<FinancialEntity>;
-          _allAccounts = results[1] as List<AccountItem>;
+          _entities = ents;
+          _allAccounts = accs;
           _isLoading = false;
         });
       }
@@ -55,7 +59,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
 
     final orphans = _allAccounts.where((a) => a.entity == null).toList();
 
-    // Diseño para Escritorio (Row)
     Widget desktopLayout = Row(
       children: [
         Expanded(flex: 7, child: _buildMainContent(l10n, orphans)),
@@ -63,7 +66,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       ],
     );
 
-    // Diseño para Móvil (Column)
     Widget mobileLayout = SingleChildScrollView(
       child: Column(
         children: [
@@ -226,14 +228,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           _buildProp(l10n.totalBalance, '€ ${(_selectedAccount!.amount.value / 100).toStringAsFixed(2)}', color: (_selectedAccount!.amount.value < 0 || _selectedAccount!.amount.isNegative) ? AppColors.expenseRed : AppColors.incomeGreen, isBold: true),
           _buildProp(l10n.type, _selectedAccount!.accountType ?? 'Cash', isBold: true),
         ] else Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(l10n.noData, style: const TextStyle(fontSize: 12)))),
-        const SizedBox(height: 20),
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshData(); });
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, padding: const EdgeInsets.symmetric(vertical: 12)),
-          child: Text(l10n.newTransaction, style: const TextStyle(color: Colors.black)),
-        ))
       ],
     );
 

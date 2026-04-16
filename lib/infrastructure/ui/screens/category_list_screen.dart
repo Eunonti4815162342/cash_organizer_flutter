@@ -3,6 +3,8 @@ import '../../../l10n/app_localizations.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/category.dart';
 import '../../../domain/models/transaction_item.dart';
+import '../../../domain/repositories/category_repository.dart';
+import '../../../infrastructure/repositories/cached_category_repository.dart';
 import '../../../services/api_service.dart';
 import '../widgets/category_form_dialog.dart';
 
@@ -14,6 +16,7 @@ class CategoryListScreen extends StatefulWidget {
 }
 
 class _CategoryListScreenState extends State<CategoryListScreen> {
+  final ICategoryRepository _categoryRepo = CachedCategoryRepository();
   final ApiService _apiService = ApiService();
   late Future<List<Category>> _categoriesFuture;
   final TextEditingController _searchController = TextEditingController();
@@ -33,7 +36,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
   void _refresh() {
     setState(() {
-      _categoriesFuture = _apiService.fetchCategories();
+      _categoriesFuture = _categoryRepo.fetchCategories();
     });
   }
 
@@ -74,8 +77,6 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                 }
                 
                 final allCategories = snapshot.data ?? [];
-                
-                // Aplicar orden alfabético
                 allCategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
                 for (var cat in allCategories) {
                   cat.subcategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -173,11 +174,12 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
+              initiallyExpanded: category.subcategories.isNotEmpty,
               tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.folder_open_outlined, color: statusColor, size: 20),
+                child: Icon(Icons.folder_outlined, color: statusColor, size: 20),
               ),
               title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText, fontSize: 14)),
               subtitle: Text(
@@ -186,8 +188,8 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               ),
               trailing: _buildActionButtons(category),
               children: [
-                const Divider(height: 1, indent: 20, endIndent: 20),
-                ...category.subcategories.map((sub) => _buildSubcategoryItem(sub, category.id)),
+                const Divider(height: 1, indent: 20, endIndent: 20, color: Color(0xFFF0F0F0)),
+                ...category.subcategories.map((sub) => _buildSubcategoryItem(sub, category.id, statusColor)),
                 _buildAddSubcategoryButton(category.id, statusColor),
               ],
             ),
@@ -295,20 +297,24 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     );
   }
 
-  Widget _buildSubcategoryItem(Subcategory subcategory, int parentId) {
+  Widget _buildSubcategoryItem(Subcategory subcategory, int parentId, Color parentColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       child: Row(
         children: [
-          const Icon(Icons.subdirectory_arrow_right, size: 16, color: Colors.black12),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
+          Container(
+            width: 6, height: 6,
+            decoration: BoxDecoration(color: parentColor.withOpacity(0.3), shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 16),
           Expanded(child: Text(subcategory.name, style: const TextStyle(fontSize: 13, color: AppColors.primaryText))),
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.black26),
             onPressed: () => _showCategoryForm(subcategory: subcategory, parentId: parentId),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, size: 16, color: Colors.redAccent.withOpacity(0.5)),
+            icon: Icon(Icons.delete_outline, size: 16, color: Colors.redAccent.withOpacity(0.3)),
             onPressed: () => _confirmDeleteSubcategory(subcategory),
           ),
         ],
@@ -340,14 +346,14 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
   Widget _buildAddSubcategoryButton(int parentId, Color statusColor) {
     return Padding(
-      padding: const EdgeInsets.only(left: 56, bottom: 8),
+      padding: const EdgeInsets.only(left: 48, bottom: 8),
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
           onPressed: () => _showCategoryForm(parentId: parentId),
           icon: const Icon(Icons.add, size: 14),
           label: const Text('ADD SUBCATEGORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-          style: TextButton.styleFrom(foregroundColor: statusColor),
+          style: TextButton.styleFrom(foregroundColor: statusColor.withOpacity(0.6)),
         ),
       ),
     );

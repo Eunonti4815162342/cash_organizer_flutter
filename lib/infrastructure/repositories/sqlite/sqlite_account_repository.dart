@@ -17,7 +17,7 @@ class SqliteAccountRepository implements IAccountRepository {
       amount: Amount(
         m['amount_value'],
         m['amount_currency'],
-        m['amount_value'] < 0,
+        m['is_negative'] == 1,
       ),
       flags: 0,
       description: m['description'],
@@ -34,6 +34,7 @@ class SqliteAccountRepository implements IAccountRepository {
         'name': account.name,
         'amount_value': account.amount.value,
         'amount_currency': account.amount.currency,
+        'is_negative': account.amount.isNegative ? 1 : 0,
         'description': account.description,
         'last_updated': DateTime.now().toIso8601String(),
       },
@@ -42,10 +43,10 @@ class SqliteAccountRepository implements IAccountRepository {
   }
 
   @override
-  Future<void> saveAll(List<List<AccountItem>> accounts) async {
+  Future<void> saveAll(List<AccountItem> accounts) async {
     final db = await _dbHelper.database;
     await db.transaction((txn) async {
-      for (var account in accounts.expand((x) => x)) {
+      for (var account in accounts) {
         await txn.insert(
           'accounts',
           {
@@ -53,6 +54,7 @@ class SqliteAccountRepository implements IAccountRepository {
             'name': account.name,
             'amount_value': account.amount.value,
             'amount_currency': account.amount.currency,
+            'is_negative': account.amount.isNegative ? 1 : 0,
             'description': account.description,
             'last_updated': DateTime.now().toIso8601String(),
           },
@@ -74,7 +76,7 @@ class SqliteAccountRepository implements IAccountRepository {
       amount: Amount(
         m['amount_value'] as int,
         m['amount_currency'] as String,
-        (m['amount_value'] as int) < 0,
+        m['is_negative'] == 1,
       ),
       flags: 0,
       description: m['description'] as String?,

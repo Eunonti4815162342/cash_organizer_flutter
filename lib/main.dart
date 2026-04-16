@@ -23,7 +23,6 @@ final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,
@@ -33,87 +32,56 @@ void main() async {
     ));
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
-  
-  // Usar el manager que corresponda a la plataforma
   final syncManager = getSyncManager();
   await syncManager.initialize();
   syncManager.scheduleTask();
-  
   runApp(ValueListenableBuilder<Locale>(
     valueListenable: _appLocale,
-    builder: (context, locale, child) {
-      return CashOrganizerApp(locale: locale);
-    },
+    builder: (context, locale, child) => CashKeepApp(locale: locale),
   ));
 }
 
-class CashOrganizerApp extends StatefulWidget {
+class CashKeepApp extends StatefulWidget {
   final Locale locale;
-  const CashOrganizerApp({super.key, required this.locale});
-
+  const CashKeepApp({super.key, required this.locale});
   @override
-  State<CashOrganizerApp> createState() => _CashOrganizerAppState();
+  State<CashKeepApp> createState() => _CashKeepAppState();
 }
 
-class _CashOrganizerAppState extends State<CashOrganizerApp> {
+class _CashKeepAppState extends State<CashKeepApp> {
   bool _isLoggedIn = false;
   bool _isLoading = false;
-
   @override
   void initState() {
     super.initState();
     _checkLoginStatus();
   }
-
   Future<void> _checkLoginStatus() async {
-    // Siempre mostramos el Login primero para que gestione la biometría/sesión
-    if (mounted) {
-      setState(() {
-        _isLoggedIn = false; 
-        _isLoading = false;
-      });
-    }
+    if (mounted) setState(() { _isLoggedIn = false; _isLoading = false; });
   }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CashKeep',
       debugShowCheckedModeBanner: false,
       locale: widget.locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en'), 
-        Locale('es'), 
-        Locale('pt'), 
-      ],
+      localizationsDelegates: const [AppLocalizations.delegate, GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
+      supportedLocales: const [Locale('en'), Locale('es'), Locale('pt')],
       theme: ThemeData(
         primaryColor: AppColors.primaryBlue,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primaryBlue,
-          primary: AppColors.primaryBlue,
-          surface: AppColors.cardBackground,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryBlue, primary: AppColors.primaryBlue, surface: AppColors.cardBackground),
         scaffoldBackgroundColor: AppColors.scaffoldBackground,
         useMaterial3: true,
       ),
       home: _isLoading 
         ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-        : _isLoggedIn 
-          ? const ResponsiveMainLayout() 
-          : LoginScreen(onLoginSuccess: () => setState(() => _isLoggedIn = true)),
+        : _isLoggedIn ? const ResponsiveMainLayout() : LoginScreen(onLoginSuccess: () => setState(() => _isLoggedIn = true)),
     );
   }
 }
 
 class ResponsiveMainLayout extends StatefulWidget {
   const ResponsiveMainLayout({super.key});
-
   @override
   State<ResponsiveMainLayout> createState() => _ResponsiveMainLayoutState();
 }
@@ -121,39 +89,31 @@ class ResponsiveMainLayout extends StatefulWidget {
 class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
   final ApiService _apiService = ApiService();
   int _selectedIndex = 0;
-  String? _selectedAccountName;
-  String? _selectedAccountId; 
   Key _screenKey = UniqueKey();
-  List<AccountItem> _accounts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshAccounts();
-  }
-
-  Future<void> _refreshAccounts() async {
-    final accs = await _apiService.fetchAccounts();
-    if (mounted) {
-      setState(() {
-        _accounts = accs;
-      });
-    }
-  }
 
   List<Widget> get _screens => [
     const DashboardScreen(),
-    TransactionListScreen(accountId: _selectedAccountId),
-    AccountTransactionsScreen(key: _screenKey),
+    const TransactionListScreen(),
+    const AccountTransactionsScreen(),
     const ReportsListScreen(),
     const CategoryListScreen(),
   ];
+
+  String _getPageTitle(AppLocalizations l10n) {
+    switch (_selectedIndex) {
+      case 0: return l10n.dashboard;
+      case 1: return l10n.transactions;
+      case 2: return l10n.accounts;
+      case 3: return l10n.reports;
+      case 4: return l10n.categories;
+      default: return 'CashKeep';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isMobile = MediaQuery.of(context).size.width < 800;
-    _selectedAccountName ??= l10n.allAccounts;
 
     return Scaffold(
       appBar: _buildAppBar(l10n, isMobile),
@@ -166,12 +126,9 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
             Expanded(
               child: Column(
                 children: [
-                  _buildWhiteToolbar(l10n),
+                  _buildWhiteToolbar(),
                   Expanded(
-                    child: Container(
-                      color: const Color(0xFFEAEAEA),
-                      child: _screens[_selectedIndex < _screens.length ? _selectedIndex : 0],
-                    ),
+                    child: Container(color: const Color(0xFFEAEAEA), child: _screens[_selectedIndex]),
                   ),
                 ],
               ),
@@ -187,21 +144,9 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       backgroundColor: AppColors.primaryBlue,
       elevation: 0,
       iconTheme: const IconThemeData(color: Colors.white),
-      title: Text(
-        l10n.appTitle,
-        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w400),
-      ),
+      title: Text(_getPageTitle(l10n), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w400)),
       actions: [
-        if (!isMobile) ...[
-          _buildLanguageToggle(),
-          IconButton(
-            icon: const Icon(Icons.sync, size: 20), 
-            onPressed: () {
-              _refreshAccounts();
-              setState(() => _screenKey = UniqueKey());
-            }
-          ),
-        ],
+        if (!isMobile) ...[_buildLanguageToggle(), IconButton(icon: const Icon(Icons.sync, size: 20), onPressed: () => setState(() => _screenKey = UniqueKey()))],
         const SizedBox(width: 8),
       ],
     );
@@ -211,16 +156,36 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
     return Drawer(
       child: Column(
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: AppColors.primaryBlue),
-            child: Center(
-              child: Text(l10n.appTitle, style: const TextStyle(color: Colors.white, fontSize: 24)),
+          Container(
+            height: 120, width: double.infinity, color: AppColors.primaryBlue,
+            padding: const EdgeInsets.only(top: 40),
+            child: Center(child: Text(l10n.appTitle, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
+                _buildSidebarSection('OPERATIONS'),
+                _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
+                _buildSidebarItem(1, Icons.list_alt_outlined, l10n.transactions),
+                _buildSidebarSection('INFORMATION'),
+                _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
+                _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
+                const Divider(),
+                _buildLanguageSidebarItem(l10n),
+                ListTile(
+                  leading: const Icon(Icons.logout, size: 20, color: Colors.redAccent),
+                  title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
+                  onTap: () async {
+                    await _apiService.logout();
+                    if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => CashKeepApp(locale: _appLocale.value)), (route) => false);
+                  },
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
-          Expanded(child: _buildSidebarItems(l10n)),
-          const Divider(),
-          _buildLanguageSidebarItem(l10n),
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -228,50 +193,33 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
 
   Widget _buildSidebar(AppLocalizations l10n) {
     return Container(
-      width: 200,
-      decoration: const BoxDecoration(
-        color: AppColors.sidebarBackground,
-        border: Border(right: BorderSide(color: Colors.black12)),
+      width: 200, decoration: const BoxDecoration(color: AppColors.sidebarBackground, border: Border(right: BorderSide(color: Colors.black12))),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
+          _buildSidebarSection('OPERATIONS'),
+          _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
+          _buildSidebarItem(1, Icons.list_alt_outlined, l10n.transactions),
+          _buildSidebarSection('INFORMATION'),
+          _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
+          _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, size: 20, color: Colors.redAccent),
+            title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
+            onTap: () async {
+              await _apiService.logout();
+              if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => CashKeepApp(locale: _appLocale.value)), (route) => false);
+            },
+          ),
+        ],
       ),
-      child: _buildSidebarItems(l10n),
-    );
-  }
-
-  Widget _buildSidebarItems(AppLocalizations l10n) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _buildSidebarItem(0, Icons.dashboard_outlined, l10n.dashboard),
-        _buildSidebarSection('OPERATIONS'),
-        _buildSidebarItem(2, Icons.account_balance_wallet_outlined, l10n.accounts),
-        _buildSidebarItem(1, Icons.list_alt_outlined, l10n.transactions),
-        _buildSidebarSection('INFORMATION'),
-        _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
-        _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
-        const Divider(),
-        _buildSidebarItem(99, Icons.help_outline, 'Help'),
-        ListTile(
-          leading: const Icon(Icons.logout, size: 20, color: Colors.redAccent),
-          title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
-          onTap: () async {
-            await _apiService.logout();
-            if (mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => CashOrganizerApp(locale: _appLocale.value)),
-                (route) => false,
-              );
-            }
-          },
-        ),
-      ],
     );
   }
 
   Widget _buildSidebarSection(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 15, bottom: 5),
-      child: Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondaryText)),
-    );
+    return Padding(padding: const EdgeInsets.only(left: 16, top: 15, bottom: 5), child: Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondaryText)));
   }
 
   Widget _buildSidebarItem(int index, IconData icon, String label) {
@@ -282,57 +230,16 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       selected: isSelected,
       onTap: () {
         setState(() => _selectedIndex = index);
-        if (MediaQuery.of(context).size.width < 800) Navigator.pop(context);
+        // Si podemos hacer pop (es decir, el drawer está abierto), lo cerramos
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       },
     );
   }
 
-  Widget _buildWhiteToolbar(AppLocalizations l10n) {
-    return Container(
-      height: 50,
-      decoration: const BoxDecoration(
-        color: AppColors.cardBackground,
-        border: Border(bottom: BorderSide(color: Colors.black12)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          _buildAccountSelector(l10n),
-          const Spacer(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccountSelector(AppLocalizations l10n) {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        setState(() {
-          if (value == 'all') {
-            _selectedAccountName = l10n.allAccounts;
-            _selectedAccountId = null;
-          } else {
-            final acc = _accounts.firstWhere((a) => a.id.toString() == value);
-            _selectedAccountName = acc.name;
-            _selectedAccountId = value;
-          }
-          _screenKey = UniqueKey(); 
-        });
-      },
-      child: Row(
-        children: [
-          Text(_selectedAccountName!, style: const TextStyle(fontSize: 14, color: AppColors.primaryText, fontWeight: FontWeight.w500)),
-          const Icon(Icons.arrow_drop_down, color: AppColors.secondaryText),
-        ],
-      ),
-      itemBuilder: (context) => [
-        PopupMenuItem(value: 'all', child: Text(l10n.allAccounts)),
-        if (_accounts.isNotEmpty) ...[
-          const PopupMenuDivider(),
-          ..._accounts.map((acc) => PopupMenuItem(value: acc.id.toString(), child: Text(acc.name))),
-        ],
-      ],
-    );
+  Widget _buildWhiteToolbar() {
+    return Container(height: 1, decoration: const BoxDecoration(color: Colors.black12));
   }
 
   Widget _buildLanguageSidebarItem(AppLocalizations l10n) {
@@ -341,40 +248,20 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       title: Text(l10n.language),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: Text(l10n.language),
-            children: [
-              _languageOption('en', 'English'),
-              _languageOption('es', 'Español'),
-              _languageOption('pt', 'Português'),
-            ],
-          ),
-        );
+        showDialog(context: context, builder: (context) => SimpleDialog(title: Text(l10n.language), children: [_languageOption('en', 'English'), _languageOption('es', 'Español'), _languageOption('pt', 'Português')]));
       },
     );
   }
 
   Widget _languageOption(String code, String name) {
-    return SimpleDialogOption(
-      onPressed: () {
-        _appLocale.value = Locale(code);
-        Navigator.pop(context);
-      },
-      child: Text(name),
-    );
+    return SimpleDialogOption(onPressed: () { _appLocale.value = Locale(code); Navigator.pop(context); }, child: Text(name));
   }
 
   Widget _buildLanguageToggle() {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.language, color: Colors.white, size: 20),
       onSelected: (value) => _appLocale.value = Locale(value),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'en', child: Text('English')),
-        const PopupMenuItem(value: 'es', child: Text('Español')),
-        const PopupMenuItem(value: 'pt', child: Text('Português')),
-      ],
+      itemBuilder: (context) => [const PopupMenuItem(value: 'en', child: Text('English')), const PopupMenuItem(value: 'es', child: Text('Español')), const PopupMenuItem(value: 'pt', child: Text('Português'))],
     );
   }
 }

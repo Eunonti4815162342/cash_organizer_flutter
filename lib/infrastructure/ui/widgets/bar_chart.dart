@@ -3,20 +3,25 @@ import 'dart:math';
 
 class CustomBarChart extends StatelessWidget {
   final Map<String, double> data;
-  final Color barColor;
+  final List<Color>? colors; // Lista de colores para cada barra
   final double barWidth;
 
   const CustomBarChart({
     super.key,
     required this.data,
-    this.barColor = const Color(0xFF009FFB),
+    this.colors,
     this.barWidth = 30.0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final List<Color> chartColors = colors ?? [
+      const Color(0xFF009FFB), const Color(0xFF27AE60), const Color(0xFFF2994A),
+      const Color(0xFFEB5757), const Color(0xFF9B51E0), const Color(0xFF2D9CDB),
+    ];
+
     return CustomPaint(
-      painter: _BarChartPainter(data, barColor, barWidth),
+      painter: _BarChartPainter(data, chartColors, barWidth),
       child: const SizedBox(width: double.infinity, height: double.infinity),
     );
   }
@@ -24,21 +29,19 @@ class CustomBarChart extends StatelessWidget {
 
 class _BarChartPainter extends CustomPainter {
   final Map<String, double> data;
-  final Color barColor;
+  final List<Color> colors;
   final double barWidth;
 
-  _BarChartPainter(this.data, this.barColor, this.barWidth);
+  _BarChartPainter(this.data, this.colors, this.barWidth);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (data.isEmpty) return;
 
-    final paint = Paint()
-      ..color = barColor
-      ..style = PaintingStyle.fill;
+    final paint = Paint()..style = PaintingStyle.fill;
 
     final maxVal = data.values.map((e) => e.abs()).reduce(max);
-    final chartHeight = size.height - 20; // Espacio para etiquetas abajo
+    final chartHeight = size.height - 20; 
     final spacing = (size.width - (data.length * barWidth)) / (data.length + 1);
 
     int i = 0;
@@ -47,7 +50,8 @@ class _BarChartPainter extends CustomPainter {
       final h = (value.abs() / (maxVal == 0 ? 1 : maxVal)) * chartHeight;
       final y = size.height - h;
 
-      // Dibujar barra con bordes redondeados arriba
+      paint.color = colors[i % colors.length];
+
       final rect = RRect.fromRectAndCorners(
         Rect.fromLTWH(x, y, barWidth, h),
         topLeft: const Radius.circular(6),
@@ -56,7 +60,6 @@ class _BarChartPainter extends CustomPainter {
       
       canvas.drawRRect(rect, paint);
 
-      // Dibujar etiqueta truncada
       final textPainter = TextPainter(
         text: TextSpan(
           text: key.length > 8 ? '${key.substring(0, 5)}..' : key,

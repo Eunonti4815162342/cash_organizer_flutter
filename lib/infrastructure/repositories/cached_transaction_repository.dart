@@ -9,46 +9,51 @@ class CachedTransactionRepository implements ITransactionRepository {
 
   @override
   Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
+    // 1. Intentar siempre la API primero
     try {
-      // 1. Intentar obtener transacciones remotas
       final remoteTransactions = await _apiService.fetchTransactions(
         startDate: startDate,
         endDate: endDate,
         accountId: accountId,
       );
       
-      if (remoteTransactions.isNotEmpty) {
-        // 2. Si hay éxito, cachearlas en local
-        await _localRepo.saveAll(remoteTransactions);
-        return remoteTransactions;
-      }
+      // Si la API responde (aunque sea vacío), guardamos en local y devolvemos
+      // Esto garantiza que el local sea un espejo fiel del servidor
+      await _localRepo.saveAll(remoteTransactions);
+      return remoteTransactions;
+      
     } catch (e) {
-      print('[CachedTransactionRepository] Error fetching remote, falling back to local: $e');
+      print('[CachedTransactionRepository] Error de red detectado. Cargando de SQLite...');
+      // 2. Si falla la red (SocketException, Modo Avión), tiramos de SQLite
+      return await _localRepo.fetchTransactions(
+        startDate: startDate,
+        endDate: endDate,
+        accountId: accountId,
+      );
     }
-
-    // 3. Si falla o estamos offline, devolver de SQLite
-    return await _localRepo.fetchTransactions();
   }
 
   @override
   Future<void> saveTransaction(TransactionItem transaction, {bool isSynced = true}) async {
-    // 1. Guardar localmente de inmediato (Offline first)
-    // Si isSynced es falso, se guardará con flag 'pendingSync'
+    // Siempre guardamos en local primero
     await _localRepo.saveTransaction(transaction, isSynced: isSynced);
 
     if (isSynced) {
-      // Intentar subir al servidor
-      final result = await _apiService.createTransaction({
-        'amount': {'value': transaction.amount.value, 'currency': transaction.amount.currency},
-        'account': {'id': transaction.account.id},
-        'type': transaction.type.name,
-        'description': transaction.description,
-        'date': transaction.date,
-      });
-      
-      if (result != null) {
-        // Si subió bien, marcar como sincronizado localmente con su server_id
-        await _localRepo.markAsSynced(transaction.id, result.id);
+      try {
+        final result = await _apiService.createTransaction({
+          'amount': {'value': transaction.amount.value, 'currency': transaction.amount.currency},
+          'account': {'id': transaction.account.id},
+          'type': transaction.type.name,
+          'description': transaction.description,
+          'date': transaction.date,
+        });
+        
+        if (result != null) {
+          await _localRepo.markAsSynced(transaction.id, result.id);
+        }
+      } catch (e) {
+        // Si la subida falla, la transacción se queda en local marcada como pending_sync = 1
+        print('[CachedTransactionRepository] No se pudo sincronizar. Pendiente para después.');
       }
     }
   }

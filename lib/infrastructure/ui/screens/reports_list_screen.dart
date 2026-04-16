@@ -168,6 +168,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     return Padding(
       padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
       child: Column(
+        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l10n.reportTypes, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -203,6 +204,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
               _loadData();
             },
           ),
+          const SizedBox(height: 32),
+          _buildExportButton(l10n, isMobile: isMobile),
         ],
       ),
     );
@@ -265,24 +268,24 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                           icon: Icon(Icons.bar_chart_outlined, size: isMobile ? 20 : 24, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey),
                           onPressed: () => setState(() => _isPieChart = false),
                         ),
-                        if (!isMobile) ...[
-                          const SizedBox(width: 16),
-                          _buildExportButton(l10n),
-                        ]
                       ],
                     ),
                   ],
                 ),
-                if (isMobile) ...[
-                  const SizedBox(height: 8),
-                  _buildExportButton(l10n, isMobile: true),
-                ],
                 const SizedBox(height: 24),
                 SizedBox(
                   height: isMobile ? 220 : 300,
                   child: _isPieChart 
-                    ? DonutChart(data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), thickness: isMobile ? 35 : 50)
-                    : CustomBarChart(data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), barWidth: isMobile ? 20 : 30),
+                    ? DonutChart(
+                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), 
+                        thickness: isMobile ? 35 : 50,
+                        colors: List.generate(15, (index) => _getPaletteColor(index)),
+                      )
+                    : CustomBarChart(
+                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), 
+                        barWidth: isMobile ? 20 : 30,
+                        colors: List.generate(15, (index) => _getPaletteColor(index)),
+                      ),
                 ),
                 const SizedBox(height: 32),
                 _buildModernLegend(_selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), isMobile: isMobile),
@@ -327,22 +330,41 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Widget _buildExportButton(AppLocalizations l10n, {bool isMobile = false}) {
-    return ElevatedButton.icon(
-      onPressed: _isLoading ? null : _generatePdf,
-      icon: Icon(Icons.picture_as_pdf, size: isMobile ? 14 : 16),
-      label: Text(l10n.exportPdf.toUpperCase(), style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isLoading ? null : _generatePdf,
+        icon: Icon(Icons.picture_as_pdf, size: isMobile ? 14 : 16),
+        label: Text(l10n.exportPdf.toUpperCase(), style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
 
   Color _getPaletteColor(int index) {
-    List<Color> colors = [const Color(0xFF009FFB), const Color(0xFF27AE60), const Color(0xFFF2994A), const Color(0xFFEB5757), const Color(0xFF9B51E0), const Color(0xFF2D9CDB)];
+    List<Color> colors = [
+      const Color(0xFF009FFB), // Azul CashKeep
+      const Color(0xFF27AE60), // Verde
+      const Color(0xFFF2994A), // Naranja
+      const Color(0xFFEB5757), // Rojo
+      const Color(0xFF9B51E0), // Púrpura
+      const Color(0xFF2D9CDB), // Azul claro
+      const Color(0xFFF2C94C), // Amarillo
+      const Color(0xFF219653), // Verde oscuro
+      const Color(0xFF2F80ED), // Azul intenso
+      const Color(0xFFE0E0E0), // Gris
+      const Color(0xFFBDBDBD), // Gris oscuro
+      const Color(0xFF828282), // Carbón
+      const Color(0xFF56CCF2), // Turquesa
+      const Color(0xFFBB6BD9), // Rosa/Lila
+      const Color(0xFF6FCF97), // Menta
+    ];
     return colors[index % colors.length];
   }
 
@@ -357,6 +379,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         endDate: _endDate.toIso8601String(),
         accountIds: _selectedAccountIds,
         categoryIds: _selectedCategoryIds,
+        lang: Localizations.localeOf(context).languageCode,
       );
       if (pdfBytes != null) {
         await Printing.layoutPdf(onLayout: (format) async => pdfBytes, name: 'Report.pdf');

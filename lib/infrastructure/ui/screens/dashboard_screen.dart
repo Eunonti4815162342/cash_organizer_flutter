@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../styles/app_styles.dart';
 import '../../../services/api_service.dart';
+import '../../../domain/repositories/transaction_repository.dart';
+import '../../../domain/repositories/account_repository.dart';
+import '../../../infrastructure/repositories/cached_transaction_repository.dart';
+import '../../../infrastructure/repositories/cached_account_repository.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/category.dart';
@@ -15,6 +19,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final ITransactionRepository _transactionRepo = CachedTransactionRepository();
+  final IAccountRepository _accountRepo = CachedAccountRepository();
   final ApiService _apiService = ApiService();
   
   List<AccountItem> _accounts = [];
@@ -38,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    final accs = await _apiService.fetchAccounts();
+    final accs = await _accountRepo.fetchAccounts();
     setState(() {
       _accounts = accs;
     });
@@ -47,7 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _refreshDashboard() async {
     setState(() => _isLoading = true);
-    final txs = await _apiService.fetchTransactions(
+    final txs = await _transactionRepo.fetchTransactions(
       startDate: _startDate.toIso8601String(),
       endDate: _endDate.toIso8601String(),
     );

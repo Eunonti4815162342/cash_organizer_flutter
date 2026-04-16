@@ -9,31 +9,63 @@ class SqliteCategoryRepository implements ICategoryRepository {
   @override
   Future<List<Category>> fetchCategories() async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('categories');
+    
+    // Cargamos todas las categorías
+    final List<Map<String, dynamic>> categoryMaps = await db.query('categories');
+    // Cargamos todas las subcategorías
+    final List<Map<String, dynamic>> subMaps = await db.query('subcategories');
 
-    // Mapeo simple de categorías principales (la demo se centra en primer nivel)
-    return maps.map((m) => Category(
-      id: m['id'],
-      name: m['name'],
-      type: m['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
-      iconName: m['icon'],
-      subcategories: [], // Las subcategorías se pueden cargar bajo demanda si es necesario
-    )).toList();
+    List<Category> categories = [];
+
+    for (var m in categoryMaps) {
+      final id = m['id'] as int;
+      final subs = subMaps
+          .where((s) => s['category_id'] == id)
+          .map((s) => Subcategory(
+                id: s['id'] as int,
+                name: s['name'] as String,
+                iconName: s['icon'] as String?,
+              ))
+          .toList();
+
+      categories.add(Category(
+        id: id,
+        name: m['name'] as String,
+        type: m['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
+        iconName: m['icon'] as String?,
+        subcategories: subs,
+      ));
+    }
+
+    return categories;
   }
 
   @override
   Future<void> saveCategory(Category category) async {
     final db = await _dbHelper.database;
-    await db.insert(
-      'categories',
-      {
-        'id': category.id,
-        'name': category.name,
-        'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
-        'icon': category.iconName,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      await txn.insert(
+        'categories',
+        {
+          'id': category.id,
+          'name': category.name,
+          'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // Limpiar subcategorías viejas para esta categoría
+      await txn.delete('subcategories', where: 'category_id = ?', whereArgs: [category.id]);
+
+      // Insertar las nuevas
+      for (var sub in category.subcategories) {
+        await txn.insert('subcategories', {
+          'id': sub.id,
+          'name': sub.name,
+          'category_id': category.id,
+        });
+      }
+    });
   }
 
   @override
@@ -47,10 +79,19 @@ class SqliteCategoryRepository implements ICategoryRepository {
             'id': category.id,
             'name': category.name,
             'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
-            'icon': category.iconName,
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+
+        await txn.delete('subcategories', where: 'category_id = ?', whereArgs: [category.id]);
+
+        for (var sub in category.subcategories) {
+          await txn.insert('subcategories', {
+            'id': sub.id,
+            'name': sub.name,
+            'category_id': category.id,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
       }
     });
   }
@@ -60,13 +101,19 @@ class SqliteCategoryRepository implements ICategoryRepository {
     final db = await _dbHelper.database;
     final maps = await db.query('categories', where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
+    
+    final subMaps = await db.query('subcategories', where: 'category_id = ?', whereArgs: [id]);
+    final subs = subMaps.map((s) => Subcategory(
+      id: s['id'] as int,
+      name: s['name'] as String,
+    )).toList();
+
     final m = maps.first;
     return Category(
       id: m['id'] as int,
       name: m['name'] as String,
       type: (m['type'] as String) == 'INCOME' ? CategoryType.income : CategoryType.expense,
-      iconName: m['icon'] as String?,
-      subcategories: [],
+      subcategories: subs,
     );
   }
 }

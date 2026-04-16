@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart';
+import '../../../domain/repositories/transaction_repository.dart';
+import '../../../infrastructure/repositories/cached_transaction_repository.dart';
 import '../../../services/api_service.dart';
 import '../../../services/session_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -16,6 +18,7 @@ class TransactionFormScreen extends StatefulWidget {
 
 class _TransactionFormScreenState extends State<TransactionFormScreen> {
   final ApiService _apiService = ApiService();
+  final ITransactionRepository _transactionRepo = CachedTransactionRepository();
   final SessionService _sessionService = SessionService();
   
   String _selectedTypeLabel = 'EXPENSE'; 
@@ -159,17 +162,35 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   Future<void> _save(AppLocalizations l10n) async {
     double amount = double.tryParse(_amountController.text) ?? 0.0;
-    final transactionData = {
-      'amount': {'value': (amount * 100).toInt(), 'currency': _selectedAccount!.amount.currency, 'isNegative': _selectedTypeLabel == 'EXPENSE'},
-      'account': {'id': _selectedAccount!.id},
-      'toAccount': _selectedTypeLabel == 'TRANSFER' ? {'id': _selectedToAccount!.id} : null,
-      'category': _selectedTypeLabel != 'TRANSFER' ? {'id': _selectedCategory!.id} : null,
-      'type': _selectedTypeLabel, 'description': _descriptionController.text, 'date': _selectedDate.toIso8601String(), 'statusFlags': 0, 'isScheduled': false, 'isHeader': false,
-    };
-    final result = widget.transaction == null ? await _apiService.createTransaction(transactionData) : await _apiService.updateTransaction(widget.transaction!.id, transactionData);
-    if (result != null && mounted) {
+    
+    // Construimos el objeto de dominio
+    final tx = TransactionItem(
+      id: widget.transaction?.id ?? 0,
+      date: _selectedDate.toIso8601String(),
+      description: _descriptionController.text,
+      amount: Amount((amount * 100).toInt(), _selectedAccount!.amount.currency, _selectedTypeLabel == 'EXPENSE'),
+      account: _selectedAccount!,
+      toAccount: _selectedToAccount,
+      category: _selectedCategory,
+      type: TransactionType.values.firstWhere((e) => e.name == _selectedTypeLabel),
+      isScheduled: false,
+      isHeader: false,
+      tags: [],
+    );
+
+    try {
+      // Usamos el repositorio Cached: guarda en SQLite y si hay red, sube a la API.
+      // Si falla la red, el flag 'isSynced' será falso internamente.
+      await _transactionRepo.saveTransaction(tx, isSynced: true);
+      
       _sessionService.lastSelectedDate = _selectedDate;
-      Navigator.of(context).pop(true);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      // Incluso si falla todo, el repo ya intentó guardar en local.
+      if (mounted) {
+        _sessionService.lastSelectedDate = _selectedDate;
+        Navigator.of(context).pop(true);
+      }
     }
   }
 

@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../environment.dart';
 
 class DevelopmentEnvironment implements Environment {
   @override
-  String get apiBaseUrl => 'http://localhost:8085/api';
+  String get apiBaseUrl {
+    // For web builds, use Raspberry Pi IP; for mobile, use localhost
+    return kIsWeb ? 'http://192.168.1.145:8085/api' : 'http://localhost:8085/api';
+  }
 
   @override
   int get apiTimeout => 30; // More lenient in dev

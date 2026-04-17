@@ -1,15 +1,17 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/environment_factory.dart';
 
 class HttpClientManager {
   final _storage = const FlutterSecureStorage();
-  static const String _serverUrl = "http://100.86.48.34:8085/api";
 
-  String get baseUrl {
-    String url = _serverUrl.trim();
-    if (kIsWeb) url = 'http://localhost:8085/api';
-    return url;
-  }
+  /// Get base URL from current environment configuration
+  String get baseUrl => EnvironmentFactory.current.apiBaseUrl;
+
+  /// Get API timeout in seconds from current environment
+  int get apiTimeout => EnvironmentFactory.current.apiTimeout;
+
+  /// Check if logging is enabled
+  bool get enableLogging => EnvironmentFactory.current.enableLogging;
 
   Future<Map<String, String>> getHeaders() async {
     final token = await _storage.read(key: 'jwt_token');

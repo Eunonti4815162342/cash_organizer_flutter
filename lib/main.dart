@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'l10n/app_localizations.dart';
@@ -14,6 +14,7 @@ import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'domain/models/account_item.dart';
 import 'service_locator.dart';
+import 'config/environment_factory.dart';
 
 // Importación condicional
 import 'services/background_sync.dart'
@@ -24,6 +25,8 @@ final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize environment: auto-detect dev/staging/prod based on build type
+  EnvironmentFactory.initAuto();
   setupServiceLocator();
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

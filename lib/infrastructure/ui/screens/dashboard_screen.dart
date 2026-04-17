@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
-import '../../../services/api_service.dart';
-import '../../../domain/repositories/transaction_repository.dart';
-import '../../../domain/repositories/account_repository.dart';
-import '../../../infrastructure/repositories/cached_transaction_repository.dart';
-import '../../../infrastructure/repositories/cached_account_repository.dart';
-import '../../../domain/models/transaction_item.dart';
+import '../providers/dashboard_provider.dart';
 import '../../../domain/models/account_item.dart';
-import '../../../domain/models/category.dart';
 import '../../../l10n/app_localizations.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -19,106 +15,60 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final ITransactionRepository _transactionRepo = CachedTransactionRepository();
-  final IAccountRepository _accountRepo = CachedAccountRepository();
-  final ApiService _apiService = ApiService();
-  
-  List<AccountItem> _accounts = [];
-  AccountItem? _selectedAccount; 
-  
-  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
-  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0, 23, 59, 59);
-  
-  String _categoryMode = 'EXPENSE'; 
-  Map<String, double> _categoryData = {};
-  double _totalCategoryAmount = 0;
-  
-  bool _isLoading = true;
-  int _touchedIndex = -1;
+  late DashboardProvider _provider;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
-  }
-
-  Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
-    final accs = await _accountRepo.fetchAccounts();
-    setState(() {
-      _accounts = accs;
-    });
-    await _refreshDashboard();
-  }
-
-  Future<void> _refreshDashboard() async {
-    setState(() => _isLoading = true);
-    final txs = await _transactionRepo.fetchTransactions(
-      startDate: _startDate.toIso8601String(),
-      endDate: _endDate.toIso8601String(),
+    final getIt = GetIt.instance;
+    _provider = DashboardProvider(
+      getIt.get(),
+      getIt.get(),
     );
-
-    Map<String, double> catTotals = {};
-    double sum = 0;
-
-    for (var tx in txs) {
-      if (tx.account == null) continue; 
-      if (_selectedAccount != null && tx.account?.id != _selectedAccount!.id) continue;
-      
-      if (tx.type.name == _categoryMode) {
-        String catName = tx.category?.name ?? 'General';
-        double val = ((tx.amount?.value ?? 0) / 100).abs();
-        catTotals[catName] = (catTotals[catName] ?? 0) + val;
-        sum += val;
-      }
-    }
-
-    setState(() {
-      _categoryData = catTotals;
-      _totalCategoryAmount = sum;
-      _isLoading = false;
-    });
+    _provider.loadInitialData();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final isMobile = MediaQuery.of(context).size.width < 800;
-    
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    return ChangeNotifierProvider.value(
+      value: _provider,
+      child: Consumer<DashboardProvider>(
+        builder: (context, provider, _) {
+          final l10n = AppLocalizations.of(context)!;
+          final isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Container(
-      color: const Color(0xFFF5F5F5),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // 1. TOP FILTERS (Responsive Row/Column)
-            isMobile 
-              ? Column(
-                  children: [
-                    _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n)),
-                    const SizedBox(height: 12),
-                    _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector()),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n))),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector())),
-                  ],
-                ),
-            const SizedBox(height: 16),
+          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
 
-            // 2. BALANCE SUMMARY (UP)
-            _buildBalanceSection(l10n),
-            const SizedBox(height: 16),
-
-            // 3. CATEGORIES ANALYSIS (DOWN)
-            _buildCategoriesSection(l10n, isMobile),
-          ],
-        ),
+          return Container(
+            color: const Color(0xFFF5F5F5),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  isMobile
+                      ? Column(
+                          children: [
+                            _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n, provider)),
+                            const SizedBox(height: 12),
+                            _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector(provider)),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: _buildFilterBox(l10n.accounts.toUpperCase(), _buildAccountDropdown(l10n, provider))),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector(provider))),
+                          ],
+                        ),
+                  const SizedBox(height: 16),
+                  _buildBalanceSection(l10n, provider),
+                  const SizedBox(height: 16),
+                  _buildCategoriesSection(l10n, isMobile, provider),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -142,46 +92,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAccountDropdown(AppLocalizations l10n) {
+  Widget _buildAccountDropdown(AppLocalizations l10n, DashboardProvider provider) {
     return DropdownButtonHideUnderline(
       child: DropdownButton<AccountItem?>(
-        value: _selectedAccount,
+        value: provider.selectedAccount,
         isDense: true,
         isExpanded: true,
         items: [
           DropdownMenuItem(value: null, child: Text(l10n.allAccounts, style: const TextStyle(fontSize: 13))),
-          ..._accounts.map((a) => DropdownMenuItem(value: a, child: Text(a.name, style: const TextStyle(fontSize: 13)))),
+          ...provider.accounts.map((a) => DropdownMenuItem(value: a, child: Text(a.name, style: const TextStyle(fontSize: 13)))),
         ],
-        onChanged: (val) {
-          setState(() => _selectedAccount = val);
-          _refreshDashboard();
-        },
+        onChanged: (val) => provider.selectAccount(val),
       ),
     );
   }
 
-  Widget _buildPeriodSelector() {
+  Widget _buildPeriodSelector(DashboardProvider provider) {
     return InkWell(
       onTap: () async {
         final picked = await showDateRangePicker(
           context: context,
-          initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+          initialDateRange: DateTimeRange(start: provider.startDate, end: provider.endDate),
           firstDate: DateTime(2000),
           lastDate: DateTime(2101),
         );
         if (picked != null) {
-          setState(() {
-            _startDate = picked.start;
-            _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59);
-          });
-          _refreshDashboard();
+          await provider.setDateRange(picked.start, DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59));
         }
       },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}',
+            '${provider.startDate.day}/${provider.startDate.month}/${provider.startDate.year} - ${provider.endDate.day}/${provider.endDate.month}/${provider.endDate.year}',
             style: const TextStyle(fontSize: 13),
           ),
           const Icon(Icons.calendar_today, size: 14, color: AppColors.secondaryText),
@@ -190,15 +133,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBalanceSection(AppLocalizations l10n) {
-    double netWorth = _accounts.fold(0, (sum, a) => sum + ((a.amount?.value ?? 0) / 100));
+  Widget _buildBalanceSection(AppLocalizations l10n, DashboardProvider provider) {
+    double netWorth = provider.accounts.fold(0, (sum, a) => sum + ((a.amount?.value ?? 0) / 100));
     return _buildSectionCard(
       title: l10n.balanceSummary.toUpperCase(),
       child: Column(
         children: [
           _buildBalanceRow(l10n.netWorth, netWorth, isBold: true),
           const Divider(),
-          ..._accounts.map((a) => _buildBalanceRow(a.name, (a.amount?.value ?? 0) / 100)),
+          ...provider.accounts.map((a) => _buildBalanceRow(a.name, (a.amount?.value ?? 0) / 100)),
         ],
       ),
     );
@@ -220,38 +163,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCategoriesSection(AppLocalizations l10n, bool isMobile) {
+  Widget _buildCategoriesSection(AppLocalizations l10n, bool isMobile, DashboardProvider provider) {
     return Column(
       children: [
-        _buildViewModeSelector(l10n),
+        _buildViewModeSelector(l10n, provider),
         const SizedBox(height: 12),
         _buildSectionCard(
           title: l10n.categoriesAnalysis.toUpperCase(),
           child: Column(
             children: [
-              isMobile 
-                ? Column(
-                    children: [
-                      SizedBox(height: 250, child: _buildPieChartComponent(l10n)),
-                      const SizedBox(height: 32),
-                      _buildCategoryTable(l10n),
-                    ],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 4, child: SizedBox(height: 280, child: _buildPieChartComponent(l10n))),
-                      const SizedBox(width: 32),
-                      Expanded(flex: 6, child: _buildCategoryTable(l10n)),
-                    ],
-                  ),
+              isMobile
+                  ? Column(
+                      children: [
+                        SizedBox(height: 250, child: _buildPieChartComponent(l10n, provider)),
+                        const SizedBox(height: 32),
+                        _buildCategoryTable(l10n, provider),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 4, child: SizedBox(height: 280, child: _buildPieChartComponent(l10n, provider))),
+                        const SizedBox(width: 32),
+                        Expanded(flex: 6, child: _buildCategoryTable(l10n, provider)),
+                      ],
+                    ),
               const Divider(height: 30),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text('${l10n.totalBalance}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-                  Text('€ ${_totalCategoryAmount.toStringAsFixed(2)}', 
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _categoryMode == 'EXPENSE' ? AppColors.expenseRed : AppColors.incomeGreen)),
+                  Text('€ ${provider.totalCategoryAmount.toStringAsFixed(2)}',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: provider.categoryMode == 'EXPENSE' ? AppColors.expenseRed : AppColors.incomeGreen)),
                 ],
               ),
             ],
@@ -261,48 +204,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPieChartComponent(AppLocalizations l10n) {
-    if (_categoryData.isEmpty) return Center(child: Text(l10n.noData));
+  Widget _buildPieChartComponent(AppLocalizations l10n, DashboardProvider provider) {
+    if (provider.categoryData.isEmpty) return Center(child: Text(l10n.noData));
     return PieChart(
       PieChartData(
         pieTouchData: PieTouchData(
           touchCallback: (FlTouchEvent event, pieTouchResponse) {
-            setState(() {
-              if (!event.isInterestedForInteractions || pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
-                _touchedIndex = -1;
-                return;
-              }
-              _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-            });
+            if (!event.isInterestedForInteractions || pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+              provider.setTouchedIndex(-1);
+              return;
+            }
+            provider.setTouchedIndex(pieTouchResponse.touchedSection!.touchedSectionIndex);
           },
         ),
         sectionsSpace: 4,
         centerSpaceRadius: 50,
-        sections: _buildChartSections(),
+        sections: _buildChartSections(provider),
       ),
     );
   }
 
-  Widget _buildViewModeSelector(AppLocalizations l10n) {
+  Widget _buildViewModeSelector(AppLocalizations l10n, DashboardProvider provider) {
     return Container(
       decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black12)),
       child: Row(
         children: [
-          _buildModeTab('EXPENSE', l10n.expense.toUpperCase(), AppColors.expenseRed),
-          _buildModeTab('INCOME', l10n.income.toUpperCase(), AppColors.incomeGreen),
+          _buildModeTab('EXPENSE', l10n.expense.toUpperCase(), AppColors.expenseRed, provider),
+          _buildModeTab('INCOME', l10n.income.toUpperCase(), AppColors.incomeGreen, provider),
         ],
       ),
     );
   }
 
-  Widget _buildModeTab(String mode, String label, Color color) {
-    bool isSelected = _categoryMode == mode;
+  Widget _buildModeTab(String mode, String label, Color color, DashboardProvider provider) {
+    bool isSelected = provider.categoryMode == mode;
     return Expanded(
       child: InkWell(
-        onTap: () {
-          setState(() => _categoryMode = mode);
-          _refreshDashboard();
-        },
+        onTap: () => provider.setCategoryMode(mode),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
@@ -317,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCategoryTable(AppLocalizations l10n) {
+  Widget _buildCategoryTable(AppLocalizations l10n, DashboardProvider provider) {
     return Column(
       children: [
         Row(
@@ -328,11 +266,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const Divider(),
-        ..._categoryData.entries.toList().asMap().entries.map((entry) {
-          final isTouched = entry.key == _touchedIndex;
+        ...provider.categoryData.entries.toList().asMap().entries.map((entry) {
+          final isTouched = entry.key == provider.touchedIndex;
           final name = entry.value.key;
           final value = entry.value.value;
-          final percent = (_totalCategoryAmount > 0) ? (value / _totalCategoryAmount) * 100 : 0.0;
+          final percent = (provider.totalCategoryAmount > 0) ? (value / provider.totalCategoryAmount) * 100 : 0.0;
           final color = _getPaletteColor(entry.key);
 
           return Container(
@@ -386,17 +324,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  List<PieChartSectionData> _buildChartSections() {
+  List<PieChartSectionData> _buildChartSections(DashboardProvider provider) {
     int i = 0;
-    return _categoryData.entries.map((e) {
-      final isTouched = i == _touchedIndex;
+    return provider.categoryData.entries.map((e) {
+      final isTouched = i == provider.touchedIndex;
       final radius = isTouched ? 70.0 : 60.0;
       final color = _getPaletteColor(i++);
 
       return PieChartSectionData(
         color: color,
         value: e.value,
-        title: isTouched ? '${((e.value/_totalCategoryAmount)*100).toStringAsFixed(0)}%' : '',
+        title: isTouched ? '${((e.value / provider.totalCategoryAmount) * 100).toStringAsFixed(0)}%' : '',
         radius: radius,
         titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
       );

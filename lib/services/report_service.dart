@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import '../core/exceptions/app_exceptions.dart';
+import '../core/error/error_handler.dart';
+import '../core/logger/app_logger.dart';
 import 'http_client_manager.dart';
 
 class ReportService {
@@ -21,18 +24,25 @@ class ReportService {
       if (accountIds != null) url += 'accountIds=${accountIds.join(",")}&';
       if (groupBySubcategory) url += 'groupBySubcategory=true&';
 
+      AppLogger.logRequest('GET', url, await _clientManager.getHeaders());
+
       final response = await http.get(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
-      );
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
+        AppLogger.logResponse(response.statusCode, url, 'Fetched ${data.length} category stats');
         return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
       } else {
-        throw 'Error ${response.statusCode}: ${response.body}';
+        throw ErrorHandler.handleHttpError(response);
       }
-    } catch (e) {
+    } on AppException rethrow {
+      rethrow;
+    } catch (e, stackTrace) {
+      final exception = ErrorHandler.handleException(e, stackTrace);
+      AppLogger.logException(exception);
       rethrow;
     }
   }
@@ -53,17 +63,24 @@ class ReportService {
       if (accountIds != null) url += 'accountIds=${accountIds.join(",")}&';
       if (categoryIds != null) url += 'categoryIds=${categoryIds.join(",")}&';
 
+      AppLogger.logRequest('GET', url, await _clientManager.getHeaders());
+
       final response = await http.get(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
-      );
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
 
       if (response.statusCode == 200) {
+        AppLogger.info('PDF report downloaded: $title');
         return response.bodyBytes;
       } else {
-        throw 'Error ${response.statusCode}';
+        throw ErrorHandler.handleHttpError(response);
       }
-    } catch (e) {
+    } on AppException rethrow {
+      rethrow;
+    } catch (e, stackTrace) {
+      final exception = ErrorHandler.handleException(e, stackTrace);
+      AppLogger.logException(exception);
       rethrow;
     }
   }

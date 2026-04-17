@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../domain/models/account_item.dart';
+import '../core/exceptions/app_exceptions.dart';
+import '../core/error/error_handler.dart';
+import '../core/logger/app_logger.dart';
 import 'http_client_manager.dart';
 
 class AccountService {
@@ -11,21 +14,26 @@ class AccountService {
   Future<List<AccountItem>> fetchAccounts() async {
     try {
       final url = '${_clientManager.baseUrl}/accounts';
+      AppLogger.logRequest('GET', url, await _clientManager.getHeaders());
+
       final response = await http.get(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
-      );
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final List<dynamic> jsonList = body is List ? body : (body['content'] ?? []);
+        AppLogger.logResponse(response.statusCode, url, 'Fetched ${jsonList.length} accounts');
         return jsonList.map((json) => AccountItem.fromJson(json)).toList();
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        throw 'SESSION_EXPIRED';
       } else {
-        throw 'Error ${response.statusCode}: ${response.body}';
+        throw ErrorHandler.handleHttpError(response);
       }
-    } catch (e) {
+    } on AppException rethrow {
+      rethrow;
+    } catch (e, stackTrace) {
+      final exception = ErrorHandler.handleException(e, stackTrace);
+      AppLogger.logException(exception);
       rethrow;
     }
   }
@@ -33,18 +41,26 @@ class AccountService {
   Future<AccountItem?> createAccount(Map<String, dynamic> accountData) async {
     try {
       final url = '${_clientManager.baseUrl}/accounts';
+      AppLogger.logRequest('POST', url, await _clientManager.getHeaders());
+
       final response = await http.post(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
         body: jsonEncode(accountData),
-      );
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return AccountItem.fromJson(jsonDecode(response.body));
+        final result = AccountItem.fromJson(jsonDecode(response.body));
+        AppLogger.info('Account created successfully');
+        return result;
       } else {
-        throw 'Error ${response.statusCode}: ${response.body}';
+        throw ErrorHandler.handleHttpError(response);
       }
-    } catch (e) {
+    } on AppException rethrow {
+      rethrow;
+    } catch (e, stackTrace) {
+      final exception = ErrorHandler.handleException(e, stackTrace);
+      AppLogger.logException(exception);
       rethrow;
     }
   }
@@ -52,18 +68,26 @@ class AccountService {
   Future<AccountItem?> updateAccount(int id, Map<String, dynamic> accountData) async {
     try {
       final url = '${_clientManager.baseUrl}/accounts/$id';
+      AppLogger.logRequest('PUT', url, await _clientManager.getHeaders());
+
       final response = await http.put(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
         body: jsonEncode(accountData),
-      );
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
 
       if (response.statusCode == 200) {
-        return AccountItem.fromJson(jsonDecode(response.body));
+        final result = AccountItem.fromJson(jsonDecode(response.body));
+        AppLogger.info('Account $id updated successfully');
+        return result;
       } else {
-        throw 'Error ${response.statusCode}: ${response.body}';
+        throw ErrorHandler.handleHttpError(response);
       }
-    } catch (e) {
+    } on AppException rethrow {
+      rethrow;
+    } catch (e, stackTrace) {
+      final exception = ErrorHandler.handleException(e, stackTrace);
+      AppLogger.logException(exception);
       rethrow;
     }
   }
@@ -71,12 +95,20 @@ class AccountService {
   Future<bool> deleteAccount(int id) async {
     try {
       final url = '${_clientManager.baseUrl}/accounts/$id';
+      AppLogger.logRequest('DELETE', url, await _clientManager.getHeaders());
+
       final response = await http.delete(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
-      );
-      return response.statusCode == 200 || response.statusCode == 204;
-    } catch (_) {
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
+
+      final success = response.statusCode == 200 || response.statusCode == 204;
+      if (success) {
+        AppLogger.info('Account $id deleted successfully');
+      }
+      return success;
+    } catch (e, stackTrace) {
+      AppLogger.error('Delete account error', e, stackTrace);
       return false;
     }
   }
@@ -84,12 +116,20 @@ class AccountService {
   Future<bool> deleteAccountPermanently(int id) async {
     try {
       final url = '${_clientManager.baseUrl}/accounts/$id/permanent';
+      AppLogger.logRequest('DELETE', url, await _clientManager.getHeaders());
+
       final response = await http.delete(
         Uri.parse(url),
         headers: await _clientManager.getHeaders(),
-      );
-      return response.statusCode == 200 || response.statusCode == 204;
-    } catch (_) {
+      ).timeout(Duration(seconds: _clientManager.apiTimeout));
+
+      final success = response.statusCode == 200 || response.statusCode == 204;
+      if (success) {
+        AppLogger.info('Account $id permanently deleted');
+      }
+      return success;
+    } catch (e, stackTrace) {
+      AppLogger.error('Delete account permanently error', e, stackTrace);
       return false;
     }
   }

@@ -1,12 +1,32 @@
-# Build stage
-FROM cirrusci/flutter:latest AS build
+# Build stage - ARM64 compatible
+FROM ubuntu:22.04 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV FLUTTER_HOME=/usr/local/flutter
+ENV PATH=$FLUTTER_HOME/bin:$FLUTTER_HOME/bin/cache/dart-sdk/bin:$PATH
 
 WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    unzip \
+    xz-utils \
+    zip \
+    libglu1-mesa \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Flutter
+RUN git clone --depth 1 -b stable https://github.com/flutter/flutter.git $FLUTTER_HOME && \
+    flutter config --no-analytics && \
+    flutter precache
 
 # Copy source code
 COPY . .
 
-# Install dependencies and build web
+# Build web app
 RUN flutter pub get && \
     flutter build web --release --no-tree-shake-icons
 

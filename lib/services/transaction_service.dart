@@ -33,7 +33,7 @@ class TransactionService {
       } else {
         throw ErrorHandler.handleHttpError(response);
       }
-    } on AppException rethrow {
+    } on AppException {
       rethrow;
     } catch (e, stackTrace) {
       final exception = ErrorHandler.handleException(e, stackTrace);
@@ -60,7 +60,7 @@ class TransactionService {
       } else {
         throw ErrorHandler.handleHttpError(response);
       }
-    } on AppException rethrow {
+    } on AppException {
       rethrow;
     } catch (e, stackTrace) {
       final exception = ErrorHandler.handleException(e, stackTrace);
@@ -87,7 +87,7 @@ class TransactionService {
       } else {
         throw ErrorHandler.handleHttpError(response);
       }
-    } on AppException rethrow {
+    } on AppException {
       rethrow;
     } catch (e, stackTrace) {
       final exception = ErrorHandler.handleException(e, stackTrace);

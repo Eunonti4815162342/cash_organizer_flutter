@@ -39,7 +39,7 @@ class AuthService {
       } else {
         throw ErrorHandler.handleHttpError(response);
       }
-    } on AppException rethrow {
+    } on AppException {
       rethrow;
     } catch (e, stackTrace) {
       final exception = ErrorHandler.handleException(e, stackTrace);

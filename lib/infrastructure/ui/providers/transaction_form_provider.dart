@@ -1,45 +1,54 @@
 import 'package:flutter/foundation.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
-import '../../../domain/models/category.dart';
+import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/repositories/transaction_repository.dart';
 import '../../../services/session_service.dart';
+import '../../../services/account_service.dart';
+import '../../../services/category_service.dart';
+import '../../../services/transaction_service.dart';
 
 class TransactionFormProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
   final SessionService _sessionService;
+  final AccountService _accountService;
+  final CategoryService _categoryService;
+  final TransactionService _transactionService;
   final TransactionItem? initialTransaction;
 
   String _selectedTypeLabel = 'EXPENSE';
   AccountItem? _selectedAccount;
   AccountItem? _selectedToAccount;
-  Category? _selectedCategory;
+  cat_model.Category? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   String _amount = '0.00';
   String _description = '';
 
   List<AccountItem> _accounts = [];
-  List<Category> _allCategories = [];
+  List<cat_model.Category> _allCategories = [];
   bool _isLoading = true;
 
   TransactionFormProvider(
     this._transactionRepo,
-    this._sessionService, {
+    this._sessionService,
+    this._accountService,
+    this._categoryService,
+    this._transactionService, {
     this.initialTransaction,
   });
 
   String get selectedTypeLabel => _selectedTypeLabel;
   AccountItem? get selectedAccount => _selectedAccount;
   AccountItem? get selectedToAccount => _selectedToAccount;
-  Category? get selectedCategory => _selectedCategory;
+  cat_model.Category? get selectedCategory => _selectedCategory;
   DateTime get selectedDate => _selectedDate;
   String get amount => _amount;
   String get description => _description;
   List<AccountItem> get accounts => _accounts;
-  List<Category> get allCategories => _allCategories;
+  List<cat_model.Category> get allCategories => _allCategories;
   bool get isLoading => _isLoading;
 
-  List<Category> get filteredCategories =>
+  List<cat_model.Category> get filteredCategories =>
       _allCategories.where((c) => c.type.name.toUpperCase() == _selectedTypeLabel.toUpperCase()).toList();
 
   Future<void> loadData() async {
@@ -47,20 +56,29 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _accounts = await _transactionRepo.fetchAllAccounts();
-      _allCategories = await _transactionRepo.fetchAllCategories();
+      _accounts = await _accountService.fetchAccounts();
+      _allCategories = await _categoryService.fetchCategories();
 
-      if (initialTransaction != null) {
+      if (initialTransaction != null && _accounts.isNotEmpty) {
         _selectedTypeLabel = initialTransaction!.type.name;
         _amount = (initialTransaction!.amount.value / 100).abs().toStringAsFixed(2);
         _description = initialTransaction!.description;
         _selectedDate = DateTime.parse(initialTransaction!.date);
-        _selectedAccount = _accounts.firstWhere((a) => a.id == initialTransaction!.account.id, orElse: () => _accounts.first);
+        _selectedAccount = _accounts.firstWhere(
+          (a) => a.id == initialTransaction!.account.id,
+          orElse: () => _accounts.first,
+        );
         if (initialTransaction!.toAccount != null) {
-          _selectedToAccount = _accounts.firstWhere((a) => a.id == initialTransaction!.toAccount!.id, orElse: () => _accounts.first);
+          _selectedToAccount = _accounts.firstWhere(
+            (a) => a.id == initialTransaction!.toAccount!.id,
+            orElse: () => _accounts.first,
+          );
         }
-        if (initialTransaction!.category != null) {
-          _selectedCategory = _allCategories.firstWhere((c) => c.id == initialTransaction!.category!.id);
+        if (initialTransaction!.category != null && _allCategories.isNotEmpty) {
+          _selectedCategory = _allCategories.firstWhere(
+            (c) => c.id == initialTransaction!.category!.id,
+            orElse: () => _allCategories.first,
+          );
         }
       } else {
         if (_sessionService.lastSelectedDate != null) {
@@ -95,7 +113,7 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSelectedCategory(Category category) {
+  void setSelectedCategory(cat_model.Category category) {
     _selectedCategory = category;
     notifyListeners();
   }
@@ -147,7 +165,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
   Future<bool> deleteTransaction(int id) async {
     try {
-      await _transactionRepo.deleteTransaction(id);
+      await _transactionService.deleteTransaction(id);
       return true;
     } catch (e) {
       return false;

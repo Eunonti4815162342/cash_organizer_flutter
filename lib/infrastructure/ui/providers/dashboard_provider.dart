@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/repositories/transaction_repository.dart';
-import '../../../domain/repositories/account_repository.dart';
+import '../../../services/account_service.dart';
+import '../../../services/transaction_service.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
-  final IAccountRepository _accountRepo;
+  final AccountService _accountService;
+  final TransactionService _transactionService;
 
   List<AccountItem> _accounts = [];
   AccountItem? _selectedAccount;
@@ -18,7 +20,7 @@ class DashboardProvider extends ChangeNotifier {
   bool _isLoading = true;
   int _touchedIndex = -1;
 
-  DashboardProvider(this._transactionRepo, this._accountRepo);
+  DashboardProvider(this._transactionRepo, this._accountService, this._transactionService);
 
   List<AccountItem> get accounts => _accounts;
   AccountItem? get selectedAccount => _selectedAccount;
@@ -35,7 +37,7 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _accounts = await _transactionRepo.fetchAllAccounts();
+      _accounts = await _accountService.fetchAccounts();
       await refreshDashboard();
     } catch (e) {
       _isLoading = false;

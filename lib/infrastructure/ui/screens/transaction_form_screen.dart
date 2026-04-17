@@ -30,6 +30,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     _provider = TransactionFormProvider(
       getIt.get(),
       getIt.get(),
+      getIt.get(),
+      getIt.get(),
+      getIt.get(),
       initialTransaction: widget.transaction,
     );
 
@@ -233,10 +236,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final success = await provider.saveTransaction();
     if (success && mounted) {
       Navigator.of(context).pop(true);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.errorSavingTransaction ?? 'Error saving transaction')),
-      );
     }
   }
 
@@ -370,10 +369,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
               final success = await provider.deleteTransaction(widget.transaction!.id);
               if (success && mounted) {
                 Navigator.of(context).pop(true);
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.errorDeletingTransaction ?? 'Error deleting transaction')),
-                );
               }
             },
             child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent)),

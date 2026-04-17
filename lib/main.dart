@@ -25,8 +25,8 @@ final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize environment: auto-detect dev/staging/prod based on build type
-  EnvironmentFactory.initAuto();
+  // Initialize environment: use production to connect to deployed backend
+  EnvironmentFactory.init(type: EnvironmentType.production);
   setupServiceLocator();
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

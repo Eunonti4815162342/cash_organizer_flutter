@@ -2,13 +2,13 @@ import '../environment.dart';
 
 class ProductionEnvironment implements Environment {
   @override
-  String get apiBaseUrl => 'https://api.cashorganizer.com/api';
+  String get apiBaseUrl => 'http://100.86.48.34:8085/api';
 
   @override
-  int get apiTimeout => 15; // Stricter timeout in production
+  int get apiTimeout => 30; // Allow more time for remote connection
 
   @override
-  bool get enableLogging => false; // No logs in production
+  bool get enableLogging => true; // Enable logs to see remote connection issues
 
   @override
   bool get isProduction => true;

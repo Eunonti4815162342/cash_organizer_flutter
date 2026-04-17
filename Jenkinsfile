@@ -36,6 +36,10 @@ pipeline {
                     echo "Building Docker image: ${DOCKER_IMAGE}:latest"
                     docker build \
                         --network=host \
+                        --build-arg API_BASE_URL="${API_URL}" \
+                        --build-arg IS_PRODUCTION=true \
+                        --build-arg ENABLE_LOGGING=false \
+                        --build-arg ENVIRONMENT_NAME="Production" \
                         -t ${DOCKER_IMAGE}:latest \
                         -t ${DOCKER_IMAGE}:build-${BUILD_NUMBER} \
                         .

@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 /// Service for loading runtime configuration from assets/config.json
+/// Configuration files are selected at build time via Dockerfile/Jenkinsfile
 class ConfigService {
   static late Map<String, dynamic> _config;
   static bool _initialized = false;
 
   /// Initialize config by loading from assets/config.json
+  /// The config file is selected at build time and copied to assets/config.json
   static Future<void> init() async {
     if (_initialized) return;
 

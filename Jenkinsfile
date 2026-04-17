@@ -33,13 +33,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    echo "Building Docker image: ${DOCKER_IMAGE}:latest"
+                    echo "Building Docker image: ${DOCKER_IMAGE}:latest with config from: assets/${API_URL}"
                     docker build \
                         --network=host \
-                        --build-arg API_BASE_URL="${API_URL}" \
-                        --build-arg IS_PRODUCTION=true \
-                        --build-arg ENABLE_LOGGING=false \
-                        --build-arg ENVIRONMENT_NAME="Production" \
+                        --build-arg CONFIG_FILE=config.prod.json \
                         -t ${DOCKER_IMAGE}:latest \
                         -t ${DOCKER_IMAGE}:build-${BUILD_NUMBER} \
                         .

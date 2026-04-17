@@ -1,24 +1,21 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../environment.dart';
+import '../../services/config_service.dart';
 
 class DevelopmentEnvironment implements Environment {
   @override
-  String get apiBaseUrl {
-    // For web builds, use Raspberry Pi IP; for mobile, use localhost
-    return kIsWeb ? 'http://192.168.1.145:8085/api' : 'http://localhost:8085/api';
-  }
+  String get apiBaseUrl => ConfigService.apiBaseUrl;
 
   @override
-  int get apiTimeout => 30; // More lenient in dev
+  int get apiTimeout => ConfigService.apiTimeout;
 
   @override
-  bool get enableLogging => true;
+  bool get enableLogging => ConfigService.enableLogging;
 
   @override
-  bool get isProduction => false;
+  bool get isProduction => ConfigService.isProduction;
 
   @override
-  String get environmentName => 'Development';
+  String get environmentName => ConfigService.environmentName;
 
   @override
   List<String> get allowedOrigins => [
@@ -30,17 +27,17 @@ class DevelopmentEnvironment implements Environment {
   ];
 
   @override
-  String get databaseName => 'cash_organizer_dev.db';
+  String get databaseName => ConfigService.databaseName;
 
   @override
-  bool get enableBiometric => true;
+  bool get enableBiometric => ConfigService.enableBiometric;
 
   @override
-  int get tokenExpirationHours => 24;
+  int get tokenExpirationHours => ConfigService.tokenExpirationHours;
 
   @override
-  bool get enableBackgroundSync => true;
+  bool get enableBackgroundSync => ConfigService.enableBackgroundSync;
 
   @override
-  int get backgroundSyncIntervalMinutes => 15;
+  int get backgroundSyncIntervalMinutes => ConfigService.backgroundSyncIntervalMinutes;
 }

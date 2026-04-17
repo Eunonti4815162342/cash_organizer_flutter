@@ -1,6 +1,12 @@
 # Build stage - ARM64 compatible
 FROM ubuntu:22.04 AS build
 
+ARG API_BASE_URL=http://localhost:8085/api
+ARG API_TIMEOUT=30
+ARG ENABLE_LOGGING=false
+ARG IS_PRODUCTION=true
+ARG ENVIRONMENT_NAME=Production
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV FLUTTER_HOME=/usr/local/flutter
 ENV PATH=$FLUTTER_HOME/bin:$FLUTTER_HOME/bin/cache/dart-sdk/bin:$PATH
@@ -25,6 +31,21 @@ RUN git clone --depth 1 -b stable https://github.com/flutter/flutter.git $FLUTTE
 
 # Copy source code
 COPY . .
+
+# Generate runtime configuration from build arguments
+RUN mkdir -p assets && \
+    echo "{ \
+      \"apiBaseUrl\": \"${API_BASE_URL}\", \
+      \"apiTimeout\": ${API_TIMEOUT}, \
+      \"enableLogging\": ${ENABLE_LOGGING}, \
+      \"isProduction\": ${IS_PRODUCTION}, \
+      \"environmentName\": \"${ENVIRONMENT_NAME}\", \
+      \"tokenExpirationHours\": 24, \
+      \"enableBiometric\": true, \
+      \"enableBackgroundSync\": true, \
+      \"backgroundSyncIntervalMinutes\": 60, \
+      \"databaseName\": \"cash_organizer_prod.db\" \
+    }" > assets/config.json
 
 # Build web app
 RUN flutter pub get && \

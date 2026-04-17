@@ -12,6 +12,7 @@ import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'services/config_service.dart';
 import 'domain/models/account_item.dart';
 import 'service_locator.dart';
 import 'config/environment_factory.dart';
@@ -25,6 +26,8 @@ final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load runtime configuration from assets/config.json
+  await ConfigService.init();
   // Initialize environment: use production to connect to deployed backend
   EnvironmentFactory.init(type: EnvironmentType.production);
   setupServiceLocator();

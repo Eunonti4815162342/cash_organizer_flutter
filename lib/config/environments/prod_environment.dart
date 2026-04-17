@@ -1,20 +1,21 @@
 import '../environment.dart';
+import '../../services/config_service.dart';
 
 class ProductionEnvironment implements Environment {
   @override
-  String get apiBaseUrl => 'http://192.168.1.145:8085/api'; // Local Raspberry Pi
+  String get apiBaseUrl => ConfigService.apiBaseUrl;
 
   @override
-  int get apiTimeout => 30;
+  int get apiTimeout => ConfigService.apiTimeout;
 
   @override
-  bool get enableLogging => false;
+  bool get enableLogging => ConfigService.enableLogging;
 
   @override
-  bool get isProduction => true;
+  bool get isProduction => ConfigService.isProduction;
 
   @override
-  String get environmentName => 'Production';
+  String get environmentName => ConfigService.environmentName;
 
   @override
   List<String> get allowedOrigins => [
@@ -23,17 +24,17 @@ class ProductionEnvironment implements Environment {
   ];
 
   @override
-  String get databaseName => 'cash_organizer_prod.db';
+  String get databaseName => ConfigService.databaseName;
 
   @override
-  bool get enableBiometric => true;
+  bool get enableBiometric => ConfigService.enableBiometric;
 
   @override
-  int get tokenExpirationHours => 24;
+  int get tokenExpirationHours => ConfigService.tokenExpirationHours;
 
   @override
-  bool get enableBackgroundSync => true;
+  bool get enableBackgroundSync => ConfigService.enableBackgroundSync;
 
   @override
-  int get backgroundSyncIntervalMinutes => 60; // Less frequent in prod
+  int get backgroundSyncIntervalMinutes => ConfigService.backgroundSyncIntervalMinutes;
 }

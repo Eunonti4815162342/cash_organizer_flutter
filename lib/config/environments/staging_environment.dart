@@ -1,20 +1,21 @@
 import '../environment.dart';
+import '../../services/config_service.dart';
 
 class StagingEnvironment implements Environment {
   @override
-  String get apiBaseUrl => 'https://staging-api.cashorganizer.com/api';
+  String get apiBaseUrl => ConfigService.apiBaseUrl;
 
   @override
-  int get apiTimeout => 20;
+  int get apiTimeout => ConfigService.apiTimeout;
 
   @override
-  bool get enableLogging => true; // Still log issues in staging
+  bool get enableLogging => ConfigService.enableLogging;
 
   @override
-  bool get isProduction => false;
+  bool get isProduction => ConfigService.isProduction;
 
   @override
-  String get environmentName => 'Staging';
+  String get environmentName => ConfigService.environmentName;
 
   @override
   List<String> get allowedOrigins => [
@@ -23,17 +24,17 @@ class StagingEnvironment implements Environment {
   ];
 
   @override
-  String get databaseName => 'cash_organizer_staging.db';
+  String get databaseName => ConfigService.databaseName;
 
   @override
-  bool get enableBiometric => true;
+  bool get enableBiometric => ConfigService.enableBiometric;
 
   @override
-  int get tokenExpirationHours => 24;
+  int get tokenExpirationHours => ConfigService.tokenExpirationHours;
 
   @override
-  bool get enableBackgroundSync => true;
+  bool get enableBackgroundSync => ConfigService.enableBackgroundSync;
 
   @override
-  int get backgroundSyncIntervalMinutes => 30;
+  int get backgroundSyncIntervalMinutes => ConfigService.backgroundSyncIntervalMinutes;
 }

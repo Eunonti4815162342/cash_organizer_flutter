@@ -2,13 +2,13 @@ import '../environment.dart';
 
 class ProductionEnvironment implements Environment {
   @override
-  String get apiBaseUrl => 'http://100.86.48.34:8085/api';
+  String get apiBaseUrl => 'http://192.168.1.145:8085/api'; // Local Raspberry Pi
 
   @override
-  int get apiTimeout => 30; // Allow more time for remote connection
+  int get apiTimeout => 30;
 
   @override
-  bool get enableLogging => true; // Enable logs to see remote connection issues
+  bool get enableLogging => false;
 
   @override
   bool get isProduction => true;

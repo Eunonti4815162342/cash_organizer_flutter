@@ -13,6 +13,7 @@ import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'domain/models/account_item.dart';
+import 'service_locator.dart';
 
 // Importación condicional
 import 'services/background_sync.dart'
@@ -23,6 +24,7 @@ final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  setupServiceLocator();
   if (!kIsWeb) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,

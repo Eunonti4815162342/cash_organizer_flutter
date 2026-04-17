@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Configuration files (environment-specific)
+# config.json is tracked (default development config)
+# Other environment configs are generated during Docker build
+assets/config.prod.json
+assets/config.staging.json

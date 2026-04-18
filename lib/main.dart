@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'l10n/app_localizations.dart';
@@ -124,7 +124,6 @@ class ResponsiveMainLayout extends StatefulWidget {
 class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
   late final ApiService _apiService;
   int _selectedIndex = 0;
-  Key _screenKey = UniqueKey();
 
   @override
   void initState() {
@@ -188,7 +187,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       iconTheme: const IconThemeData(color: Colors.white),
       title: Text(_getPageTitle(l10n), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w400)),
       actions: [
-        if (!isMobile) ...[_buildLanguageToggle(), IconButton(icon: const Icon(Icons.sync, size: 20), onPressed: () => setState(() => _screenKey = UniqueKey()))],
+        if (!isMobile) ...[_buildLanguageToggle(), IconButton(icon: const Icon(Icons.sync, size: 20), onPressed: () => setState(() {}))],
         const SizedBox(width: 8),
       ],
     );

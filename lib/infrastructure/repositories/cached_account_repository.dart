@@ -24,15 +24,21 @@ class CachedAccountRepository implements IAccountRepository {
     }
   }
 
+  /// Intenta crear en el backend. Si no hay red, guarda localmente con ID
+  /// temporal negativo y pending_sync=1. Devuelve el AccountItem resultante.
   @override
-  Future<void> saveAccount(AccountItem account, {bool isSynced = true}) async {
+  Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true}) async {
     try {
       final result = await _apiService.createAccount(_buildPayload(account));
       if (result != null && !kIsWeb) {
-        await _localRepo?.saveAccount(result, isSynced: true);
+        await _localRepo?.saveAll([result]);
+        return result;
       }
+      return account;
     } catch (e) {
-      // Crear cuenta requiere conexión — no guardamos pendiente sin server ID
+      if (!kIsWeb) {
+        return await _localRepo?.saveAccount(account, isSynced: false) ?? account;
+      }
       rethrow;
     }
   }
@@ -63,6 +69,12 @@ class CachedAccountRepository implements IAccountRepository {
   }
 
   @override
+  Future<List<AccountItem>> getPendingCreatesToSync() async {
+    if (kIsWeb) return [];
+    return await _localRepo?.getPendingCreatesToSync() ?? [];
+  }
+
+  @override
   Future<List<AccountItem>> getPendingToSync() async {
     if (kIsWeb) return [];
     return await _localRepo?.getPendingToSync() ?? [];
@@ -82,6 +94,7 @@ class CachedAccountRepository implements IAccountRepository {
       'isNegative': account.amount.isNegative,
     },
     'accountType': account.accountType ?? 'CASH',
+    'notes': account.notes,
     'active': true,
   };
 }

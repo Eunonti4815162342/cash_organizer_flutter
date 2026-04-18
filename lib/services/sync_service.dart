@@ -23,6 +23,7 @@ class SyncService {
     if (!online) return;
 
     await _syncCategories();
+    await _syncPendingAccountCreates();   // primero cuentas — transacciones las referencian
     await _syncPendingTransactionCreates();
     await _syncPendingTransactionUpdates();
     await _syncPendingAccountUpdates();
@@ -81,6 +82,31 @@ class SyncService {
           'date': tx.date,
         });
         await _transactionRepo.markAsSynced(tx.id, tx.id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _syncPendingAccountCreates() async {
+    final pending = await _accountRepo.getPendingCreatesToSync();
+    for (final account in pending) {
+      try {
+        final result = await _apiService.createAccount({
+          'name': account.name,
+          'description': account.description,
+          'amount': {
+            'value': account.amount.value,
+            'currency': account.amount.currency,
+            'isNegative': account.amount.isNegative,
+          },
+          'accountType': account.accountType ?? 'CASH',
+          'notes': account.notes,
+          'active': true,
+        });
+        if (result != null) {
+          // localId es el ID negativo temporal; serverId es el real del backend.
+          // markAsSynced también reasigna account_id en transacciones pendientes.
+          await _accountRepo.markAsSynced(account.id, result.id);
+        }
       } catch (_) {}
     }
   }

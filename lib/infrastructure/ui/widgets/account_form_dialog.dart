@@ -187,36 +187,22 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
 
   Future<void> _save() async {
     if (_nameController.text.isEmpty) return;
-    final l10n = AppLocalizations.of(context)!;
     final double val = double.tryParse(_initialBalanceController.text) ?? 0.0;
-    final data = {
-      'name': _nameController.text,
-      'description': _descriptionController.text,
-      'amount': {'value': (val * 100).toInt(), 'currency': _selectedCurrency, 'isNegative': val < 0},
-      'accountType': _selectedType,
-      'notes': _notesController.text,
-      'flags': widget.account?.flags ?? 0,
-      'accountOrder': widget.account?.accountOrder ?? 0,
-      'active': true,
-      'entity': _selectedEntity != null ? {'id': _selectedEntity!.id} : null,
-    };
 
     if (widget.account == null) {
-      // Crear: requiere conexión
-      try {
-        final result = await _apiService.createAccount(data);
-        if (result != null) {
-          if (mounted) Navigator.pop(context, true);
-        } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noData)));
-        }
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sin conexión. Conéctate para crear una cuenta.')),
-          );
-        }
-      }
+      // Crear: funciona offline — se guarda localmente y sincroniza al reconectar
+      final newAccount = AccountItem(
+        id: 0,
+        name: _nameController.text,
+        description: _descriptionController.text,
+        amount: Amount((val * 100).toInt(), _selectedCurrency, val < 0),
+        flags: 0,
+        accountType: _selectedType,
+        notes: _notesController.text,
+        entity: _selectedEntity,
+      );
+      await _accountRepo.saveAccount(newAccount);
+      if (mounted) Navigator.pop(context, true);
     } else {
       // Editar: funciona offline — guarda pendiente y sincroniza al reconectar
       final updated = AccountItem(

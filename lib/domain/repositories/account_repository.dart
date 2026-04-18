@@ -2,10 +2,11 @@ import '../models/account_item.dart';
 
 abstract class IAccountRepository {
   Future<List<AccountItem>> fetchAccounts();
-  Future<void> saveAccount(AccountItem account, {bool isSynced = true});
+  Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true});
   Future<void> updateAccount(AccountItem account, {bool isSynced = true});
   Future<void> saveAll(List<AccountItem> accounts);
   Future<AccountItem?> getById(int id);
+  Future<List<AccountItem>> getPendingCreatesToSync();
   Future<List<AccountItem>> getPendingToSync();
   Future<void> markAsSynced(int localId, int serverId);
 }

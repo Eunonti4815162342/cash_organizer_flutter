@@ -5,7 +5,6 @@ import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/repositories/transaction_repository.dart';
 import '../../../services/session_service.dart';
 import '../../../services/api_service.dart';
-
 import '../../../domain/models/financial_entity.dart';
 
 class TransactionFormProvider extends ChangeNotifier {
@@ -134,8 +133,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
   Future<bool> saveTransaction() async {
     try {
-      double amountValue = double.tryParse(_amount) ?? 0.0;
-
+      final double amountValue = double.tryParse(_amount) ?? 0.0;
       final tx = TransactionItem(
         id: initialTransaction?.id ?? 0,
         date: _selectedDate.toIso8601String(),
@@ -154,7 +152,12 @@ class TransactionFormProvider extends ChangeNotifier {
         tags: [],
       );
 
-      await _transactionRepo.saveTransaction(tx, isSynced: true);
+      if (initialTransaction != null) {
+        await _transactionRepo.updateTransaction(tx);
+      } else {
+        await _transactionRepo.saveTransaction(tx);
+      }
+
       _sessionService.lastSelectedDate = _selectedDate;
       return true;
     } catch (e) {

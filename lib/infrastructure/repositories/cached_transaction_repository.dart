@@ -6,62 +6,46 @@ import '../../service_locator.dart';
 
 class CachedTransactionRepository implements ITransactionRepository {
   final ApiService _apiService = getIt<ApiService>();
-  
-  ITransactionRepository? get _localRepo => kIsWeb ? null : getIt<ITransactionRepository>(instanceName: 'local_transaction');
+
+  ITransactionRepository? get _localRepo =>
+      kIsWeb ? null : getIt<ITransactionRepository>(instanceName: 'local_transaction');
 
   @override
   Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
     try {
-      final remoteTransactions = await _apiService.fetchTransactions(
-        startDate: startDate,
-        endDate: endDate,
-        accountId: accountId,
-      );
-      
-      if (!kIsWeb) {
-        await _localRepo?.saveAll(remoteTransactions);
-      }
-      return remoteTransactions;
-      
+      final remote = await _apiService.fetchTransactions(startDate: startDate, endDate: endDate, accountId: accountId);
+      if (!kIsWeb) await _localRepo?.saveAll(remote);
+      return remote;
     } catch (e) {
-      print('[CachedTransactionRepository] Error: $e');
       if (kIsWeb) return [];
-      return await _localRepo?.fetchTransactions(
-        startDate: startDate,
-        endDate: endDate,
-        accountId: accountId,
-      ) ?? [];
+      return await _localRepo?.fetchTransactions(startDate: startDate, endDate: endDate, accountId: accountId) ?? [];
     }
   }
 
   @override
   Future<void> saveTransaction(TransactionItem transaction, {bool isSynced = true}) async {
-    if (!kIsWeb) {
-      await _localRepo?.saveTransaction(transaction, isSynced: isSynced);
+    try {
+      final result = await _apiService.createTransaction(_buildPayload(transaction));
+      if (result != null && !kIsWeb) {
+        await _localRepo?.saveAll([result]);
+      }
+    } catch (e) {
+      if (!kIsWeb) {
+        await _localRepo?.saveTransaction(transaction, isSynced: false);
+      }
     }
+  }
 
-    if (isSynced) {
-      try {
-        final result = await _apiService.createTransaction({
-          'amount': {
-            'value': transaction.amount.value, 
-            'currency': transaction.amount.currency,
-            'isNegative': transaction.amount.isNegative
-          },
-          'account': {'id': transaction.account.id},
-          'toAccount': transaction.toAccount != null ? {'id': transaction.toAccount!.id} : null,
-          'category': transaction.category != null ? {'id': transaction.category!.id} : null,
-          'subcategory': transaction.subcategory != null ? {'id': transaction.subcategory!.id} : null,
-          'type': transaction.type.name,
-          'description': transaction.description,
-          'date': transaction.date,
-        });
-        
-        if (result != null && !kIsWeb) {
-          await _localRepo?.markAsSynced(transaction.id, result.id);
-        }
-      } catch (e) {
-        print('[CachedTransactionRepository] No se pudo sincronizar: $e');
+  @override
+  Future<void> updateTransaction(TransactionItem transaction, {bool isSynced = true}) async {
+    try {
+      final result = await _apiService.updateTransaction(transaction.id, _buildPayload(transaction));
+      if (result != null && !kIsWeb) {
+        await _localRepo?.saveAll([result]);
+      }
+    } catch (e) {
+      if (!kIsWeb) {
+        await _localRepo?.updateTransaction(transaction, isSynced: false);
       }
     }
   }
@@ -78,7 +62,28 @@ class CachedTransactionRepository implements ITransactionRepository {
   }
 
   @override
+  Future<List<TransactionItem>> getPendingUpdatesToSync() async {
+    if (kIsWeb) return [];
+    return await _localRepo?.getPendingUpdatesToSync() ?? [];
+  }
+
+  @override
   Future<void> markAsSynced(int localId, int serverId) async {
     if (!kIsWeb) await _localRepo?.markAsSynced(localId, serverId);
   }
+
+  Map<String, dynamic> _buildPayload(TransactionItem tx) => {
+    'amount': {
+      'value': tx.amount.value,
+      'currency': tx.amount.currency,
+      'isNegative': tx.amount.isNegative,
+    },
+    'account': {'id': tx.account.id},
+    'toAccount': tx.toAccount != null ? {'id': tx.toAccount!.id} : null,
+    'category': tx.category != null ? {'id': tx.category!.id} : null,
+    'subcategory': tx.subcategory != null ? {'id': tx.subcategory!.id} : null,
+    'type': tx.type.name,
+    'description': tx.description,
+    'date': tx.date,
+  };
 }

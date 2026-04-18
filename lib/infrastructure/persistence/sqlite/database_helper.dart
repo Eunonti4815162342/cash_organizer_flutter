@@ -17,11 +17,12 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'cash_organizer_v4.db'); 
+    String path = join(await getDatabasesPath(), 'cash_organizer_v4.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -34,7 +35,10 @@ class DatabaseHelper {
         amount_currency TEXT NOT NULL,
         is_negative INTEGER DEFAULT 0,
         description TEXT,
-        last_updated TEXT
+        account_type TEXT,
+        notes TEXT,
+        last_updated TEXT,
+        pending_sync INTEGER DEFAULT 0
       )
     ''');
 
@@ -69,8 +73,22 @@ class DatabaseHelper {
         account_name TEXT,
         category_id INTEGER,
         category_name TEXT,
+        subcategory_id INTEGER,
+        to_account_id INTEGER,
+        to_account_name TEXT,
         pending_sync INTEGER DEFAULT 0
       )
     ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE accounts ADD COLUMN pending_sync INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE accounts ADD COLUMN account_type TEXT');
+      await db.execute('ALTER TABLE accounts ADD COLUMN notes TEXT');
+      await db.execute('ALTER TABLE transactions ADD COLUMN subcategory_id INTEGER');
+      await db.execute('ALTER TABLE transactions ADD COLUMN to_account_id INTEGER');
+      await db.execute('ALTER TABLE transactions ADD COLUMN to_account_name TEXT');
+    }
   }
 }

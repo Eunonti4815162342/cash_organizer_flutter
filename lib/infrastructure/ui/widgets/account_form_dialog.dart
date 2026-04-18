@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/api_service.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/financial_entity.dart';
+import '../../../domain/repositories/account_repository.dart';
 import 'entity_form_dialog.dart';
 
 class AccountFormDialog extends StatefulWidget {
@@ -16,6 +18,7 @@ class AccountFormDialog extends StatefulWidget {
 
 class _AccountFormDialogState extends State<AccountFormDialog> {
   final ApiService _apiService = ApiService();
+  late final IAccountRepository _accountRepo = GetIt.instance<IAccountRepository>();
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _initialBalanceController;
@@ -59,7 +62,8 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
       if (!['CASH', 'BANK', 'CARD'].contains(_selectedType)) {
         _selectedType = 'CASH';
       }
-      _selectedEntity = widget.account!.entity;
+      // _selectedEntity se asigna en _loadEntities() una vez la lista esté disponible,
+      // para evitar que el DropdownButton reciba un value que no está en items todavía.
     }
     _loadEntities();
   }
@@ -105,153 +109,322 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isMobile = MediaQuery.of(context).size.width < 800;
-    final greyInputStyle = TextStyle(color: Colors.grey.shade600, fontSize: 14);
+    final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 100, vertical: 50),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
       child: Container(
-        width: isMobile ? double.infinity : 1000, 
-        height: isMobile ? double.infinity : 600,
+        width: isMobile ? double.infinity : 1000,
+        height: isMobile ? double.infinity : 620,
         decoration: BoxDecoration(
           color: AppColors.windowBackground,
-          borderRadius: BorderRadius.circular(isMobile ? 0 : 8),
-          boxShadow: isMobile ? null : const [BoxShadow(color: Colors.black26, blurRadius: 20)],
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 24),
+          boxShadow: isMobile ? null : const [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, 8))],
         ),
-        child: Column(
-          children: [
-            // HEADER
-            Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: const BoxDecoration(
-                color: AppColors.cardBackground,
-                border: Border(bottom: BorderSide(color: Colors.black12)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 24),
+          child: Column(
+            children: [
+              _buildHeader(l10n, isMobile),
+              Expanded(
+                child: isMobile
+                    ? _buildMobileForm(l10n)
+                    : _buildDesktopForm(l10n),
               ),
-              child: Row(
-                children: [
-                  if (isMobile) IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
-                  Text(widget.account == null ? l10n.newAccount : l10n.editAccount, style: const TextStyle(fontSize: 18, color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (_nameController.text.isNotEmpty) {
-                        double val = double.tryParse(_initialBalanceController.text) ?? 0.0;
-                        final data = {
-                          'name': _nameController.text,
-                          'description': _descriptionController.text,
-                          'amount': {
-                            'value': (val * 100).toInt(),
-                            'currency': _selectedCurrency,
-                            'isNegative': val < 0
-                          },
-                          'accountType': _selectedType,
-                          'notes': _notesController.text,
-                          'flags': widget.account?.flags ?? 0,
-                          'accountOrder': widget.account?.accountOrder ?? 0,
-                          'active': true,
-                          'entity': _selectedEntity != null ? {'id': _selectedEntity!.id} : null
-                        };
-
-                        final result = widget.account == null
-                            ? await _apiService.createAccount(data)
-                            : await _apiService.updateAccount(widget.account!.id, data);
-
-                        if (result != null) {
-                          if (mounted) Navigator.pop(context, true);
-                        } else {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noData)));
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
-                    child: Text(l10n.save, style: const TextStyle(color: Colors.white)),
-                  ),
-                  if (!isMobile) ...[
-                    const SizedBox(width: 10),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                  ]
-                ],
-              ),
-            ),
-            
-            Expanded(
-              child: isMobile 
-                ? _buildMobileForm(l10n, greyInputStyle) 
-                : _buildDesktopForm(l10n, greyInputStyle),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDesktopForm(AppLocalizations l10n, TextStyle style) {
+  Widget _buildHeader(AppLocalizations l10n, bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        children: [
+          if (isMobile)
+            IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context), padding: EdgeInsets.zero),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryBlue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            widget.account == null ? l10n.newAccount : l10n.editAccount,
+            style: const TextStyle(fontSize: 17, color: AppColors.primaryText, fontWeight: FontWeight.bold),
+          ),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.check, size: 16),
+            label: Text(l10n.save),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+          if (!isMobile) ...[
+            const SizedBox(width: 8),
+            IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_nameController.text.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+    final double val = double.tryParse(_initialBalanceController.text) ?? 0.0;
+    final data = {
+      'name': _nameController.text,
+      'description': _descriptionController.text,
+      'amount': {'value': (val * 100).toInt(), 'currency': _selectedCurrency, 'isNegative': val < 0},
+      'accountType': _selectedType,
+      'notes': _notesController.text,
+      'flags': widget.account?.flags ?? 0,
+      'accountOrder': widget.account?.accountOrder ?? 0,
+      'active': true,
+      'entity': _selectedEntity != null ? {'id': _selectedEntity!.id} : null,
+    };
+
+    if (widget.account == null) {
+      // Crear: requiere conexión
+      try {
+        final result = await _apiService.createAccount(data);
+        if (result != null) {
+          if (mounted) Navigator.pop(context, true);
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noData)));
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sin conexión. Conéctate para crear una cuenta.')),
+          );
+        }
+      }
+    } else {
+      // Editar: funciona offline — guarda pendiente y sincroniza al reconectar
+      final updated = AccountItem(
+        id: widget.account!.id,
+        name: _nameController.text,
+        description: _descriptionController.text,
+        amount: Amount((val * 100).toInt(), _selectedCurrency, val < 0),
+        flags: widget.account!.flags,
+        accountType: _selectedType,
+        notes: _notesController.text,
+        entity: _selectedEntity,
+      );
+      await _accountRepo.updateAccount(updated);
+      if (mounted) Navigator.pop(context, true);
+    }
+  }
+
+  Widget _buildDesktopForm(AppLocalizations l10n) {
     return Row(
       children: [
-        Expanded(flex: 6, child: _buildFormFields(l10n, style)),
+        Expanded(flex: 6, child: _buildFormFields(l10n)),
         Expanded(flex: 4, child: _buildPropertiesSidebar(l10n)),
       ],
     );
   }
 
-  Widget _buildMobileForm(AppLocalizations l10n, TextStyle style) {
+  Widget _buildMobileForm(AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          _buildFormFields(l10n, style),
-          const Divider(),
+          _buildFormFields(l10n),
           _buildPropertiesSidebar(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildFormFields(AppLocalizations l10n, TextStyle style) {
-    return Container(
-      color: AppColors.cardBackground,
+  Widget _buildFormFields(AppLocalizations l10n) {
+    final inputStyle = TextStyle(color: Colors.grey.shade700, fontSize: 15);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: ListView(
-              shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
+          // Entity section
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: Column(
               children: [
-                _buildInputRow(l10n.entity, Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<FinancialEntity?>(
-                        value: _selectedEntity,
-                        isExpanded: true,
-                        underline: const SizedBox(),
-                        hint: const Text('Select Entity...'),
-                        items: [
-                          const DropdownMenuItem<FinancialEntity?>(
-                            value: null,
-                            child: Text('None / Individual', style: TextStyle(color: Colors.grey)),
-                          ),
-                          ..._entities.map((e) => DropdownMenuItem<FinancialEntity?>(
-                            value: e,
-                            child: Text(e.name, style: style),
-                          )),
-                        ],
-                        onChanged: (v) => setState(() => _selectedEntity = v),
+                _buildFieldTile(
+                  icon: Icons.business_outlined,
+                  label: l10n.entity.toUpperCase(),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<FinancialEntity?>(
+                          value: _selectedEntity,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          hint: Text('Seleccionar...', style: TextStyle(color: Colors.grey.shade400)),
+                          items: [
+                            const DropdownMenuItem<FinancialEntity?>(
+                              value: null,
+                              child: Text('None / Individual', style: TextStyle(color: Colors.grey)),
+                            ),
+                            ..._entities.map((e) => DropdownMenuItem<FinancialEntity?>(
+                              value: e,
+                              child: Text(e.name, style: inputStyle),
+                            )),
+                          ],
+                          onChanged: (v) => setState(() => _selectedEntity = v),
+                        ),
                       ),
-                    ),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue), onPressed: _showNewEntityDialog),
-                  ],
-                )),
-                _buildInputRow('Name*', TextField(controller: _nameController, focusNode: _nameFocus, style: style, decoration: const InputDecoration(hintText: 'Account name', border: InputBorder.none))),
-                _buildInputRow(l10n.description, TextField(controller: _descriptionController, focusNode: _descFocus, style: style, decoration: const InputDecoration(hintText: 'Optional description', border: InputBorder.none))),
-                _buildInputRow('Currency', DropdownButton<String>(value: _selectedCurrency, isExpanded: true, underline: const SizedBox(), items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e, style: style))).toList(), onChanged: (v) => setState(() => _selectedCurrency = v!))),
-                _buildInputRow(l10n.type, DropdownButton<String>(value: _selectedType, isExpanded: true, underline: const SizedBox(), items: [
-                  DropdownMenuItem(value: 'CASH', child: Text('Cash', style: style)),
-                  DropdownMenuItem(value: 'BANK', child: Text('Bank', style: style)),
-                  DropdownMenuItem(value: 'CARD', child: Text('Card', style: style)),
-                ], onChanged: (v) => setState(() => _selectedType = v!))),
-                _buildInputRow(l10n.initialBalance, TextField(controller: _initialBalanceController, focusNode: _balanceFocus, style: style, keyboardType: TextInputType.number, decoration: const InputDecoration(border: InputBorder.none))),
-                _buildInputRow(l10n.notes, TextField(controller: _notesController, focusNode: _notesFocus, style: style, maxLines: 3, decoration: const InputDecoration(border: InputBorder.none))),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue, size: 20),
+                        onPressed: _showNewEntityDialog,
+                        tooltip: 'Nueva entidad',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Main fields
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                _buildFieldTile(
+                  icon: Icons.label_outline,
+                  label: 'NOMBRE*',
+                  child: TextField(
+                    controller: _nameController,
+                    focusNode: _nameFocus,
+                    style: inputStyle,
+                    decoration: const InputDecoration(hintText: 'Nombre de la cuenta', border: InputBorder.none),
+                  ),
+                ),
+                Divider(height: 1, color: Colors.grey.shade100),
+                _buildFieldTile(
+                  icon: Icons.notes_outlined,
+                  label: l10n.description.toUpperCase(),
+                  child: TextField(
+                    controller: _descriptionController,
+                    focusNode: _descFocus,
+                    style: inputStyle,
+                    decoration: const InputDecoration(hintText: 'Descripción opcional', border: InputBorder.none),
+                  ),
+                ),
+                Divider(height: 1, color: Colors.grey.shade100),
+                _buildFieldTile(
+                  icon: Icons.euro_outlined,
+                  label: 'SALDO INICIAL',
+                  child: TextField(
+                    controller: _initialBalanceController,
+                    focusNode: _balanceFocus,
+                    style: inputStyle,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(border: InputBorder.none),
+                  ),
+                ),
+                Divider(height: 1, color: Colors.grey.shade100),
+                _buildFieldTile(
+                  icon: Icons.sticky_note_2_outlined,
+                  label: l10n.notes.toUpperCase(),
+                  child: TextField(
+                    controller: _notesController,
+                    focusNode: _notesFocus,
+                    style: inputStyle,
+                    maxLines: 2,
+                    decoration: const InputDecoration(border: InputBorder.none),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Type & currency
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                _buildFieldTile(
+                  icon: Icons.category_outlined,
+                  label: l10n.type.toUpperCase(),
+                  child: DropdownButton<String>(
+                    value: _selectedType,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: [
+                      DropdownMenuItem(value: 'CASH', child: Text('Efectivo', style: inputStyle)),
+                      DropdownMenuItem(value: 'BANK', child: Text('Banco', style: inputStyle)),
+                      DropdownMenuItem(value: 'CARD', child: Text('Tarjeta', style: inputStyle)),
+                    ],
+                    onChanged: (v) => setState(() => _selectedType = v!),
+                  ),
+                ),
+                Divider(height: 1, color: Colors.grey.shade100),
+                _buildFieldTile(
+                  icon: Icons.currency_exchange_outlined,
+                  label: 'DIVISA',
+                  child: DropdownButton<String>(
+                    value: _selectedCurrency,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: ['EUR', 'USD', 'GBP'].map((e) => DropdownMenuItem(value: e, child: Text(e, style: inputStyle))).toList(),
+                    onChanged: (v) => setState(() => _selectedCurrency = v!),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldTile({required IconData icon, required String label, required Widget child}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: AppColors.secondaryText),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 10, color: AppColors.primaryBlue, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                child,
               ],
             ),
           ),
@@ -261,44 +434,56 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   }
 
   Widget _buildPropertiesSidebar(AppLocalizations l10n) {
+    final balance = double.tryParse(_initialBalanceController.text) ?? 0.0;
+    final isNegative = balance < 0;
+
     return Container(
-      decoration: const BoxDecoration(color: AppColors.sidebarBackground),
-      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.sidebarBackground,
+        border: const Border(left: BorderSide(color: AppColors.divider)),
+      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.accountProperties, style: const TextStyle(fontSize: 16, color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          _buildPropertyItem(l10n.accountName, _nameController.text.isEmpty ? 'New Account' : _nameController.text, isBoldValue: true),
-          _buildPropertyItem('Currency', _selectedCurrency, isBoldValue: true),
-          _buildPropertyItem(l10n.totalBalance, '€ ${_initialBalanceController.text}', valueColor: Colors.black, isBoldValue: true),
+          Text(l10n.accountProperties,
+              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.grey.shade200)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPropertyItem(l10n.accountName, _nameController.text.isEmpty ? 'Nueva cuenta' : _nameController.text),
+                  const SizedBox(height: 12),
+                  _buildPropertyItem('Divisa', _selectedCurrency),
+                  const SizedBox(height: 12),
+                  _buildPropertyItem(
+                    l10n.totalBalance,
+                    '€ ${_initialBalanceController.text.isEmpty ? '0.00' : _initialBalanceController.text}',
+                    valueColor: isNegative ? AppColors.expenseRed : AppColors.incomeGreen,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInputRow(String label, Widget input) {
-    return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
-      child: Row(
-        children: [
-          Container(width: 120, padding: const EdgeInsets.all(16), alignment: Alignment.centerRight, child: Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 13))),
-          Expanded(child: Container(padding: const EdgeInsets.symmetric(horizontal: 16), color: const Color(0xFFF9F9F9), child: input)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPropertyItem(String label, String value, {Color? valueColor, bool isBoldValue = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
-          Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 14, fontWeight: isBoldValue ? FontWeight.bold : FontWeight.normal)),
-        ],
-      ),
+  Widget _buildPropertyItem(String label, String value, {Color? valueColor}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11, letterSpacing: 0.5)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 14, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

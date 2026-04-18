@@ -10,37 +10,22 @@ class SqliteAccountRepository implements IAccountRepository {
   @override
   Future<List<AccountItem>> fetchAccounts() async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('accounts');
-
-    return maps.map((m) => AccountItem(
-      id: m['id'],
-      name: m['name'],
-      amount: Amount(
-        m['amount_value'],
-        m['amount_currency'],
-        m['is_negative'] == 1,
-      ),
-      flags: 0,
-      description: m['description'],
-    )).toList();
+    final maps = await db.query('accounts');
+    return maps.map(_fromRow).toList();
   }
 
   @override
-  Future<void> saveAccount(AccountItem account) async {
+  Future<void> saveAccount(AccountItem account, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
-    await db.insert(
-      'accounts',
-      {
-        'id': account.id,
-        'name': account.name,
-        'amount_value': account.amount.value,
-        'amount_currency': account.amount.currency,
-        'is_negative': account.amount.isNegative ? 1 : 0,
-        'description': account.description,
-        'last_updated': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('accounts', _toRow(account, pendingSync: isSynced ? 0 : 1),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  Future<void> updateAccount(AccountItem account, {bool isSynced = true}) async {
+    final db = await _dbHelper.database;
+    final row = _toRow(account, pendingSync: isSynced ? 0 : 2)..remove('id');
+    await db.update('accounts', row, where: 'id = ?', whereArgs: [account.id]);
   }
 
   @override
@@ -48,19 +33,8 @@ class SqliteAccountRepository implements IAccountRepository {
     final db = await _dbHelper.database;
     await db.transaction((txn) async {
       for (var account in accounts) {
-        await txn.insert(
-          'accounts',
-          {
-            'id': account.id,
-            'name': account.name,
-            'amount_value': account.amount.value,
-            'amount_currency': account.amount.currency,
-            'is_negative': account.amount.isNegative ? 1 : 0,
-            'description': account.description,
-            'last_updated': DateTime.now().toIso8601String(),
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('accounts', _toRow(account, pendingSync: 0),
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }
@@ -70,17 +44,42 @@ class SqliteAccountRepository implements IAccountRepository {
     final db = await _dbHelper.database;
     final maps = await db.query('accounts', where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
-    final m = maps.first;
-    return AccountItem(
-      id: m['id'] as int,
-      name: m['name'] as String,
-      amount: Amount(
-        m['amount_value'] as int,
-        m['amount_currency'] as String,
-        m['is_negative'] == 1,
-      ),
-      flags: 0,
-      description: m['description'] as String?,
-    );
+    return _fromRow(maps.first);
   }
+
+  @override
+  Future<List<AccountItem>> getPendingToSync() async {
+    final db = await _dbHelper.database;
+    final maps = await db.query('accounts', where: 'pending_sync > ?', whereArgs: [0]);
+    return maps.map(_fromRow).toList();
+  }
+
+  @override
+  Future<void> markAsSynced(int localId, int serverId) async {
+    final db = await _dbHelper.database;
+    await db.update('accounts', {'pending_sync': 0}, where: 'id = ?', whereArgs: [localId]);
+  }
+
+  AccountItem _fromRow(Map<String, dynamic> m) => AccountItem(
+    id: m['id'] as int,
+    name: m['name'] as String,
+    amount: Amount(m['amount_value'] as int, m['amount_currency'] as String, m['is_negative'] == 1),
+    flags: 0,
+    description: m['description'] as String?,
+    accountType: m['account_type'] as String?,
+    notes: m['notes'] as String?,
+  );
+
+  Map<String, dynamic> _toRow(AccountItem account, {required int pendingSync}) => {
+    'id': account.id,
+    'name': account.name,
+    'amount_value': account.amount.value,
+    'amount_currency': account.amount.currency,
+    'is_negative': account.amount.isNegative ? 1 : 0,
+    'description': account.description,
+    'account_type': account.accountType,
+    'notes': account.notes,
+    'last_updated': DateTime.now().toIso8601String(),
+    'pending_sync': pendingSync,
+  };
 }

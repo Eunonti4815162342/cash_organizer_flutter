@@ -3,13 +3,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../../core/exceptions/app_exceptions.dart';
+import '../../core/logger/app_logger.dart';
+import '../../config/environment_factory.dart';
 
 /// Shared HTTP concerns: base URL resolution, auth headers, error mapping.
-///
-/// Base URL resolution order:
-///   1. `--dart-define=API_BASE_URL=...` (build-time, wins always)
-///   2. Web fallback: `http://localhost:8085/api`
-///   3. Native fallback (dev): Tailscale IP
 class ApiClient {
   static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _defaultNativeUrl = 'http://100.86.48.34:8085/api';
@@ -23,13 +20,16 @@ class ApiClient {
     return _defaultNativeUrl;
   }
 
+  int get apiTimeout => EnvironmentFactory.current.apiTimeout;
+
   Future<Map<String, String>> authHeaders() async {
     final token = await _storage.read(key: 'jwt_token');
-    return {
+    final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
+    return headers;
   }
 
   Map<String, String> jsonHeaders() => {
@@ -39,6 +39,8 @@ class ApiClient {
 
   dynamic processResponse(http.Response response) {
     final status = response.statusCode;
+    AppLogger.logResponse(status, response.request?.url.toString() ?? 'unknown', response.body);
+    
     if (status == 200 || status == 201) {
       return jsonDecode(response.body);
     }

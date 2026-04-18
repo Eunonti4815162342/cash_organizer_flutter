@@ -13,7 +13,6 @@ import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/config_service.dart';
-import 'domain/models/account_item.dart';
 import 'service_locator.dart';
 import 'config/environment_factory.dart';
 
@@ -95,9 +94,15 @@ class ResponsiveMainLayout extends StatefulWidget {
 }
 
 class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   int _selectedIndex = 0;
   Key _screenKey = UniqueKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = getIt<ApiService>();
+  }
 
   List<Widget> get _screens => [
     const DashboardScreen(),

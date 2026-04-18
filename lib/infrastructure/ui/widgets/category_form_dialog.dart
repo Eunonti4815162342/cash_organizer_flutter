@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../domain/models/category.dart';
@@ -21,7 +21,7 @@ class CategoryFormDialog extends StatefulWidget {
 }
 
 class _CategoryFormDialogState extends State<CategoryFormDialog> {
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   late TextEditingController _nameController;
   CategoryType _selectedType = CategoryType.expense;
   int? _selectedParentId;
@@ -33,6 +33,7 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
   @override
   void initState() {
     super.initState();
+    _apiService = GetIt.instance.get<ApiService>();
     _nameController = TextEditingController(
       text: widget.category?.name ?? widget.subcategory?.name ?? ''
     );

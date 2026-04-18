@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
-import 'package:printing/printing.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../widgets/donut_chart.dart';
 import '../widgets/bar_chart.dart';
@@ -17,7 +15,7 @@ class ReportsListScreen extends StatefulWidget {
 }
 
 class _ReportsListScreenState extends State<ReportsListScreen> {
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   
   String? _selectedReportTitle;
   bool _isPieChart = true;
@@ -38,6 +36,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   @override
   void initState() {
     super.initState();
+    _apiService = GetIt.instance.get<ApiService>();
     _loadData();
   }
 

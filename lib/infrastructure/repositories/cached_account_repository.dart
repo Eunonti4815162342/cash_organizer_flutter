@@ -2,9 +2,10 @@ import '../../domain/models/account_item.dart';
 import '../../domain/repositories/account_repository.dart';
 import '../../services/api_service.dart';
 import 'sqlite/sqlite_account_repository.dart';
+import '../../service_locator.dart';
 
 class CachedAccountRepository implements IAccountRepository {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = getIt<ApiService>();
   final SqliteAccountRepository _localRepo = SqliteAccountRepository();
 
   @override

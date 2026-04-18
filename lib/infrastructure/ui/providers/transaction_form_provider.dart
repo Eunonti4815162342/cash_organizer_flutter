@@ -4,16 +4,12 @@ import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/repositories/transaction_repository.dart';
 import '../../../services/session_service.dart';
-import '../../../services/account_service.dart';
-import '../../../services/category_service.dart';
-import '../../../services/transaction_service.dart';
+import '../../../services/api_service.dart';
 
 class TransactionFormProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
   final SessionService _sessionService;
-  final AccountService _accountService;
-  final CategoryService _categoryService;
-  final TransactionService _transactionService;
+  final ApiService _apiService;
   final TransactionItem? initialTransaction;
 
   String _selectedTypeLabel = 'EXPENSE';
@@ -31,9 +27,7 @@ class TransactionFormProvider extends ChangeNotifier {
   TransactionFormProvider(
     this._transactionRepo,
     this._sessionService,
-    this._accountService,
-    this._categoryService,
-    this._transactionService, {
+    this._apiService, {
     this.initialTransaction,
   });
 
@@ -56,8 +50,8 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _accounts = await _accountService.fetchAccounts();
-      _allCategories = await _categoryService.fetchCategories();
+      _accounts = await _apiService.fetchAccounts();
+      _allCategories = await _apiService.fetchCategories();
 
       if (initialTransaction != null && _accounts.isNotEmpty) {
         _selectedTypeLabel = initialTransaction!.type.name;
@@ -165,7 +159,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
   Future<bool> deleteTransaction(int id) async {
     try {
-      await _transactionService.deleteTransaction(id);
+      await _apiService.deleteTransaction(id);
       return true;
     } catch (e) {
       return false;

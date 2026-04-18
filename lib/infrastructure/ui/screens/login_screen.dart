@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
-import '../../../services/auth_service.dart';
+import '../../../services/api_service.dart';
 import '../../../services/biometric_service.dart';
 import '../styles/app_styles.dart';
 import 'register_screen.dart';
@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  late final AuthService _authService;
+  late final ApiService _apiService;
   final _biometricService = BiometricService();
   final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _authService = GetIt.instance.get<AuthService>();
+    _apiService = GetIt.instance.get<ApiService>();
     _checkBiometrics();
   }
 
@@ -65,17 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final response = await _authService.login(
+      final response = await _apiService.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
         rememberMe: _rememberMe,
       );
 
-      print('[LoginScreen] Auth Login Result: ${response != null}');
       if (response != null && response.containsKey('token')) {
-        print('[LoginScreen] Token received, saving to storage...');
-        await _storage.write(key: 'jwt_token', value: response['token']);
-        print('[LoginScreen] Token saved, notifying success...');
         widget.onLoginSuccess();
       } else {
         _showErrorDialog('Login Error', 'Respuesta inesperada del servidor.');

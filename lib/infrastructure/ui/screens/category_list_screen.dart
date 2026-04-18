@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../../../l10n/app_localizations.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/category.dart';
@@ -17,7 +17,7 @@ class CategoryListScreen extends StatefulWidget {
 
 class _CategoryListScreenState extends State<CategoryListScreen> {
   final ICategoryRepository _categoryRepo = CachedCategoryRepository();
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   late Future<List<Category>> _categoriesFuture;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
@@ -25,6 +25,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   void initState() {
     super.initState();
+    _apiService = GetIt.instance.get<ApiService>();
     _refresh();
   }
 

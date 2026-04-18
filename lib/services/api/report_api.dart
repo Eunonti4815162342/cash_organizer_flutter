@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import '../../core/logger/app_logger.dart';
 import 'api_client.dart';
 
 class ReportApi {
@@ -18,9 +19,14 @@ class ReportApi {
     if (endDate != null) params['endDate'] = endDate;
     if (accountIds != null) params['accountIds'] = accountIds.join(',');
     if (groupBySubcategory) params['groupBySubcategory'] = 'true';
+    
     final uri = Uri.parse('${_client.baseUrl}/reports/category-stats').replace(queryParameters: params);
+    final headers = await _client.authHeaders();
+    AppLogger.logRequest('GET', uri.toString(), headers);
 
-    final response = await http.get(uri, headers: await _client.authHeaders());
+    final response = await http.get(uri, headers: headers)
+        .timeout(Duration(seconds: _client.apiTimeout));
+        
     final Map<String, dynamic> data = _client.processResponse(response);
     return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
   }
@@ -43,9 +49,14 @@ class ReportApi {
     if (endDate != null) params['endDate'] = endDate;
     if (accountIds != null) params['accountIds'] = accountIds.join(',');
     if (categoryIds != null) params['categoryIds'] = categoryIds.join(',');
+    
     final uri = Uri.parse('${_client.baseUrl}/reports/pdf').replace(queryParameters: params);
+    final headers = await _client.authHeaders();
+    AppLogger.logRequest('GET', uri.toString(), headers);
 
-    final response = await http.get(uri, headers: await _client.authHeaders());
+    final response = await http.get(uri, headers: headers)
+        .timeout(Duration(seconds: _client.apiTimeout));
+        
     return response.bodyBytes;
   }
 }

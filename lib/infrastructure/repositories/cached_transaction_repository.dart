@@ -2,9 +2,10 @@ import '../../domain/models/transaction_item.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../../services/api_service.dart';
 import 'sqlite/sqlite_transaction_repository.dart';
+import '../../service_locator.dart';
 
 class CachedTransactionRepository implements ITransactionRepository {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = getIt<ApiService>();
   final SqliteTransactionRepository _localRepo = SqliteTransactionRepository();
 
   @override

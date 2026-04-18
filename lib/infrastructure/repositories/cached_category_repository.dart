@@ -2,9 +2,10 @@ import '../../domain/models/category.dart';
 import '../../domain/repositories/category_repository.dart';
 import '../../services/api_service.dart';
 import 'sqlite/sqlite_category_repository.dart';
+import '../../service_locator.dart';
 
 class CachedCategoryRepository implements ICategoryRepository {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = getIt<ApiService>();
   final SqliteCategoryRepository _localRepo = SqliteCategoryRepository();
 
   @override

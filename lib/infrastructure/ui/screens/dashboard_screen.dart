@@ -24,7 +24,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _provider = DashboardProvider(
       getIt.get(),
       getIt.get(),
-      getIt.get(),
     );
     _provider.loadInitialData();
   }

@@ -66,12 +66,12 @@ class CategoryApi {
     return _client.isSuccess(response.statusCode);
   }
 
-  Future<List<TransactionItem>> fetchTransactionsByCategory(int categoryId) async {
-    final response = await http.get(
-      Uri.parse('${_client.baseUrl}/categories/$categoryId/transactions'),
-      headers: await _client.authHeaders(),
-    );
-    final List<dynamic> list = _client.processResponse(response);
+  Future<List<TransactionItem>> fetchTransactionsByCategory(int categoryId, {int page = 0, int size = 20}) async {
+    final uri = Uri.parse('${_client.baseUrl}/categories/$categoryId/transactions')
+        .replace(queryParameters: {'page': '$page', 'size': '$size'});
+    final response = await http.get(uri, headers: await _client.authHeaders());
+    final body = _client.processResponse(response);
+    final List<dynamic> list = body is List ? body : (body['content'] ?? []);
     return list.map((json) => TransactionItem.fromJson(json)).toList();
   }
 

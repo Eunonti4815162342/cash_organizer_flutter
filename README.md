@@ -1,18 +1,23 @@
 # cash_organizer_flutter
 
-A new Flutter project.
+Cliente Flutter del cash organizer (backend Spring Boot en puerto 8085).
 
-## Getting Started
+## Configuración del backend
 
-This project is a starting point for a Flutter application.
+La URL del backend se resuelve en `lib/services/api/api_client.dart` en este orden:
 
-A few resources to get you started if this is your first Flutter project:
+1. `--dart-define=API_BASE_URL=...` (build-time, prioritario).
+2. Web sin flag → `http://localhost:8085/api`.
+3. Nativo sin flag → `http://100.86.48.34:8085/api` (IP Tailscale dev).
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Ejemplos:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-no tengo
+```bash
+# Dev contra backend local
+flutter run --dart-define=API_BASE_URL=http://localhost:8085/api
+
+# Build producción contra API real
+flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com/api
+```
+
+Sin flag funciona el flujo dev actual (web → localhost, móvil → Tailscale).

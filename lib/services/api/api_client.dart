@@ -5,14 +5,22 @@ import 'package:http/http.dart' as http;
 import '../../core/exceptions/app_exceptions.dart';
 
 /// Shared HTTP concerns: base URL resolution, auth headers, error mapping.
+///
+/// Base URL resolution order:
+///   1. `--dart-define=API_BASE_URL=...` (build-time, wins always)
+///   2. Web fallback: `http://localhost:8085/api`
+///   3. Native fallback (dev): Tailscale IP
 class ApiClient {
-  static const String _defaultServerUrl = 'http://100.86.48.34:8085/api';
+  static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const String _defaultNativeUrl = 'http://100.86.48.34:8085/api';
+  static const String _defaultWebUrl = 'http://localhost:8085/api';
 
   final _storage = const FlutterSecureStorage();
 
   String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8085/api';
-    return _defaultServerUrl;
+    if (_envApiBaseUrl.isNotEmpty) return _envApiBaseUrl;
+    if (kIsWeb) return _defaultWebUrl;
+    return _defaultNativeUrl;
   }
 
   Future<Map<String, String>> authHeaders() async {

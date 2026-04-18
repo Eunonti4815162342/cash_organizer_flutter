@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 import 'services/api_service.dart';
 import 'infrastructure/repositories/cached_transaction_repository.dart';
 import 'infrastructure/repositories/cached_account_repository.dart';
 import 'infrastructure/repositories/cached_category_repository.dart';
+import 'infrastructure/repositories/sqlite/sqlite_transaction_repository.dart';
+import 'infrastructure/repositories/sqlite/sqlite_account_repository.dart';
+import 'infrastructure/repositories/sqlite/sqlite_category_repository.dart';
 import 'domain/repositories/transaction_repository.dart';
 import 'domain/repositories/account_repository.dart';
 import 'domain/repositories/category_repository.dart';
@@ -23,7 +27,22 @@ void setupServiceLocator() {
   // Other Services
   getIt.registerSingleton<BiometricService>(BiometricService());
   getIt.registerSingleton<SessionService>(SessionService());
-  getIt.registerSingleton<DatabaseHelper>(DatabaseHelper());
+  
+  if (!kIsWeb) {
+    getIt.registerSingleton<DatabaseHelper>(DatabaseHelper());
+    getIt.registerSingleton<IAccountRepository>(
+      SqliteAccountRepository(), 
+      instanceName: 'local_account'
+    );
+    getIt.registerSingleton<ITransactionRepository>(
+      SqliteTransactionRepository(), 
+      instanceName: 'local_transaction'
+    );
+    getIt.registerSingleton<ICategoryRepository>(
+      SqliteCategoryRepository(), 
+      instanceName: 'local_category'
+    );
+  }
 
   // Repositories - Domain Interfaces
   getIt.registerSingleton<ITransactionRepository>(

@@ -3,10 +3,11 @@ import '../../../../domain/models/transaction_item.dart';
 import '../../../../domain/models/account_item.dart';
 import '../../../../domain/models/category.dart';
 import '../../../../domain/repositories/transaction_repository.dart';
+import '../../../../service_locator.dart';
 import '../../persistence/sqlite/database_helper.dart';
 
 class SqliteTransactionRepository implements ITransactionRepository {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
 
   @override
   Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {

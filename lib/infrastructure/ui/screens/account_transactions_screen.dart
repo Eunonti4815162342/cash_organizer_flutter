@@ -8,6 +8,7 @@ import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'transaction_form_screen.dart';
 import '../widgets/account_form_dialog.dart';
+import '../widgets/entity_form_dialog.dart';
 
 class AccountTransactionsScreen extends StatefulWidget {
   const AccountTransactionsScreen({super.key});
@@ -79,7 +80,51 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       ),
     );
 
-    return isMobile ? mobileLayout : desktopLayout;
+    return Scaffold(
+      body: isMobile ? mobileLayout : desktopLayout,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddMenu(l10n),
+        backgroundColor: AppColors.primaryBlue,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  void _showAddMenu(AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryBlue),
+            title: Text(l10n.newAccount),
+            onTap: () {
+              Navigator.pop(context);
+              _showEditAccountDialog(null);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.business_outlined, color: AppColors.primaryBlue),
+            title: Text(l10n.newEntity),
+            onTap: () {
+              Navigator.pop(context);
+              _showNewEntityDialog();
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showNewEntityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => EntityFormDialog(),
+    ).then((saved) {
+      if (saved == true) _refreshData();
+    });
   }
 
   Widget _buildMainContent(AppLocalizations l10n, List<AccountItem> orphans) {
@@ -249,7 +294,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     ]));
   }
 
-  void _showEditAccountDialog(AccountItem account) {
+  void _showEditAccountDialog(AccountItem? account) {
     showDialog(context: context, barrierDismissible: false, builder: (context) => AccountFormDialog(account: account)).then((saved) { if (saved == true) _refreshData(); });
   }
 

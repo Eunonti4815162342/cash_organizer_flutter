@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
+import 'package:printing/printing.dart';
 import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../widgets/donut_chart.dart';
@@ -369,6 +372,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Future<void> _generatePdf() async {
     if (_selectedReportTitle == null) return;
+    
+    final l10n = AppLocalizations.of(context)!;
+    final localeCode = Localizations.localeOf(context).languageCode;
+    final messenger = ScaffoldMessenger.of(context);
+    
     setState(() => _isLoading = true);
     try {
       final pdfBytes = await _apiService.downloadPdfReport(
@@ -378,13 +386,15 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         endDate: _endDate.toIso8601String(),
         accountIds: _selectedAccountIds,
         categoryIds: _selectedCategoryIds,
-        lang: Localizations.localeOf(context).languageCode,
+        lang: localeCode,
       );
       if (pdfBytes != null) {
         await Printing.layoutPdf(onLayout: (format) async => pdfBytes, name: 'Report.pdf');
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -6,6 +6,8 @@ import '../../../domain/repositories/transaction_repository.dart';
 import '../../../services/session_service.dart';
 import '../../../services/api_service.dart';
 
+import '../../../domain/models/financial_entity.dart';
+
 class TransactionFormProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
   final SessionService _sessionService;
@@ -22,6 +24,7 @@ class TransactionFormProvider extends ChangeNotifier {
 
   List<AccountItem> _accounts = [];
   List<cat_model.Category> _allCategories = [];
+  List<FinancialEntity> _entities = [];
   bool _isLoading = true;
 
   TransactionFormProvider(
@@ -40,6 +43,7 @@ class TransactionFormProvider extends ChangeNotifier {
   String get description => _description;
   List<AccountItem> get accounts => _accounts;
   List<cat_model.Category> get allCategories => _allCategories;
+  List<FinancialEntity> get entities => _entities;
   bool get isLoading => _isLoading;
 
   List<cat_model.Category> get filteredCategories =>
@@ -52,6 +56,7 @@ class TransactionFormProvider extends ChangeNotifier {
     try {
       _accounts = await _apiService.fetchAccounts();
       _allCategories = await _apiService.fetchCategories();
+      _entities = await _apiService.fetchEntities();
 
       if (initialTransaction != null && _accounts.isNotEmpty) {
         _selectedTypeLabel = initialTransaction!.type.name;

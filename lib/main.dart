@@ -64,7 +64,33 @@ class _CashKeepAppState extends State<CashKeepApp> {
     _checkLoginStatus();
   }
   Future<void> _checkLoginStatus() async {
-    if (mounted) setState(() { _isLoggedIn = false; _isLoading = false; });
+    setState(() => _isLoading = true);
+    try {
+      final storage = const FlutterSecureStorage();
+      final token = await storage.read(key: 'jwt_token');
+      
+      if (token != null) {
+        // Validación rápida contra el backend para asegurar que el token no ha expirado
+        final apiService = getIt<ApiService>();
+        final online = await apiService.isOnline();
+        if (online) {
+          setState(() {
+            _isLoggedIn = true;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking login status: $e');
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = false;
+        _isLoading = false;
+      });
+    }
   }
   @override
   Widget build(BuildContext context) {

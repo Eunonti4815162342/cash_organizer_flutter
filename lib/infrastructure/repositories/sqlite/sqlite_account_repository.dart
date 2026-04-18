@@ -1,10 +1,11 @@
 import 'package:sqflite/sqflite.dart';
 import '../../../../domain/models/account_item.dart';
 import '../../../../domain/repositories/account_repository.dart';
+import '../../../../service_locator.dart';
 import '../../persistence/sqlite/database_helper.dart';
 
 class SqliteAccountRepository implements IAccountRepository {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
 
   @override
   Future<List<AccountItem>> fetchAccounts() async {

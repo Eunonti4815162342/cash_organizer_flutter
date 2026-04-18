@@ -221,12 +221,21 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                 _buildInputRow(l10n.entity, Row(
                   children: [
                     Expanded(
-                      child: DropdownButton<FinancialEntity>(
+                      child: DropdownButton<FinancialEntity?>(
                         value: _selectedEntity,
                         isExpanded: true,
                         underline: const SizedBox(),
                         hint: const Text('Select Entity...'),
-                        items: _entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name, style: style))).toList(),
+                        items: [
+                          const DropdownMenuItem<FinancialEntity?>(
+                            value: null,
+                            child: Text('None / Individual', style: TextStyle(color: Colors.grey)),
+                          ),
+                          ..._entities.map((e) => DropdownMenuItem<FinancialEntity?>(
+                            value: e,
+                            child: Text(e.name, style: style),
+                          )),
+                        ],
                         onChanged: (v) => setState(() => _selectedEntity = v),
                       ),
                     ),

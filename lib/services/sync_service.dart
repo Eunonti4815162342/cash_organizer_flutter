@@ -1,8 +1,8 @@
 import 'dart:async';
-import '../infrastructure/repositories/cached_transaction_repository.dart';
-import '../infrastructure/repositories/cached_category_repository.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../domain/repositories/transaction_repository.dart';
 import '../domain/repositories/category_repository.dart';
+import '../service_locator.dart';
 import 'api_service.dart';
 
 class SyncService {
@@ -10,11 +10,13 @@ class SyncService {
   factory SyncService() => _instance;
   SyncService._internal();
 
-  final ITransactionRepository _transactionRepo = CachedTransactionRepository();
-  final ICategoryRepository _categoryRepo = CachedCategoryRepository();
-  final ApiService _apiService = ApiService();
+  ITransactionRepository get _transactionRepo => getIt<ITransactionRepository>();
+  ICategoryRepository get _categoryRepo => getIt<ICategoryRepository>();
+  ApiService get _apiService => getIt<ApiService>();
 
   Future<void> performSync() async {
+    if (kIsWeb) return; // No offline sync on web
+    
     final bool online = await _apiService.isOnline();
     if (!online) return;
 

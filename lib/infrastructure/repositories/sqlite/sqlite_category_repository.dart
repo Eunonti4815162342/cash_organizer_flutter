@@ -1,10 +1,11 @@
 import 'package:sqflite/sqflite.dart';
 import '../../../../domain/models/category.dart';
 import '../../../../domain/repositories/category_repository.dart';
+import '../../../../service_locator.dart';
 import '../../persistence/sqlite/database_helper.dart';
 
 class SqliteCategoryRepository implements ICategoryRepository {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
 
   @override
   Future<List<Category>> fetchCategories() async {

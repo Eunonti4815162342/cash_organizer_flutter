@@ -13,6 +13,7 @@ import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/config_service.dart';
+import 'services/connectivity_service.dart';
 import 'service_locator.dart';
 import 'config/environment_factory.dart';
 
@@ -39,6 +40,7 @@ void main() async {
     ));
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
+  ConnectivityService().initialize();
   final syncManager = getSyncManager();
   await syncManager.initialize();
   syncManager.scheduleTask();
@@ -166,6 +168,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
               child: Column(
                 children: [
                   _buildWhiteToolbar(),
+                  _OfflineBanner(),
                   Expanded(
                     child: Container(color: const Color(0xFFEAEAEA), child: _screens[_selectedIndex]),
                   ),
@@ -301,6 +304,45 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       icon: const Icon(Icons.language, color: Colors.white, size: 20),
       onSelected: (value) => _appLocale.value = Locale(value),
       itemBuilder: (context) => [const PopupMenuItem(value: 'en', child: Text('English')), const PopupMenuItem(value: 'es', child: Text('Español')), const PopupMenuItem(value: 'pt', child: Text('Português'))],
+    );
+  }
+}
+
+class _OfflineBanner extends StatefulWidget {
+  @override
+  State<_OfflineBanner> createState() => _OfflineBannerState();
+}
+
+class _OfflineBannerState extends State<_OfflineBanner> {
+  bool _isOffline = ConnectivityService().isOffline;
+
+  @override
+  void initState() {
+    super.initState();
+    ConnectivityService().offlineStream.listen((offline) {
+      if (mounted) setState(() => _isOffline = offline);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _isOffline ? 36 : 0,
+      color: const Color(0xFFF59E0B),
+      child: _isOffline
+          ? const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.wifi_off_rounded, size: 14, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'Sin conexión · Los cambios se sincronizarán al reconectar',
+                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

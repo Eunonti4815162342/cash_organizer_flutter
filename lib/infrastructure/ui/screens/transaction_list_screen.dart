@@ -7,6 +7,7 @@ import '../../../infrastructure/repositories/cached_transaction_repository.dart'
 import '../../../infrastructure/repositories/cached_account_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../widgets/transaction_list_item.dart';
+import '../widgets/ui_helpers.dart';
 import 'transaction_form_screen.dart';
 import '../styles/app_styles.dart';
 
@@ -192,7 +193,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryBlue.withOpacity(0.05),
+                              color: AppColors.primaryBlue.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -237,8 +238,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       body: FutureBuilder<List<TransactionItem>>(
         future: _transactionsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && _selectedAccountIds.isEmpty) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return ErrorStateWidget(message: 'Comprueba tu conexión', onRetry: _refreshTransactions);
           }
           final allTransactions = snapshot.data ?? [];
           final filteredTransactions = allTransactions.where((tx) {
@@ -247,8 +251,16 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             return desc.contains(_searchQuery) || cat.contains(_searchQuery);
           }).toList();
 
-          if (filteredTransactions.isEmpty && snapshot.connectionState == ConnectionState.done) {
-            return Center(child: Text(_searchQuery.isEmpty ? l10n.noData : '${l10n.noData}: "$_searchQuery"'));
+          if (filteredTransactions.isEmpty) {
+            return _searchQuery.isNotEmpty
+                ? EmptyStateWidget(icon: Icons.search_off_rounded, title: 'Sin resultados', subtitle: 'No hay transacciones para "$_searchQuery"')
+                : EmptyStateWidget(
+                    icon: Icons.receipt_long_outlined,
+                    title: l10n.noData,
+                    subtitle: 'Aún no hay transacciones este mes',
+                    actionLabel: 'Nueva transacción',
+                    onAction: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshTransactions(); }),
+                  );
           }
 
           return ListView.builder(
@@ -261,7 +273,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         onPressed: () {
           Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TransactionFormScreen())).then((saved) { if (saved == true) _refreshTransactions(); });
         },
-        backgroundColor: const Color(0xFF009FFB),
+        backgroundColor: AppColors.primaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

@@ -8,6 +8,7 @@ import '../../../domain/repositories/category_repository.dart';
 import '../../../infrastructure/repositories/cached_category_repository.dart';
 import '../../../services/api_service.dart';
 import '../widgets/category_form_dialog.dart';
+import '../widgets/ui_helpers.dart';
 
 class CategoryListScreen extends StatefulWidget {
   const CategoryListScreen({super.key});
@@ -59,7 +60,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isMobile = MediaQuery.of(context).size.width < 800;
+    final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F9),
@@ -75,22 +76,24 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return ErrorStateWidget(message: 'No se pudieron cargar las categorías', onRetry: _refresh);
                 }
-                
+
                 final allCategories = snapshot.data ?? [];
                 allCategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
                 for (var cat in allCategories) {
                   cat.subcategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
                 }
 
-                final filtered = allCategories.where((c) => 
+                final filtered = allCategories.where((c) =>
                   c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                   c.subcategories.any((s) => s.name.toLowerCase().contains(_searchQuery.toLowerCase()))
                 ).toList();
 
                 if (filtered.isEmpty) {
-                  return Center(child: Text(l10n.noData, style: const TextStyle(color: Colors.grey)));
+                  return _searchQuery.isNotEmpty
+                      ? EmptyStateWidget(icon: Icons.search_off_rounded, title: 'Sin resultados', subtitle: 'No hay categorías para "$_searchQuery"')
+                      : EmptyStateWidget(icon: Icons.category_outlined, title: l10n.noData, subtitle: 'Crea tu primera categoría', actionLabel: l10n.newCategory, onAction: () => _showCategoryForm());
                 }
 
                 return ListView.builder(
@@ -111,19 +114,19 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
       height: 65,
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.black12)),
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.black12)),
       ),
       child: Row(
         children: [
           const Icon(Icons.category_outlined, color: AppColors.primaryBlue, size: 24),
           const SizedBox(width: 12),
-          Text(l10n.categories.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, color: AppColors.primaryText)),
+          Text(l10n.categories.toUpperCase(), style: AppTextStyles.screenTitle),
           const Spacer(),
           ElevatedButton.icon(
             onPressed: () => _showCategoryForm(),
-            icon: const Icon(Icons.add, size: 16, color: Colors.white),
-            label: Text(l10n.newCategory.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+            icon: const Icon(Icons.add, size: 16, color: AppColors.white),
+            label: Text(l10n.newCategory.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.white)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
               elevation: 0,
@@ -138,14 +141,14 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
   Widget _buildSearchBar(AppLocalizations l10n) {
     return Container(
-      color: Colors.white,
+      color: AppColors.white,
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v),
         decoration: InputDecoration(
           hintText: l10n.search,
-          hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+          hintStyle: AppTextStyles.hintText,
           prefixIcon: const Icon(Icons.search, size: 20, color: Colors.grey),
           filled: true,
           fillColor: const Color(0xFFF8FAFB),
@@ -163,9 +166,9 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -180,13 +183,13 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               leading: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.folder_outlined, color: statusColor, size: 20),
               ),
               title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText, fontSize: 14)),
               subtitle: Text(
                 isExpense ? l10n.expense.toUpperCase() : l10n.income.toUpperCase(),
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor.withOpacity(0.7)),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor.withValues(alpha: 0.7)),
               ),
               trailing: _buildActionButtons(category),
               children: [
@@ -210,7 +213,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           onPressed: () => _showCategoryForm(category: category),
         ),
         IconButton(
-          icon: Icon(Icons.delete_outline, size: 18, color: Colors.redAccent.withOpacity(0.5)),
+          icon: Icon(Icons.delete_outline, size: 18, color: Colors.redAccent.withValues(alpha: 0.5)),
           onPressed: () => _handleDeleteCategory(category),
         ),
       ],
@@ -229,6 +232,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   void _showLinkedTransactionsModal(Category category, List<TransactionItem> transactions) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
@@ -276,6 +280,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   void _confirmDeleteCategory(Category category) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Delete Category'),
         content: Text('Are you sure you want to delete "${category.name}"? This action cannot be undone.'),
@@ -289,10 +294,12 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               if (result['success']) {
                 _refresh();
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                }
               }
             },
-            child: const Text('DELETE', style: TextStyle(color: Colors.white)),
+            child: const Text('DELETE', style: TextStyle(color: AppColors.white)),
           ),
         ],
       ),
@@ -307,16 +314,16 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           const SizedBox(width: 16),
           Container(
             width: 6, height: 6,
-            decoration: BoxDecoration(color: parentColor.withOpacity(0.3), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: parentColor.withValues(alpha: 0.3), shape: BoxShape.circle),
           ),
           const SizedBox(width: 16),
-          Expanded(child: Text(subcategory.name, style: const TextStyle(fontSize: 13, color: AppColors.primaryText))),
+          Expanded(child: Text(subcategory.name, style: AppTextStyles.sidebarItem)),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.black26),
+            icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.black26),
             onPressed: () => _showCategoryForm(subcategory: subcategory, parentId: parentId),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, size: 16, color: Colors.redAccent.withOpacity(0.3)),
+            icon: Icon(Icons.delete_outline, size: 16, color: Colors.redAccent.withValues(alpha: 0.3)),
             onPressed: () => _confirmDeleteSubcategory(subcategory),
           ),
         ],
@@ -327,6 +334,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   void _confirmDeleteSubcategory(Subcategory sub) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Delete Subcategory', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: Text('Are you sure you want to delete "${sub.name}"? Transactions will be moved to the parent category.'),
@@ -339,7 +347,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               final success = await _apiService.deleteSubcategory(sub.id);
               if (success) _refresh();
             },
-            child: const Text('DELETE', style: TextStyle(color: Colors.white)),
+            child: const Text('DELETE', style: TextStyle(color: AppColors.white)),
           ),
         ],
       ),
@@ -355,7 +363,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           onPressed: () => _showCategoryForm(parentId: parentId),
           icon: const Icon(Icons.add, size: 14),
           label: const Text('ADD SUBCATEGORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-          style: TextButton.styleFrom(foregroundColor: statusColor.withOpacity(0.6)),
+          style: TextButton.styleFrom(foregroundColor: statusColor.withValues(alpha: 0.6)),
         ),
       ),
     );

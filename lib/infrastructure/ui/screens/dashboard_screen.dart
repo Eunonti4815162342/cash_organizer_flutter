@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../providers/dashboard_provider.dart';
-import '../../../domain/models/account_item.dart';
+import '../../../domain/models/financial_entity.dart';
 import '../../../l10n/app_localizations.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -35,12 +35,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Consumer<DashboardProvider>(
         builder: (context, provider, _) {
           final l10n = AppLocalizations.of(context)!;
-          final isMobile = MediaQuery.of(context).size.width < 800;
+          final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
 
           if (provider.isLoading) return const Center(child: CircularProgressIndicator());
 
           return Container(
-            color: const Color(0xFFF5F5F5),
+            color: AppColors.windowBackground,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -75,16 +75,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildFilterBox(String label, Widget child) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(2),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+          Text(label, style: AppTextStyles.sectionLabel),
           const SizedBox(height: 6),
           child,
         ],
@@ -93,16 +93,146 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAccountDropdown(AppLocalizations l10n, DashboardProvider provider) {
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<AccountItem?>(
-        value: provider.selectedAccount,
-        isDense: true,
-        isExpanded: true,
-        items: [
-          DropdownMenuItem(value: null, child: Text(l10n.allAccounts, style: const TextStyle(fontSize: 13))),
-          ...provider.accounts.map((a) => DropdownMenuItem(value: a, child: Text(a.name, style: const TextStyle(fontSize: 13)))),
+    final label = provider.allAccountsSelected
+        ? l10n.allAccounts
+        : '${provider.selectedAccountIds.length} ${l10n.accounts.toLowerCase()}';
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _showAccountPicker(l10n, provider),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+          const Icon(Icons.unfold_more, size: 16, color: AppColors.secondaryText),
         ],
-        onChanged: (val) => provider.selectAccount(val),
+      ),
+    );
+  }
+
+  void _showAccountPicker(AppLocalizations l10n, DashboardProvider provider) {
+    final accounts = provider.accounts;
+    final entityMap = <int, FinancialEntity>{};
+    for (final a in accounts) {
+      if (a.entity != null) entityMap[a.entity!.id] = a.entity!;
+    }
+    final entities = entityMap.values.toList();
+    final orphans = accounts.where((a) => a.entity == null).toList();
+
+    List<int> tempSelected = List.from(provider.selectedAccountIds);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) {
+          final allSelected = tempSelected.length == accounts.length;
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            maxChildSize: 0.9,
+            builder: (context, scrollController) => Column(
+              children: [
+                Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+                // "Seleccionar todas" toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: CheckboxListTile(
+                    value: allSelected,
+                    tristate: true,
+                    onChanged: (v) => setPickerState(() {
+                      tempSelected = (v == true)
+                          ? accounts.map((a) => a.id).toList()
+                          : [];
+                    }),
+                    title: Text(l10n.allAccounts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    activeColor: AppColors.primaryBlue,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const Divider(height: 1),
+                // Lista agrupada por entidad
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    children: [
+                      ...entities.map((entity) {
+                        final entityAccounts = accounts.where((a) => a.entity?.id == entity.id).toList();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, size: 14, color: AppColors.primaryBlue),
+                                  const SizedBox(width: 6),
+                                  Text(entity.name.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 1.1)),
+                                ],
+                              ),
+                            ),
+                            ...entityAccounts.map((acc) => CheckboxListTile(
+                              value: tempSelected.contains(acc.id),
+                              onChanged: (v) => setPickerState(() {
+                                v! ? tempSelected.add(acc.id) : tempSelected.remove(acc.id);
+                              }),
+                              title: Text(acc.name, style: const TextStyle(fontSize: 14)),
+                              subtitle: Text('€ ${(acc.amount.value / 100).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              activeColor: AppColors.primaryBlue,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            )),
+                            const SizedBox(height: 4),
+                          ],
+                        );
+                      }),
+                      if (orphans.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          child: Text('INDIVIDUAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1)),
+                        ),
+                        ...orphans.map((acc) => CheckboxListTile(
+                          value: tempSelected.contains(acc.id),
+                          onChanged: (v) => setPickerState(() {
+                            v! ? tempSelected.add(acc.id) : tempSelected.remove(acc.id);
+                          }),
+                          title: Text(acc.name, style: const TextStyle(fontSize: 14)),
+                          subtitle: Text('€ ${(acc.amount.value / 100).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          activeColor: AppColors.primaryBlue,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        )),
+                      ],
+                    ],
+                  ),
+                ),
+                // Botón aplicar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        provider.setSelectedAccounts(tempSelected);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Aplicar', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -134,30 +264,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBalanceSection(AppLocalizations l10n, DashboardProvider provider) {
-    double netWorth = provider.accounts.fold(0, (sum, a) => sum + ((a.amount?.value ?? 0) / 100));
+    final selected = provider.selectedAccounts;
+    final netWorth = selected.fold(0.0, (sum, a) => sum + (a.amount.value / 100));
     return _buildSectionCard(
       title: l10n.balanceSummary.toUpperCase(),
       child: Column(
         children: [
           _buildBalanceRow(l10n.netWorth, netWorth, isBold: true),
           const Divider(),
-          ...provider.accounts.map((a) => _buildBalanceRow(a.name, (a.amount?.value ?? 0) / 100)),
+          ...selected.map((a) => _buildBalanceRow(a.name, a.amount.value / 100)),
         ],
       ),
     );
   }
 
   Widget _buildBalanceRow(String label, double val, {bool isBold = false}) {
+    final color = val < 0 ? AppColors.expenseRed : (isBold ? AppColors.primaryBlue : AppColors.incomeGreen);
+    if (isBold) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+            Text('€ ${val.toStringAsFixed(2)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      );
+    }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text(
-            '€ ${val.toStringAsFixed(2)}',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: val < 0 ? AppColors.expenseRed : (isBold ? AppColors.primaryBlue : AppColors.incomeGreen)),
-          ),
+          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.primaryText)),
+          Text('€ ${val.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -226,29 +372,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildViewModeSelector(AppLocalizations l10n, DashboardProvider provider) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black12)),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(30),
+      ),
       child: Row(
         children: [
-          _buildModeTab('EXPENSE', l10n.expense.toUpperCase(), AppColors.expenseRed, provider),
-          _buildModeTab('INCOME', l10n.income.toUpperCase(), AppColors.incomeGreen, provider),
+          _buildModeTab('EXPENSE', l10n.expense, AppColors.expenseRed, provider),
+          _buildModeTab('INCOME', l10n.income, AppColors.incomeGreen, provider),
         ],
       ),
     );
   }
 
   Widget _buildModeTab(String mode, String label, Color color, DashboardProvider provider) {
-    bool isSelected = provider.categoryMode == mode;
+    final isSelected = provider.categoryMode == mode;
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
         onTap: () => provider.setCategoryMode(mode),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.05) : Colors.transparent,
-            border: Border(bottom: BorderSide(color: isSelected ? color : Colors.transparent, width: 3)),
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
           ),
           child: Center(
-            child: Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? color : Colors.grey, fontSize: 12)),
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : Colors.grey.shade500,
+                fontSize: 12,
+                letterSpacing: 0.8,
+              ),
+            ),
           ),
         ),
       ),
@@ -260,13 +420,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Row(
           children: [
-            Expanded(flex: 4, child: Text(l10n.categoryName.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+            Expanded(flex: 4, child: Text(l10n.categoryName.toUpperCase(), style: AppTextStyles.tableHeader.copyWith(fontWeight: FontWeight.bold))),
             const Expanded(flex: 2, child: Text('%', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
-            Expanded(flex: 3, child: Text(l10n.amount.toUpperCase(), textAlign: TextAlign.right, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+            Expanded(flex: 3, child: Text(l10n.amount.toUpperCase(), textAlign: TextAlign.right, style: AppTextStyles.tableHeader.copyWith(fontWeight: FontWeight.bold))),
           ],
         ),
         const Divider(),
-        ...provider.categoryData.entries.toList().asMap().entries.map((entry) {
+        ...provider.categoryData.entries.toList().asMap().entries.map<Widget>((entry) {
           final isTouched = entry.key == provider.touchedIndex;
           final name = entry.value.key;
           final value = entry.value.value;
@@ -274,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final color = _getPaletteColor(entry.key);
 
           return Container(
-            color: isTouched ? color.withOpacity(0.05) : Colors.transparent,
+            color: isTouched ? color.withValues(alpha: 0.05) : Colors.transparent,
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
@@ -299,7 +459,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -307,16 +467,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSectionCard({required String title, required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.03), blurRadius: 16, offset: const Offset(0, 4))],
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+          Text(title, style: AppTextStyles.sectionLabel),
           const Divider(height: 30),
           child,
         ],
@@ -336,13 +496,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         value: e.value,
         title: isTouched ? '${((e.value / provider.totalCategoryAmount) * 100).toStringAsFixed(0)}%' : '',
         radius: radius,
-        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white),
       );
     }).toList();
   }
 
   Color _getPaletteColor(int index) {
-    List<Color> colors = [const Color(0xFF009FFB), Colors.orange, Colors.green, Colors.purple, Colors.redAccent, Colors.teal, Colors.amber, Colors.indigo];
-    return colors[index % colors.length];
+    return AppColors.chartPalette[index % AppColors.chartPalette.length];
   }
 }

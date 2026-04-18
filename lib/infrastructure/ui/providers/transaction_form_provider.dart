@@ -3,12 +3,16 @@ import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/repositories/transaction_repository.dart';
+import '../../../domain/repositories/account_repository.dart';
+import '../../../domain/repositories/category_repository.dart';
 import '../../../services/session_service.dart';
 import '../../../services/api_service.dart';
 import '../../../domain/models/financial_entity.dart';
 
 class TransactionFormProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
+  final IAccountRepository _accountRepo;
+  final ICategoryRepository _categoryRepo;
   final SessionService _sessionService;
   final ApiService _apiService;
   final TransactionItem? initialTransaction;
@@ -28,6 +32,8 @@ class TransactionFormProvider extends ChangeNotifier {
 
   TransactionFormProvider(
     this._transactionRepo,
+    this._accountRepo,
+    this._categoryRepo,
     this._sessionService,
     this._apiService, {
     this.initialTransaction,
@@ -53,9 +59,14 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _accounts = await _apiService.fetchAccounts();
-      _allCategories = await _apiService.fetchCategories();
-      _entities = await _apiService.fetchEntities();
+      _accounts = await _accountRepo.fetchAccounts();
+      _allCategories = await _categoryRepo.fetchCategories();
+      // Entities solo se usan para agrupar cuentas — falla silencioso si offline
+      try {
+        _entities = await _apiService.fetchEntities();
+      } catch (_) {
+        _entities = [];
+      }
 
       if (initialTransaction != null && _accounts.isNotEmpty) {
         _selectedTypeLabel = initialTransaction!.type.name;

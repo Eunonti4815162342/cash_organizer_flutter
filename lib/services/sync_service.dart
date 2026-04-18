@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../domain/repositories/transaction_repository.dart';
+import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/category_repository.dart';
 import '../service_locator.dart';
 import 'api_service.dart';
@@ -11,40 +12,96 @@ class SyncService {
   SyncService._internal();
 
   ITransactionRepository get _transactionRepo => getIt<ITransactionRepository>();
+  IAccountRepository get _accountRepo => getIt<IAccountRepository>();
   ICategoryRepository get _categoryRepo => getIt<ICategoryRepository>();
   ApiService get _apiService => getIt<ApiService>();
 
   Future<void> performSync() async {
-    if (kIsWeb) return; // No offline sync on web
-    
+    if (kIsWeb) return;
+
     final bool online = await _apiService.isOnline();
     if (!online) return;
 
-    // 1. Descargar y persistir Categorías de la API
+    await _syncCategories();
+    await _syncPendingTransactionCreates();
+    await _syncPendingTransactionUpdates();
+    await _syncPendingAccountUpdates();
+  }
+
+  Future<void> _syncCategories() async {
     try {
       final categories = await _apiService.fetchCategories();
       if (categories.isNotEmpty) {
         await _categoryRepo.saveAll(categories);
       }
     } catch (_) {}
+  }
 
-    // 2. Subir transacciones pendientes a la API
+  Future<void> _syncPendingTransactionCreates() async {
     final pending = await _transactionRepo.getPendingToSync();
-    if (pending.isEmpty) return;
-
-    for (var tx in pending) {
+    for (final tx in pending) {
       try {
         final result = await _apiService.createTransaction({
-          'amount': {'value': tx.amount.value, 'currency': tx.amount.currency},
+          'amount': {
+            'value': tx.amount.value,
+            'currency': tx.amount.currency,
+            'isNegative': tx.amount.isNegative,
+          },
           'account': {'id': tx.account.id},
+          'toAccount': tx.toAccount != null ? {'id': tx.toAccount!.id} : null,
+          'category': tx.category != null ? {'id': tx.category!.id} : null,
+          'subcategory': tx.subcategory != null ? {'id': tx.subcategory!.id} : null,
           'type': tx.type.name,
           'description': tx.description,
           'date': tx.date,
         });
-
         if (result != null) {
           await _transactionRepo.markAsSynced(tx.id, result.id);
         }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _syncPendingTransactionUpdates() async {
+    final pending = await _transactionRepo.getPendingUpdatesToSync();
+    for (final tx in pending) {
+      try {
+        await _apiService.updateTransaction(tx.id, {
+          'amount': {
+            'value': tx.amount.value,
+            'currency': tx.amount.currency,
+            'isNegative': tx.amount.isNegative,
+          },
+          'account': {'id': tx.account.id},
+          'toAccount': tx.toAccount != null ? {'id': tx.toAccount!.id} : null,
+          'category': tx.category != null ? {'id': tx.category!.id} : null,
+          'subcategory': tx.subcategory != null ? {'id': tx.subcategory!.id} : null,
+          'type': tx.type.name,
+          'description': tx.description,
+          'date': tx.date,
+        });
+        await _transactionRepo.markAsSynced(tx.id, tx.id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _syncPendingAccountUpdates() async {
+    final pending = await _accountRepo.getPendingToSync();
+    for (final account in pending) {
+      try {
+        await _apiService.updateAccount(account.id, {
+          'name': account.name,
+          'description': account.description,
+          'amount': {
+            'value': account.amount.value,
+            'currency': account.amount.currency,
+            'isNegative': account.amount.isNegative,
+          },
+          'accountType': account.accountType ?? 'CASH',
+          'notes': account.notes,
+          'active': true,
+        });
+        await _accountRepo.markAsSynced(account.id, account.id);
       } catch (_) {}
     }
   }

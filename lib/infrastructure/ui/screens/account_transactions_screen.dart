@@ -9,6 +9,7 @@ import '../../../l10n/app_localizations.dart';
 import '../widgets/account_form_dialog.dart';
 import '../widgets/entity_form_dialog.dart';
 import '../widgets/ui_helpers.dart';
+import '../widgets/skeleton_widgets.dart';
 
 class AccountTransactionsScreen extends StatefulWidget {
   const AccountTransactionsScreen({super.key});
@@ -56,7 +57,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final l10n = AppLocalizations.of(context)!;
     final isMobile = MediaQuery.of(context).size.width < 800;
     
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const SkeletonTransactionList(itemCount: 6);
 
     final orphans = _allAccounts.where((a) => a.entity == null).toList();
 
@@ -362,8 +363,13 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
         color: AppColors.sidebarBackground,
         border: Border(left: isMobile ? BorderSide.none : BorderSide(color: Colors.grey.shade200)),
       ),
-      padding: const EdgeInsets.all(16),
-      child: _selectedAccount != null ? _buildSelectedAccountPanel(l10n) : _buildEmptyPanel(l10n),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+        child: _selectedAccount != null
+            ? _buildSelectedAccountPanel(l10n, key: ValueKey(_selectedAccount!.id))
+            : _buildEmptyPanel(l10n),
+      ),
     );
   }
 
@@ -375,70 +381,188 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     );
   }
 
-  Widget _buildSelectedAccountPanel(AppLocalizations l10n) {
+  Widget _buildSelectedAccountPanel(AppLocalizations l10n, {Key? key}) {
     final acc = _selectedAccount!;
     final balance = acc.amount.value / 100;
     final isNegative = balance < 0 || acc.amount.isNegative;
+    final typeIcon = _accountTypeIcon(acc.accountType);
+
+    final gradientColors = isNegative
+        ? [const Color(0xFFD32F2F), const Color(0xFFEF5350)]
+        : [const Color(0xFF0077CC), const Color(0xFF009FFB)];
 
     return SingleChildScrollView(
+      key: key,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(l10n.accountProperties, style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.bold))),
-              IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue, size: 18), onPressed: () => _showEditAccountDialog(acc)),
-              IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18), onPressed: () => _confirmDeleteAccount(acc, l10n)),
-              IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _selectedAccount = null)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Balance card
-          Card(
-            elevation: 0,
-            color: isNegative ? AppColors.expenseRed.withValues(alpha: 0.07) : AppColors.incomeGreen.withValues(alpha: 0.07),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          // ── Hero header ──────────────────────────────────────────────────
+          Container(
+            margin: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: gradientColors[0].withValues(alpha: 0.30),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: gradientColors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 12, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Action row — top right
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _heroButton(Icons.edit_outlined, 'Editar', () => _showEditAccountDialog(acc)),
+                    _heroButton(Icons.delete_outline, 'Eliminar', () => _confirmDeleteAccount(acc, l10n),
+                        color: Colors.white60),
+                    _heroButton(Icons.close, 'Cerrar', () => setState(() => _selectedAccount = null)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Type icon circle
+                Container(
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(typeIcon, color: Colors.white, size: 22),
+                ),
+                const SizedBox(height: 14),
+                // Account name
+                Text(
+                  acc.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.1,
+                    height: 1.2,
+                  ),
+                ),
+                if (acc.entity != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    acc.entity!.name,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                // Balance
+                Text(
+                  '${acc.amount.currency} ${balance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Type badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    acc.accountType ?? 'General',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),   // inner Container (gradient)
+            ),  // ClipRRect
+          ),    // outer Container (shadow + margin)
+
+          // ── Warning banner ───────────────────────────────────────────────
+          if (acc.isUnbalanced)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.euro, color: isNegative ? AppColors.expenseRed : AppColors.incomeGreen, size: 20),
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 15),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.totalBalance, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                      Text('€ ${balance.toStringAsFixed(2)}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isNegative ? AppColors.expenseRed : AppColors.incomeGreen)),
-                    ],
+                  Expanded(
+                    child: Text(
+                      'Saldo no balanceado',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Properties card
-          Card(
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.grey.shade200)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProp(l10n.accountName, acc.name),
-                  const Divider(height: 20),
-                  _buildProp(l10n.entity, acc.entity?.name ?? 'None'),
-                  const Divider(height: 20),
-                  _buildProp(l10n.type, acc.accountType ?? 'Cash'),
-                  const Divider(height: 20),
-                  _buildProp('Divisa', acc.amount.currency),
-                  if ((acc.description ?? '').isNotEmpty) ...[
-                    const Divider(height: 20),
-                    _buildProp(l10n.description, acc.description!),
-                  ],
-                ],
-              ),
+
+          // ── Details section ──────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'DETALLES',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade400, letterSpacing: 1.3),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade100),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _detailRow(Icons.label_outline, l10n.accountName, acc.name),
+                      if (acc.entity != null) ...[
+                        _detailDivider(),
+                        _detailRow(Icons.business_outlined, l10n.entity, acc.entity!.name),
+                      ],
+                      _detailDivider(),
+                      _detailRow(typeIcon, l10n.type, acc.accountType ?? 'General'),
+                      _detailDivider(),
+                      _detailRow(Icons.currency_exchange_outlined, 'Divisa', acc.amount.currency),
+                      if ((acc.notes ?? '').isNotEmpty) ...[
+                        _detailDivider(),
+                        _detailRow(Icons.notes_outlined, 'Notas', acc.notes!),
+                      ],
+                      if ((acc.description ?? '').isNotEmpty) ...[
+                        _detailDivider(),
+                        _detailRow(Icons.info_outline, l10n.description, acc.description!),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -446,15 +570,68 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     );
   }
 
-  Widget _buildProp(String label, String value, {Color? color}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: color ?? AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.w500)),
-      ],
+  Widget _heroButton(IconData icon, String tooltip, VoidCallback onTap, {Color color = Colors.white}) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(icon, color: color, size: 18),
+        ),
+      ),
     );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 14, color: AppColors.primaryBlue),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade400, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 13, color: AppColors.primaryText, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailDivider() => Divider(height: 1, color: Colors.grey.shade100, indent: 44, endIndent: 0);
+
+  IconData _accountTypeIcon(String? type) {
+    switch ((type ?? '').toLowerCase()) {
+      case 'banco':
+      case 'bank':
+        return Icons.account_balance_outlined;
+      case 'tarjeta':
+      case 'card':
+        return Icons.credit_card_outlined;
+      case 'efectivo':
+      case 'cash':
+        return Icons.payments_outlined;
+      case 'inversión':
+      case 'investment':
+        return Icons.trending_up_outlined;
+      default:
+        return Icons.account_balance_wallet_outlined;
+    }
   }
 
   void _showEditAccountDialog(AccountItem? account) {

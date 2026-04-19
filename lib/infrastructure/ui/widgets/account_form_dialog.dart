@@ -241,7 +241,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   }
 
   Widget _buildFormFields(AppLocalizations l10n) {
-    final inputStyle = TextStyle(color: Colors.grey.shade700, fontSize: 15);
+    const inputStyle = TextStyle(color: AppColors.primaryText, fontSize: 14, fontWeight: FontWeight.w500);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -267,11 +267,11 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                           value: _selectedEntity,
                           isExpanded: true,
                           underline: const SizedBox(),
-                          hint: Text('Seleccionar...', style: TextStyle(color: Colors.grey.shade400)),
+                          hint: Text('Seleccionar...', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
                           items: [
                             const DropdownMenuItem<FinancialEntity?>(
                               value: null,
-                              child: Text('None / Individual', style: TextStyle(color: Colors.grey)),
+                              child: Text('None / Individual', style: TextStyle(color: Colors.grey, fontSize: 14)),
                             ),
                             ..._entities.map((e) => DropdownMenuItem<FinancialEntity?>(
                               value: e,
@@ -466,9 +466,9 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11, letterSpacing: 0.5)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: Colors.grey.shade400, fontSize: 10, letterSpacing: 0.5, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 3),
+        Text(value, style: TextStyle(color: valueColor ?? AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.w500)),
       ],
     );
   }

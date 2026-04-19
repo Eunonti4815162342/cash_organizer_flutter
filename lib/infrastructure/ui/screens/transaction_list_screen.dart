@@ -8,6 +8,7 @@ import '../../../infrastructure/repositories/cached_account_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../widgets/transaction_list_item.dart';
 import '../widgets/ui_helpers.dart';
+import '../widgets/skeleton_widgets.dart';
 import 'transaction_form_screen.dart';
 import '../styles/app_styles.dart';
 
@@ -239,7 +240,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         future: _transactionsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonTransactionList();
           }
           if (snapshot.hasError) {
             return ErrorStateWidget(message: 'Comprueba tu conexión', onRetry: _refreshTransactions);

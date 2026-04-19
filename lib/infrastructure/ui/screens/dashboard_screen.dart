@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../providers/dashboard_provider.dart';
+import '../widgets/skeleton_widgets.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -37,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final l10n = AppLocalizations.of(context)!;
           final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
 
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
+          if (provider.isLoading) return const SkeletonDashboard();
 
           return Container(
             color: AppColors.windowBackground,

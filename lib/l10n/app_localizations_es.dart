@@ -204,4 +204,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get physicalPerson => 'Persona Física';
+
+  @override
+  String get deleteTransaction => 'Eliminar transacción';
+
+  @override
+  String get confirmDeleteTransactionBody =>
+      '¿Estás seguro de que deseas eliminar esta transacción?';
+
+  @override
+  String get exportError => 'Se produjo un error al exportar el informe.';
+
+  @override
+  String get saveError =>
+      'No se pudo guardar. El nombre puede que ya exista o hay un problema de conexión.';
 }

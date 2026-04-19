@@ -64,5 +64,9 @@
   "filterByAccounts": "FILTRAR POR CONTAS",
   "newEntity": "Nova Entidade",
   "legalEntity": "Entidade Jurídica",
-  "physicalPerson": "Pessoa Física"
+  "physicalPerson": "Pessoa Física",
+  "deleteTransaction": "Excluir transação",
+  "confirmDeleteTransactionBody": "Tem certeza de que deseja excluir esta transação?",
+  "exportError": "Ocorreu um erro ao exportar o relatório.",
+  "saveError": "Não foi possível salvar. O nome pode já existir ou há um problema de conexão."
 }

@@ -5,6 +5,7 @@
 import FlutterMacOS
 import Foundation
 
+import connectivity_plus
 import flutter_secure_storage_darwin
 import local_auth_darwin
 import printing
@@ -12,6 +13,7 @@ import sqflite_darwin
 import url_launcher_macos
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  ConnectivityPlusPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlusPlugin"))
   FlutterSecureStorageDarwinPlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStorageDarwinPlugin"))
   LocalAuthPlugin.register(with: registry.registrar(forPlugin: "LocalAuthPlugin"))
   PrintingPlugin.register(with: registry.registrar(forPlugin: "PrintingPlugin"))

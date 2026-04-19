@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/models/account_item.dart';
+import '../styles/app_styles.dart';
 
 class AccountDetailsScreen extends StatelessWidget {
   final AccountItem account;
@@ -136,7 +137,8 @@ class AccountDetailsScreen extends StatelessWidget {
           Switch(
             value: value,
             onChanged: (val) {},
-            activeColor: const Color(0xFF009FFB),
+            activeThumbColor: AppColors.primaryBlue,
+            activeTrackColor: AppColors.primaryBlue,
           ),
         ],
       ),

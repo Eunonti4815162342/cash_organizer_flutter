@@ -489,6 +489,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Physical Person'**
   String get physicalPerson;
+
+  /// No description provided for @deleteTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Transaction'**
+  String get deleteTransaction;
+
+  /// No description provided for @confirmDeleteTransactionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this transaction?'**
+  String get confirmDeleteTransactionBody;
+
+  /// No description provided for @exportError.
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred while exporting the report.'**
+  String get exportError;
+
+  /// No description provided for @saveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save. Name may already exist or there is a connection issue.'**
+  String get saveError;
 }
 
 class _AppLocalizationsDelegate

@@ -151,7 +151,7 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: Name already exists or connection issue.')),
+          SnackBar(content: Text(l10n.saveError)),
         );
       }
     } finally {

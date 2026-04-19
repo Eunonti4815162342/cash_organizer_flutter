@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:printing/printing.dart';
 import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
@@ -19,21 +18,21 @@ class ReportsListScreen extends StatefulWidget {
 
 class _ReportsListScreenState extends State<ReportsListScreen> {
   late final ApiService _apiService;
-  
+
   String? _selectedReportTitle;
   bool _isPieChart = true;
-  
+
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _endDate = DateTime.now().add(const Duration(days: 1));
-  
+
   List<AccountItem> _accounts = [];
   List<int> _selectedAccountIds = [];
-  
+
   List<Category> _categories = [];
   List<int> _selectedCategoryIds = [];
   Map<String, double> _categoryStats = {};
   bool _groupBySubcategory = false;
-  
+
   bool _isLoading = false;
 
   @override
@@ -48,16 +47,16 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     try {
       final accs = await _apiService.fetchAccounts();
       final cats = await _apiService.fetchCategories();
-      
+
       if (_selectedAccountIds.isEmpty) _selectedAccountIds = accs.map((a) => a.id).toList();
-      
+
       final stats = await _apiService.fetchCategoryStats(
         startDate: _startDate.toIso8601String(),
         endDate: _endDate.toIso8601String(),
         accountIds: _selectedAccountIds,
         groupBySubcategory: _groupBySubcategory,
       );
-      
+
       if (mounted) {
         setState(() {
           _accounts = accs;
@@ -75,7 +74,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isMobile = MediaQuery.of(context).size.width < 900;
+    final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F9),
@@ -83,7 +82,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         children: [
           _buildTopBar(l10n, isMobile),
           Expanded(
-            child: _isLoading 
+            child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : isMobile ? _buildMobileLayout(l10n) : _buildDesktopLayout(l10n),
           ),
@@ -97,8 +96,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       height: 60,
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.black12)),
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.black12)),
       ),
       child: Row(
         children: [
@@ -114,9 +113,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildDateRangeChip(bool isMobile) {
     return ActionChip(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       padding: EdgeInsets.zero,
-      side: const BorderSide(color: Colors.black12),
+      side: const BorderSide(color: AppColors.black12),
       avatar: const Icon(Icons.calendar_today, size: 12, color: AppColors.primaryBlue),
       label: Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: TextStyle(fontSize: isMobile ? 10 : 12)),
       onPressed: _selectDateRange,
@@ -185,6 +184,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
             value: _selectedAccountIds.contains(acc.id),
             dense: true,
             visualDensity: VisualDensity.compact,
+            fillColor: WidgetStateProperty.resolveWith<Color>((states) =>
+              states.contains(WidgetState.selected) ? AppColors.primaryBlue : Colors.grey),
             onChanged: (val) {
               setState(() {
                 val! ? _selectedAccountIds.add(acc.id) : _selectedAccountIds.remove(acc.id);
@@ -198,7 +199,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           SwitchListTile(
             title: Text(l10n.groupBySubcategory, style: const TextStyle(fontSize: 12)),
             value: _groupBySubcategory,
-            activeColor: AppColors.primaryBlue,
+            activeThumbColor: AppColors.primaryBlue,
+            activeTrackColor: AppColors.primaryBlue,
             dense: true,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {
@@ -221,17 +223,17 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryBlue : Colors.white,
+          color: isSelected ? AppColors.primaryBlue : AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? Colors.white : AppColors.primaryBlue, size: 20),
+            Icon(icon, color: isSelected ? AppColors.white : AppColors.primaryBlue, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.primaryText)),
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? AppColors.white : AppColors.primaryText)),
                 Text(subtitle, style: TextStyle(fontSize: 9, color: isSelected ? Colors.white70 : Colors.grey)),
               ]),
             ),
@@ -246,13 +248,12 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       padding: EdgeInsets.all(isMobile ? 4.0 : 24.0),
       child: Column(
         children: [
-          // Main Chart Card
           Container(
             padding: EdgeInsets.all(isMobile ? 16 : 32),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))],
+              boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 10))],
             ),
             child: Column(
               children: [
@@ -277,14 +278,14 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                 const SizedBox(height: 24),
                 SizedBox(
                   height: isMobile ? 220 : 300,
-                  child: _isPieChart 
+                  child: _isPieChart
                     ? DonutChart(
-                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), 
+                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(),
                         thickness: isMobile ? 35 : 50,
                         colors: List.generate(15, (index) => _getPaletteColor(index)),
                       )
                     : CustomBarChart(
-                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), 
+                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(),
                         barWidth: isMobile ? 20 : 30,
                         colors: List.generate(15, (index) => _getPaletteColor(index)),
                       ),
@@ -302,7 +303,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Widget _buildModernLegend(Map<String, double> stats, {bool isMobile = false}) {
     if (stats.isEmpty) return const Text('No data for this selection', style: TextStyle(color: Colors.grey));
     final total = stats.values.fold(0.0, (sum, val) => sum + val);
-    
+
     return Wrap(
       spacing: isMobile ? 12 : 24,
       runSpacing: isMobile ? 12 : 16,
@@ -340,7 +341,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         label: Text(l10n.exportPdf.toUpperCase(), style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -350,33 +351,16 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Color _getPaletteColor(int index) {
-    List<Color> colors = [
-      const Color(0xFF009FFB), // Azul CashKeep
-      const Color(0xFF27AE60), // Verde
-      const Color(0xFFF2994A), // Naranja
-      const Color(0xFFEB5757), // Rojo
-      const Color(0xFF9B51E0), // Púrpura
-      const Color(0xFF2D9CDB), // Azul claro
-      const Color(0xFFF2C94C), // Amarillo
-      const Color(0xFF219653), // Verde oscuro
-      const Color(0xFF2F80ED), // Azul intenso
-      const Color(0xFFE0E0E0), // Gris
-      const Color(0xFFBDBDBD), // Gris oscuro
-      const Color(0xFF828282), // Carbón
-      const Color(0xFF56CCF2), // Turquesa
-      const Color(0xFFBB6BD9), // Rosa/Lila
-      const Color(0xFF6FCF97), // Menta
-    ];
-    return colors[index % colors.length];
+    return AppColors.chartPalette[index % AppColors.chartPalette.length];
   }
 
   Future<void> _generatePdf() async {
     if (_selectedReportTitle == null) return;
-    
+
     final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
     final messenger = ScaffoldMessenger.of(context);
-    
+
     setState(() => _isLoading = true);
     try {
       final pdfBytes = await _apiService.downloadPdfReport(
@@ -393,7 +377,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+        messenger.showSnackBar(SnackBar(content: Text(l10n.exportError)));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

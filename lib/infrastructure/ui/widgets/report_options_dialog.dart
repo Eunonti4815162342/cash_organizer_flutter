@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
+import '../styles/app_styles.dart';
 
-class ReportOptionsDialog extends StatelessWidget {
+class ReportOptionsDialog extends StatefulWidget {
   final String title;
 
   const ReportOptionsDialog({super.key, required this.title});
+
+  @override
+  State<ReportOptionsDialog> createState() => _ReportOptionsDialogState();
+}
+
+class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
+  // Valor actualmente seleccionado para el método contable
+  String _selectedMethod = 'Method Cash';
+
+  static const _accountingMethods = ['Method Cash', 'Method Accrual'];
 
   @override
   Widget build(BuildContext context) {
@@ -14,28 +25,28 @@ class ReportOptionsDialog extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
+          color: AppColors.windowBackground,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Column(
           children: [
-            // HEADER (Captura opciones_informe.png)
+            // HEADER
             Container(
               height: 45,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               color: const Color(0xFFE0E0E0),
               child: Row(
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4A636F))),
+                  Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText)),
                   const Spacer(),
-                  _buildHeaderButton('Guardar', const Color(0xFF009FFB), true, () {}),
+                  _buildHeaderButton('Guardar', AppColors.primaryBlue, true, () => Navigator.pop(context, _selectedMethod)),
                   const SizedBox(width: 8),
                   _buildHeaderButton('Cerrar', Colors.grey.shade400, false, () => Navigator.pop(context)),
                 ],
               ),
             ),
-            
-            // BODY (Split view)
+
+            // BODY
             Expanded(
               child: Row(
                 children: [
@@ -43,10 +54,9 @@ class ReportOptionsDialog extends StatelessWidget {
                   Expanded(
                     flex: 8,
                     child: Container(
-                      color: Colors.white,
+                      color: AppColors.white,
                       child: Column(
                         children: [
-                          // Toolbar interna
                           Container(
                             height: 35,
                             color: const Color(0xFFF0F0F0),
@@ -59,12 +69,11 @@ class ReportOptionsDialog extends StatelessWidget {
                             ),
                           ),
                           const Divider(height: 1),
-                          // Filas de configuración
                           Expanded(
                             child: ListView(
                               children: [
-                                _buildConfigRow('Descripción', title),
-                                _buildConfigRow('Accounting Method', 'Method Cash'),
+                                _buildConfigRow('Descripción', widget.title),
+                                _buildConfigRow('Accounting Method', _selectedMethod),
                                 _buildConfigRow('Fecha', 'Mes anterior - febrero 2026'),
                                 _buildConfigRow('Cuenta', 'Todas las cuentas'),
                                 _buildConfigRow('Beneficiario', 'Todos los beneficiarios'),
@@ -79,14 +88,14 @@ class ReportOptionsDialog extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Derecha: Panel de personalización
                   Expanded(
                     flex: 2,
                     child: Container(
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFBFBFB),
-                        border: Border(left: BorderSide(color: Colors.black12)),
+                        color: AppColors.sidebarBackground,
+                        border: Border(left: BorderSide(color: AppColors.black12)),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -94,8 +103,16 @@ class ReportOptionsDialog extends StatelessWidget {
                         children: [
                           const Text('Accounting Method', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 10),
-                          _buildRadioOption('Method Cash', true),
-                          _buildRadioOption('Method Accrual', false),
+                          RadioGroup<String>(
+                            groupValue: _selectedMethod,
+                            onChanged: (v) {
+                              if (v != null) setState(() => _selectedMethod = v);
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: _accountingMethods.map((method) => _buildRadioOption(method)).toList(),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -115,13 +132,13 @@ class ReportOptionsDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: isPrimary ? color : Colors.white,
+          color: isPrimary ? color : AppColors.white,
           borderRadius: BorderRadius.circular(4),
-          border: isPrimary ? null : Border.all(color: Colors.black12),
+          border: isPrimary ? null : Border.all(color: AppColors.black12),
         ),
         child: Text(
           label,
-          style: TextStyle(color: isPrimary ? Colors.white : Colors.black, fontSize: 12),
+          style: TextStyle(color: isPrimary ? AppColors.white : AppColors.black, fontSize: 12),
         ),
       ),
     );
@@ -131,8 +148,8 @@ class ReportOptionsDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.white : Colors.transparent,
-        border: isSelected ? const Border(bottom: BorderSide(color: Colors.white, width: 2)) : null,
+        color: isSelected ? AppColors.white : Colors.transparent,
+        border: isSelected ? const Border(bottom: BorderSide(color: AppColors.white, width: 2)) : null,
       ),
       child: Row(
         children: [
@@ -159,7 +176,7 @@ class ReportOptionsDialog extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               color: const Color(0xFFF9F9F9),
-              child: Text(value, style: const TextStyle(color: Color(0xFF4A636F), fontWeight: FontWeight.bold, fontSize: 13)),
+              child: Text(value, style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ),
         ],
@@ -167,11 +184,11 @@ class ReportOptionsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildRadioOption(String label, bool isSelected) {
+  Widget _buildRadioOption(String method) {
     return Row(
       children: [
-        Radio<bool>(value: true, groupValue: isSelected, onChanged: (v) {}),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Radio<String>(value: method),
+        Text(method, style: const TextStyle(fontSize: 12)),
       ],
     );
   }

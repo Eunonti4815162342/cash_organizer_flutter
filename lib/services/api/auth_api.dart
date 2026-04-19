@@ -49,6 +49,28 @@ class AuthApi {
     return success;
   }
 
+  Future<bool> forgotPassword(String email) async {
+    final url = '${_client.baseUrl}/auth/forgot-password';
+    AppLogger.logRequest('POST', url, _client.jsonHeaders());
+    final response = await http.post(
+      Uri.parse(url),
+      headers: _client.jsonHeaders(),
+      body: jsonEncode({'email': email}),
+    ).timeout(Duration(seconds: _client.apiTimeout));
+    return _client.isSuccess(response.statusCode);
+  }
+
+  Future<bool> resetPassword(String token, String newPassword) async {
+    final url = '${_client.baseUrl}/auth/reset-password';
+    AppLogger.logRequest('POST', url, _client.jsonHeaders());
+    final response = await http.post(
+      Uri.parse(url),
+      headers: _client.jsonHeaders(),
+      body: jsonEncode({'token': token, 'newPassword': newPassword}),
+    ).timeout(Duration(seconds: _client.apiTimeout));
+    return _client.isSuccess(response.statusCode);
+  }
+
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
     AppLogger.info('Logout successful');

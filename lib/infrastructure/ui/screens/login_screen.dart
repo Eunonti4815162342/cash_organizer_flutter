@@ -5,6 +5,7 @@ import '../../../services/api_service.dart';
 import '../../../services/biometric_service.dart';
 import '../styles/app_styles.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -22,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
   bool _showRegister = false;
+  bool _showForgotPassword = false;
   bool _rememberMe = true;
   bool _canUseBiometrics = false;
   String? _error;
@@ -107,7 +109,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(message, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
             ),
             const SizedBox(height: 16),
-            const Text('Verify Tailscale connection and server IP (100.86.48.34:8085)'),
+            // TODO: revisar — en producción reemplazar por mensaje genérico sin datos técnicos de infraestructura
+            const Text('Verify your network connection and try again.'),
           ],
         ),
         actions: [
@@ -121,6 +124,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     if (_showRegister) {
       return RegisterScreen(onBackToLogin: () => setState(() => _showRegister = false));
+    }
+    if (_showForgotPassword) {
+      return ForgotPasswordScreen(onBackToLogin: () => setState(() => _showForgotPassword = false));
     }
 
     return Scaffold(
@@ -168,7 +174,8 @@ class _LoginScreenState extends State<LoginScreen> {
               CheckboxListTile(
                 title: const Text('Recordar en este dispositivo', style: TextStyle(fontSize: 13)),
                 value: _rememberMe,
-                activeColor: AppColors.primaryBlue,
+                fillColor: WidgetStateProperty.resolveWith<Color>((states) =>
+                  states.contains(WidgetState.selected) ? AppColors.primaryBlue : Colors.grey),
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (val) => setState(() => _rememberMe = val ?? false),
@@ -203,6 +210,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text('Usar Biometría', style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
               ],
               const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => setState(() => _showForgotPassword = true),
+                child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+              ),
               TextButton(
                 onPressed: () => setState(() => _showRegister = true),
                 child: const Text('¿No tienes cuenta? Regístrate aquí'),

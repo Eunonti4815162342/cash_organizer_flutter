@@ -30,6 +30,8 @@ class ApiService {
   Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) =>
       _auth.login(email, password, rememberMe: rememberMe);
   Future<bool> register(String email, String password) => _auth.register(email, password);
+  Future<bool> forgotPassword(String email) => _auth.forgotPassword(email);
+  Future<bool> resetPassword(String token, String newPassword) => _auth.resetPassword(token, newPassword);
   Future<void> logout() => _auth.logout();
 
   // --- ACCOUNTS ---

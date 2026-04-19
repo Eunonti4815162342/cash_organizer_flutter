@@ -1,0 +1,12 @@
+{
+  "apiBaseUrl": "http://localhost:8085/api",
+  "apiTimeout": 30,
+  "enableLogging": false,
+  "isProduction": false,
+  "environmentName": "CI",
+  "tokenExpirationHours": 24,
+  "enableBiometric": false,
+  "enableBackgroundSync": false,
+  "backgroundSyncIntervalMinutes": 60,
+  "databaseName": "cash_organizer_ci.db"
+}

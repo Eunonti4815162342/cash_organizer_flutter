@@ -94,7 +94,8 @@ class ReportApi {
     if (accountIds != null) params['accountIds'] = accountIds.join(',');
     if (categoryIds != null) params['categoryIds'] = categoryIds.join(',');
     
-    final uri = Uri.parse('${_client.baseUrl}/reports/pdf').replace(queryParameters: params);
+    final baseUrl = _client.baseUrl.endsWith('/') ? _client.baseUrl.substring(0, _client.baseUrl.length - 1) : _client.baseUrl;
+    final uri = Uri.parse('$baseUrl/reports/download').replace(queryParameters: params);
     final headers = await _client.authHeaders();
     AppLogger.logRequest('GET', uri.toString(), headers);
 

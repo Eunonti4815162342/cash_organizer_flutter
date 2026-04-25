@@ -66,7 +66,7 @@ class TransactionListItem extends StatelessWidget {
                       Text(
                         transaction.type == TransactionType.TRANSFER
                             ? 'Transfer · ${transaction.account.name} → ${transaction.toAccount?.name ?? '???'}'
-                            : '${transaction.category?.name ?? 'General'}${transaction.description.isNotEmpty ? ' · ${transaction.description}' : ''}',
+                            : '${transaction.beneficiary?.name ?? (transaction.category?.name ?? 'General')}${transaction.description.isNotEmpty ? ' · ${transaction.description}' : ''}',
                         style: AppTextStyles.listItemTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

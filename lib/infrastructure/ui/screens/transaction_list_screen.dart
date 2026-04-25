@@ -249,7 +249,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           final filteredTransactions = allTransactions.where((tx) {
             final desc = tx.description.toLowerCase();
             final cat = (tx.category?.name ?? 'General').toLowerCase();
-            return desc.contains(_searchQuery) || cat.contains(_searchQuery);
+            final beneficiary = (tx.beneficiary?.name ?? '').toLowerCase();
+            return desc.contains(_searchQuery) || 
+                   cat.contains(_searchQuery) || 
+                   beneficiary.contains(_searchQuery);
           }).toList();
 
           if (filteredTransactions.isEmpty) {

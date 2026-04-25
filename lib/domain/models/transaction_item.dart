@@ -1,5 +1,6 @@
 import 'account_item.dart';
 import 'category.dart';
+import 'beneficiary.dart';
 
 enum TransactionType { EXPENSE, INCOME, TRANSFER }
 
@@ -11,8 +12,8 @@ class TransactionItem {
   final AccountItem account;
   final Category? category;
   final Subcategory? subcategory;
+  final Beneficiary? beneficiary;
   final AccountItem? toAccount;
-  final TransactionType type;
   final String? notes;
   final int? statusFlags;
   final bool isScheduled;
@@ -27,8 +28,8 @@ class TransactionItem {
     required this.account,
     this.category,
     this.subcategory,
+    this.beneficiary,
     this.toAccount,
-    required this.type,
     this.notes,
     this.statusFlags,
     required this.isScheduled,
@@ -45,6 +46,7 @@ class TransactionItem {
       account: AccountItem.fromJson(json['account'] ?? {}),
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       subcategory: json['subcategory'] != null ? Subcategory.fromJson(json['subcategory']) : null,
+      beneficiary: json['beneficiary'] != null ? Beneficiary.fromJson(json['beneficiary']) : null,
       toAccount: json['toAccount'] != null ? AccountItem.fromJson(json['toAccount']) : null,
       type: TransactionType.values.firstWhere(
         (e) => e.name == (json['type'] ?? 'EXPENSE'),

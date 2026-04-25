@@ -58,7 +58,7 @@ class ApiService {
 
   // --- BENEFICIARIES ---
   Future<List<Beneficiary>> fetchBeneficiaries() => _beneficiaries.fetchAll();
-  Future<TransactionItem?> getTransactionSuggestion(int beneficiaryId) =>
+  Future<Map<String, dynamic>?> getTransactionSuggestion(int beneficiaryId) =>
       _beneficiaries.getTransactionSuggestion(beneficiaryId);
 
   // --- CATEGORIES ---

@@ -1,155 +1,133 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../../../domain/models/account_item.dart';
+import '../../../domain/models/transaction_item.dart';
+import '../../../domain/repositories/transaction_repository.dart';
 import '../styles/app_styles.dart';
+import '../widgets/transaction_list_item.dart';
+import '../widgets/skeleton_widgets.dart';
+import '../widgets/ui_helpers.dart';
 
-class AccountDetailsScreen extends StatelessWidget {
+class AccountDetailsScreen extends StatefulWidget {
   final AccountItem account;
 
   const AccountDetailsScreen({super.key, required this.account});
 
   @override
+  State<AccountDetailsScreen> createState() => _AccountDetailsScreenState();
+}
+
+class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
+  late Future<List<TransactionItem>> _transactionsFuture;
+  final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTransactions();
+  }
+
+  void _refreshTransactions() {
+    setState(() {
+      _transactionsFuture = _transactionRepo.fetchTransactions(
+        accountId: widget.account.id.toString(),
+        // Traemos los últimos 3 meses por defecto para esta vista de detalle
+        startDate: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
+        endDate: DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final balance = widget.account.amount.value / 100;
+    final isNegative = balance < 0 || widget.account.amount.isNegative;
+
     return Scaffold(
+      backgroundColor: AppColors.windowBackground,
       appBar: AppBar(
-        title: const Text('Detalle de Cuenta'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () {},
-          ),
-        ],
+        title: Text(widget.account.name),
+        elevation: 0,
+        backgroundColor: isNegative ? AppColors.expenseRed : AppColors.primaryBlue,
+        foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Resumen de saldo superior
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
-              color: const Color(0xFF009FFB),
-              child: Column(
-                children: [
-                  Text(
-                    account.name,
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
+      body: Column(
+        children: [
+          // Header con saldo (NATAVE Style)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+            decoration: BoxDecoration(
+              color: isNegative ? AppColors.expenseRed : AppColors.primaryBlue,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  widget.account.accountType?.toUpperCase() ?? 'GENERAL ACCOUNT',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '€ ${balance.toStringAsFixed(2)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.bold),
+                ),
+                if (widget.account.entity != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    '\$${(account.amount.value / 100).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    account.amount.currency,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                    child: Text(widget.account.entity!.name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
                   ),
                 ],
-              ),
-            ),
-
-            // Sección de detalles (Imitando activity_account_edit.xml)
-            const SizedBox(height: 20),
-            _buildDetailItem('NOMBRE', account.name),
-            _buildDivider(),
-            _buildDetailItem('TIPO', account.accountType ?? 'General'),
-            _buildDivider(),
-            _buildDetailItem('MONEDA', account.amount.currency),
-            _buildDivider(),
-            _buildDetailItem('NOTAS', account.notes ?? 'Sin notas adicionales'),
-            _buildDivider(),
-            
-            // Sección de estados (Switches imitando el original)
-            const SizedBox(height: 20),
-            _buildSwitchItem('ABIERTA', true),
-            _buildDivider(),
-            _buildSwitchItem('INCLUIR EN BALANCE TOTAL', true),
-            _buildDivider(),
-            
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Las transacciones de esta cuenta se incluyen en los informes y presupuestos por defecto.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF009FFB),
-              letterSpacing: 1.2,
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF4A636F),
+
+          // Título sección
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('MOVIMIENTOS RECIENTES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1)),
+                IconButton(icon: const Icon(Icons.refresh, size: 18, color: Colors.grey), onPressed: _refreshTransactions),
+              ],
+            ),
+          ),
+
+          // Listado de transacciones
+          Expanded(
+            child: FutureBuilder<List<TransactionItem>>(
+              future: _transactionsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SkeletonTransactionList(itemCount: 5);
+                }
+                if (snapshot.hasError) {
+                  return ErrorStateWidget(message: 'Error al cargar movimientos', onRetry: _refreshTransactions);
+                }
+                final txs = snapshot.data ?? [];
+                if (txs.isEmpty) {
+                  return const EmptyStateWidget(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Sin movimientos',
+                    subtitle: 'No hay transacciones registradas en esta cuenta en los últimos 90 días',
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 24),
+                  itemCount: txs.length,
+                  itemBuilder: (context, index) => TransactionListItem(
+                    transaction: txs[index],
+                    onRefresh: _refreshTransactions,
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSwitchItem(String label, bool value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF4A636F),
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: (val) {},
-            activeThumbColor: AppColors.primaryBlue,
-            activeTrackColor: AppColors.primaryBlue,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      indent: 16,
-      color: Color(0xFFEEEEEE),
     );
   }
 }

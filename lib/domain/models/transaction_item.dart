@@ -14,6 +14,7 @@ class TransactionItem {
   final Subcategory? subcategory;
   final Beneficiary? beneficiary;
   final AccountItem? toAccount;
+  final TransactionType type;
   final String? notes;
   final int? statusFlags;
   final bool isScheduled;
@@ -30,6 +31,7 @@ class TransactionItem {
     this.subcategory,
     this.beneficiary,
     this.toAccount,
+    required this.type,
     this.notes,
     this.statusFlags,
     required this.isScheduled,

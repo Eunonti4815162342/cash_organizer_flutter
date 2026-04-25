@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/skeleton_widgets.dart';
+import 'account_details_screen.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -271,42 +272,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
       title: l10n.balanceSummary.toUpperCase(),
       child: Column(
         children: [
-          _buildBalanceRow(l10n.netWorth, netWorth, isBold: true),
+          _buildBalanceRow(l10n.netWorth, netWorth, isBold: true, onTap: null),
           const Divider(),
-          ...selected.map((a) => _buildBalanceRow(a.name, a.amount.value / 100)),
+          ...selected.map((a) => _buildBalanceRow(a.name, a.amount.value / 100, onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => AccountDetailsScreen(account: a)));
+          })),
         ],
       ),
     );
   }
 
-  Widget _buildBalanceRow(String label, double val, {bool isBold = false}) {
+  Widget _buildBalanceRow(String label, double val, {bool isBold = false, VoidCallback? onTap}) {
     final color = val < 0 ? AppColors.expenseRed : (isBold ? AppColors.primaryBlue : AppColors.incomeGreen);
-    if (isBold) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-            Text('€ ${val.toStringAsFixed(2)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+    
+    Widget content = Padding(
+      padding: EdgeInsets.symmetric(vertical: isBold ? 14 : 7, horizontal: isBold ? 16 : 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.primaryText)),
-          Text('€ ${val.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+          Text(label, style: TextStyle(fontSize: 14, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: isBold ? color : AppColors.primaryText)),
+          Text('€ ${val.toStringAsFixed(2)}', style: TextStyle(fontSize: isBold ? 18 : 13, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
+    );
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: isBold 
+        ? Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(14)),
+            child: content,
+          )
+        : content,
     );
   }
 

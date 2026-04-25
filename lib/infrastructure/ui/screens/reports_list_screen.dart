@@ -383,7 +383,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Future<void> _generatePdf() async {
-    if (_selectedReportTitle == null) return;
+    final reportTitle = _selectedReportTitle;
+    if (reportTitle == null) return;
 
     final localeCode = Localizations.localeOf(context).languageCode;
     final messenger = ScaffoldMessenger.of(context);
@@ -391,7 +392,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     setState(() => _isLoading = true);
     try {
       final pdfBytes = await _apiService.downloadPdfReport(
-        title: _selectedReportTitle!,
+        title: reportTitle,
         chartType: _isPieChart ? 'PIE' : 'BAR',
         startDate: _startDate.toIso8601String(),
         endDate: _endDate.toIso8601String(),

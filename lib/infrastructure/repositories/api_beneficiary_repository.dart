@@ -10,11 +10,15 @@ class ApiBeneficiaryRepository implements IBeneficiaryRepository {
   @override
   Future<List<Beneficiary>> getAllBeneficiaries() async {
     final response = await _apiService.fetchBeneficiaries();
-    return response.map((json) => Beneficiary.fromJson(json)).toList();
+    return response;
   }
 
   @override
   Future<Map<String, dynamic>?> getTransactionSuggestion(int beneficiaryId) async {
-    return await _apiService.getTransactionSuggestion(beneficiaryId);
+    final suggestion = await _apiService.getTransactionSuggestion(beneficiaryId);
+    // El ApiService ya devuelve Map<String, dynamic> a través del pipeline
+    // pero necesitamos asegurar la consistencia del tipo de retorno
+    if (suggestion == null) return null;
+    return suggestion as Map<String, dynamic>;
   }
 }

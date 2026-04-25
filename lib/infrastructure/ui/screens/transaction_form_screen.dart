@@ -35,6 +35,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       getIt.get(),
       getIt.get(),
       getIt.get(),
+      getIt.get(),
       initialTransaction: widget.transaction,
     );
 

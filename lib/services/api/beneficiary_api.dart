@@ -30,7 +30,7 @@ class BeneficiaryApi {
     return list.map((json) => Beneficiary.fromJson(json)).toList();
   }
 
-  Future<TransactionItem?> getTransactionSuggestion(int beneficiaryId) async {
+  Future<Map<String, dynamic>?> getTransactionSuggestion(int beneficiaryId) async {
     final url = '${_client.baseUrl}/beneficiaries/$beneficiaryId/suggestion';
     final headers = await _client.authHeaders();
     
@@ -44,6 +44,6 @@ class BeneficiaryApi {
     final body = _client.processResponse(response);
     if (body == null) return null;
     
-    return TransactionItem.fromJson(body);
+    return body as Map<String, dynamic>;
   }
 }

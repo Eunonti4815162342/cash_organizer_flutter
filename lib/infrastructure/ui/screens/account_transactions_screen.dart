@@ -6,6 +6,7 @@ import '../../../domain/repositories/account_repository.dart';
 import '../../../infrastructure/repositories/cached_account_repository.dart';
 import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
+import 'account_details_screen.dart';
 import '../widgets/account_form_dialog.dart';
 import '../widgets/entity_form_dialog.dart';
 import '../widgets/ui_helpers.dart';
@@ -36,7 +37,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
     try {
-      // Entidades financieras todavía vienen de la API directamente (podríamos cachearlas luego)
       final ents = await _apiService.fetchEntities();
       final accs = await _accountRepo.fetchAccounts();
       
@@ -293,7 +293,10 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final isNegative = balance < 0 || account.amount.isNegative;
 
     return InkWell(
-      onTap: () => setState(() => _selectedAccount = account),
+      onTap: () {
+        setState(() => _selectedAccount = account);
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => AccountDetailsScreen(account: account))).then((_) => _refreshData());
+      },
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),

@@ -25,6 +25,7 @@ class TransactionFormProvider extends ChangeNotifier {
   AccountItem? _selectedAccount;
   AccountItem? _selectedToAccount;
   cat_model.Category? _selectedCategory;
+  cat_model.Subcategory? _selectedSubcategory;
   Beneficiary? _selectedBeneficiary;
   DateTime _selectedDate = DateTime.now();
   String _amount = '0.00';
@@ -51,6 +52,7 @@ class TransactionFormProvider extends ChangeNotifier {
   AccountItem? get selectedAccount => _selectedAccount;
   AccountItem? get selectedToAccount => _selectedToAccount;
   cat_model.Category? get selectedCategory => _selectedCategory;
+  cat_model.Subcategory? get selectedSubcategory => _selectedSubcategory;
   Beneficiary? get selectedBeneficiary => _selectedBeneficiary;
   DateTime get selectedDate => _selectedDate;
   String get amount => _amount;
@@ -88,6 +90,7 @@ class TransactionFormProvider extends ChangeNotifier {
           orElse: () => _accounts.first,
         );
         _selectedBeneficiary = initialTransaction!.beneficiary;
+        _selectedSubcategory = initialTransaction!.subcategory;
         if (initialTransaction!.toAccount != null) {
           _selectedToAccount = _accounts.firstWhere(
             (a) => a.id == initialTransaction!.toAccount!.id,
@@ -105,7 +108,7 @@ class TransactionFormProvider extends ChangeNotifier {
           _selectedDate = _sessionService.lastSelectedDate!;
         }
         
-        // AUTOCOMPLETADO DE CUENTA
+        // CONTEXTO DE CUENTA
         if (initialAccount != null) {
           _selectedAccount = _accounts.firstWhere((a) => a.id == initialAccount!.id, orElse: () => _accounts.first);
         } else if (_accounts.isNotEmpty) {
@@ -124,6 +127,7 @@ class TransactionFormProvider extends ChangeNotifier {
   void setTransactionType(String type) {
     _selectedTypeLabel = type;
     _selectedCategory = null;
+    _selectedSubcategory = null;
     notifyListeners();
   }
 
@@ -139,6 +143,12 @@ class TransactionFormProvider extends ChangeNotifier {
 
   void setSelectedCategory(cat_model.Category? category) {
     _selectedCategory = category;
+    _selectedSubcategory = null;
+    notifyListeners();
+  }
+
+  void setSelectedSubcategory(cat_model.Subcategory? sub) {
+    _selectedSubcategory = sub;
     notifyListeners();
   }
 
@@ -147,12 +157,23 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     if (beneficiary != null) {
+      // INTELIGENCIA DE AUTORRELLENADO
       try {
         final suggestion = await _beneficiaryRepo.getTransactionSuggestion(beneficiary.id);
         if (suggestion != null) {
           if (suggestion['categoryId'] != null) {
             final catId = suggestion['categoryId'] as int;
             _selectedCategory = _allCategories.firstWhere((c) => c.id == catId);
+            
+            // AUTORRELLENADO DE SUBCATEGORÍA
+            if (suggestion['subcategoryId'] != null && _selectedCategory != null) {
+              final subId = suggestion['subcategoryId'] as int;
+              try {
+                _selectedSubcategory = _selectedCategory!.subcategories.firstWhere((s) => s.id == subId);
+              } catch (_) {
+                _selectedSubcategory = null;
+              }
+            }
           }
           if (suggestion['transactionType'] != null) {
             _selectedTypeLabel = suggestion['transactionType'] as String;
@@ -195,6 +216,7 @@ class TransactionFormProvider extends ChangeNotifier {
         account: _selectedAccount!,
         toAccount: _selectedToAccount,
         category: _selectedCategory,
+        subcategory: _selectedSubcategory, // GUARDADO DE SUBCATEGORÍA
         beneficiary: _selectedBeneficiary,
         type: TransactionType.values.firstWhere((e) => e.name == _selectedTypeLabel),
         isScheduled: false,

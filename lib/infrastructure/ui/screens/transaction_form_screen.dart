@@ -110,7 +110,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     padding: const EdgeInsets.only(bottom: 100),
                     child: Column(
                       children: [
-                        // Type selector — pill style
+                        // Type selector
                         Container(
                           color: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -176,7 +176,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   label: provider.selectedTypeLabel == 'TRANSFER' ? 'FROM ${l10n.accounts.toUpperCase()}' : l10n.accounts.toUpperCase(),
                                   value: provider.selectedAccount?.name ?? 'Select...',
                                   icon: Icons.account_balance_wallet_outlined,
-                                  onTap: () => _showAccountPicker(true, l10n, provider),
+                                  onTap: widget.initialAccount != null ? null : () => _showAccountPicker(true, l10n, provider),
+                                  isLocked: widget.initialAccount != null,
                                 ),
                                 _buildDivider(),
                                 _buildSelectionTile(
@@ -204,7 +205,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   _buildDivider(),
                                   _buildSelectionTile(
                                     label: l10n.categories.toUpperCase(),
-                                    value: provider.selectedCategory?.name ?? 'Select...',
+                                    value: provider.selectedSubcategory != null 
+                                        ? '${provider.selectedCategory?.name} > ${provider.selectedSubcategory?.name}'
+                                        : (provider.selectedCategory?.name ?? 'Select...'),
                                     icon: Icons.category_outlined,
                                     onTap: () => _showCategoryPicker(provider.filteredCategories, l10n, provider),
                                   ),
@@ -302,13 +305,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
   }
 
-  Widget _buildSelectionTile({required String label, required String value, required IconData icon, required VoidCallback onTap}) {
+  Widget _buildSelectionTile({required String label, required String value, required IconData icon, required VoidCallback? onTap, bool isLocked = false}) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: const Color(0xFF4A636F)),
-      title: Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF009FFB), fontWeight: FontWeight.bold)),
-      subtitle: Text(value, style: const TextStyle(fontSize: 16, color: Color(0xFF4A636F))),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      leading: Icon(icon, color: isLocked ? Colors.grey : const Color(0xFF4A636F)),
+      title: Text(label, style: TextStyle(fontSize: 10, color: isLocked ? Colors.grey : const Color(0xFF009FFB), fontWeight: FontWeight.bold)),
+      subtitle: Text(value, style: TextStyle(fontSize: 16, color: isLocked ? Colors.grey : const Color(0xFF4A636F))),
+      trailing: isLocked ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey) : const Icon(Icons.chevron_right, color: Colors.grey),
     );
   }
 
@@ -359,7 +362,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    // Cuentas con Entidad
                     ...provider.entities.map((entity) {
                       final entityAccounts = provider.accounts.where((a) => a.entity?.id == entity.id).toList();
                       final filtered = entityAccounts.where((a) => a.name.toLowerCase().contains(search)).toList();
@@ -391,7 +393,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         ],
                       );
                     }),
-                    // Cuentas huérfanas
                     _buildOrphanAccountsSection(provider, search, isFrom),
                   ],
                 ),
@@ -470,8 +471,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
                           onTap: () {
                             provider.setSelectedCategory(category);
-                            _descriptionController.text = sub.name;
-                            provider.setDescription(sub.name);
+                            provider.setSelectedSubcategory(sub); // ASIGNAR SUBCATEGORÍA
                             Navigator.pop(context);
                           },
                         )),

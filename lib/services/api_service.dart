@@ -113,6 +113,7 @@ class ApiService {
   Future<Uint8List?> downloadPdfReport({
     required String title,
     required String chartType,
+    String? reportType,
     String? startDate,
     String? endDate,
     List<int>? accountIds,
@@ -122,6 +123,7 @@ class ApiService {
       _reports.downloadPdf(
         title: title,
         chartType: chartType,
+        reportType: reportType,
         startDate: startDate,
         endDate: endDate,
         accountIds: accountIds,

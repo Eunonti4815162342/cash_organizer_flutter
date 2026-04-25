@@ -391,9 +391,19 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
     setState(() => _isLoading = true);
     try {
+      String type = 'CATEGORY';
+      if (reportTitle == 'Entity Analysis') {
+        type = 'ENTITY';
+      } else if (reportTitle == 'Beneficiary Analysis') {
+        type = 'BENEFICIARY';
+      } else if (reportTitle == l10n.accountBalanceReport) {
+        type = 'ACCOUNT';
+      }
+
       final pdfBytes = await _apiService.downloadPdfReport(
         title: reportTitle,
         chartType: _isPieChart ? 'PIE' : 'BAR',
+        reportType: type,
         startDate: _startDate.toIso8601String(),
         endDate: _endDate.toIso8601String(),
         accountIds: _selectedAccountIds,

@@ -76,6 +76,7 @@ class ReportApi {
   Future<Uint8List?> downloadPdf({
     required String title,
     required String chartType,
+    String? reportType,
     String? startDate,
     String? endDate,
     List<int>? accountIds,
@@ -87,6 +88,7 @@ class ReportApi {
       'chartType': chartType,
       'lang': lang,
     };
+    if (reportType != null) params['reportType'] = reportType;
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
     if (accountIds != null) params['accountIds'] = accountIds.join(',');

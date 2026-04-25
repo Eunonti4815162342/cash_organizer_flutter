@@ -6,6 +6,7 @@ import '../styles/app_styles.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart';
 import '../../../domain/models/financial_entity.dart';
+import '../../../domain/models/beneficiary.dart';
 import '../../../l10n/app_localizations.dart';
 
 class TransactionFormScreen extends StatefulWidget {
@@ -190,6 +191,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   ),
                                   _buildDivider(),
                                 ] else ...[
+                                  _buildSelectionTile(
+                                    label: 'BENEFICIARY',
+                                    value: provider.selectedBeneficiary?.name ?? 'Select...',
+                                    icon: Icons.person_outline,
+                                    onTap: () => _showBeneficiaryPicker(provider.beneficiaries, l10n, provider),
+                                  ),
+                                  _buildDivider(),
                                   _buildSelectionTile(
                                     label: l10n.categories.toUpperCase(),
                                     value: provider.selectedCategory?.name ?? 'Select...',
@@ -465,6 +473,48 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         )),
                         const Divider(),
                       ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBeneficiaryPicker(List<Beneficiary> beneficiaries, AppLocalizations l10n, TransactionFormProvider provider) {
+    String search = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  onChanged: (v) => setPickerState(() => search = v.toLowerCase()),
+                  decoration: InputDecoration(hintText: l10n.search, prefixIcon: const Icon(Icons.search)),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: beneficiaries.length,
+                  itemBuilder: (context, index) {
+                    final beneficiary = beneficiaries[index];
+                    if (search.isNotEmpty && !beneficiary.name.toLowerCase().contains(search)) {
+                      return const SizedBox();
+                    }
+                    return ListTile(
+                      title: Text(beneficiary.name),
+                      onTap: () {
+                        provider.setSelectedBeneficiary(beneficiary);
+                        Navigator.pop(context);
+                      },
                     );
                   },
                 ),

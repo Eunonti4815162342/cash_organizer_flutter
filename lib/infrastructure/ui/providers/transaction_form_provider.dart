@@ -5,14 +5,17 @@ import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/repositories/transaction_repository.dart';
 import '../../../domain/repositories/account_repository.dart';
 import '../../../domain/repositories/category_repository.dart';
+import '../../../domain/repositories/beneficiary_repository.dart';
 import '../../../services/session_service.dart';
 import '../../../services/api_service.dart';
 import '../../../domain/models/financial_entity.dart';
+import '../../../domain/models/beneficiary.dart';
 
 class TransactionFormProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
   final IAccountRepository _accountRepo;
   final ICategoryRepository _categoryRepo;
+  final IBeneficiaryRepository _beneficiaryRepo;
   final SessionService _sessionService;
   final ApiService _apiService;
   final TransactionItem? initialTransaction;
@@ -21,6 +24,7 @@ class TransactionFormProvider extends ChangeNotifier {
   AccountItem? _selectedAccount;
   AccountItem? _selectedToAccount;
   cat_model.Category? _selectedCategory;
+  Beneficiary? _selectedBeneficiary;
   DateTime _selectedDate = DateTime.now();
   String _amount = '0.00';
   String _description = '';
@@ -28,12 +32,14 @@ class TransactionFormProvider extends ChangeNotifier {
   List<AccountItem> _accounts = [];
   List<cat_model.Category> _allCategories = [];
   List<FinancialEntity> _entities = [];
+  List<Beneficiary> _beneficiaries = [];
   bool _isLoading = true;
 
   TransactionFormProvider(
     this._transactionRepo,
     this._accountRepo,
     this._categoryRepo,
+    this._beneficiaryRepo,
     this._sessionService,
     this._apiService, {
     this.initialTransaction,
@@ -43,12 +49,14 @@ class TransactionFormProvider extends ChangeNotifier {
   AccountItem? get selectedAccount => _selectedAccount;
   AccountItem? get selectedToAccount => _selectedToAccount;
   cat_model.Category? get selectedCategory => _selectedCategory;
+  Beneficiary? get selectedBeneficiary => _selectedBeneficiary;
   DateTime get selectedDate => _selectedDate;
   String get amount => _amount;
   String get description => _description;
   List<AccountItem> get accounts => _accounts;
   List<cat_model.Category> get allCategories => _allCategories;
   List<FinancialEntity> get entities => _entities;
+  List<Beneficiary> get beneficiaries => _beneficiaries;
   bool get isLoading => _isLoading;
 
   List<cat_model.Category> get filteredCategories =>
@@ -61,6 +69,7 @@ class TransactionFormProvider extends ChangeNotifier {
     try {
       _accounts = await _accountRepo.fetchAccounts();
       _allCategories = await _categoryRepo.fetchCategories();
+      _beneficiaries = await _beneficiaryRepo.getAllBeneficiaries();
       // Entities solo se usan para agrupar cuentas — falla silencioso si offline
       try {
         _entities = await _apiService.fetchEntities();
@@ -77,6 +86,7 @@ class TransactionFormProvider extends ChangeNotifier {
           (a) => a.id == initialTransaction!.account.id,
           orElse: () => _accounts.first,
         );
+        _selectedBeneficiary = initialTransaction!.beneficiary;
         if (initialTransaction!.toAccount != null) {
           _selectedToAccount = _accounts.firstWhere(
             (a) => a.id == initialTransaction!.toAccount!.id,
@@ -122,9 +132,33 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSelectedCategory(cat_model.Category category) {
+  void setSelectedCategory(cat_model.Category? category) {
     _selectedCategory = category;
     notifyListeners();
+  }
+
+  Future<void> setSelectedBeneficiary(Beneficiary? beneficiary) async {
+    _selectedBeneficiary = beneficiary;
+    notifyListeners();
+
+    if (beneficiary != null) {
+      // Inteligencia: autocompletado
+      try {
+        final suggestion = await _beneficiaryRepo.getTransactionSuggestion(beneficiary.id);
+        if (suggestion != null) {
+          if (suggestion['categoryId'] != null) {
+            final catId = suggestion['categoryId'] as int;
+            _selectedCategory = _allCategories.firstWhere((c) => c.id == catId);
+          }
+          if (suggestion['transactionType'] != null) {
+            _selectedTypeLabel = suggestion['transactionType'] as String;
+          }
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Error getting autocomplete suggestion: $e');
+      }
+    }
   }
 
   void setSelectedDate(DateTime date) {
@@ -157,6 +191,7 @@ class TransactionFormProvider extends ChangeNotifier {
         account: _selectedAccount!,
         toAccount: _selectedToAccount,
         category: _selectedCategory,
+        beneficiary: _selectedBeneficiary,
         type: TransactionType.values.firstWhere((e) => e.name == _selectedTypeLabel),
         isScheduled: false,
         isHeader: false,

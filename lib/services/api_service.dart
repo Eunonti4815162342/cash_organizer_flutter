@@ -3,6 +3,7 @@ import '../domain/models/account_item.dart';
 import '../domain/models/transaction_item.dart';
 import '../domain/models/category.dart';
 import '../domain/models/financial_entity.dart';
+import '../domain/models/beneficiary.dart';
 import 'api/api_client.dart';
 import 'api/auth_api.dart';
 import 'api/account_api.dart';
@@ -10,6 +11,7 @@ import 'api/transaction_api.dart';
 import 'api/category_api.dart';
 import 'api/entity_api.dart';
 import 'api/report_api.dart';
+import 'api/beneficiary_api.dart';
 
 /// Thin facade over the split Api classes. Preserves the legacy API surface
 /// used by 13 callers while delegating each concern to its dedicated client.
@@ -21,6 +23,7 @@ class ApiService {
   late final CategoryApi _categories = CategoryApi(_client);
   late final EntityApi _entities = EntityApi(_client);
   late final ReportApi _reports = ReportApi(_client);
+  late final BeneficiaryApi _beneficiaries = BeneficiaryApi(_client);
 
   static String get baseUrl => ApiClient().baseUrl;
 
@@ -52,6 +55,11 @@ class ApiService {
   Future<TransactionItem?> createTransaction(Map<String, dynamic> data) => _transactions.create(data);
   Future<TransactionItem?> updateTransaction(int id, Map<String, dynamic> data) => _transactions.update(id, data);
   Future<bool> deleteTransaction(int id) => _transactions.delete(id);
+
+  // --- BENEFICIARIES ---
+  Future<List<Beneficiary>> fetchBeneficiaries() => _beneficiaries.fetchAll();
+  Future<TransactionItem?> getTransactionSuggestion(int beneficiaryId) =>
+      _beneficiaries.getTransactionSuggestion(beneficiaryId);
 
   // --- CATEGORIES ---
   Future<List<Category>> fetchCategories() => _categories.fetchAll();

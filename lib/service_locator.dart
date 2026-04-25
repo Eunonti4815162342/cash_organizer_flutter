@@ -11,6 +11,8 @@ import 'infrastructure/repositories/sqlite/sqlite_category_repository.dart';
 import 'domain/repositories/transaction_repository.dart';
 import 'domain/repositories/account_repository.dart';
 import 'domain/repositories/category_repository.dart';
+import 'domain/repositories/beneficiary_repository.dart';
+import 'infrastructure/repositories/api_beneficiary_repository.dart';
 import 'services/biometric_service.dart';
 import 'services/session_service.dart';
 import 'infrastructure/persistence/sqlite/database_helper.dart';
@@ -53,5 +55,9 @@ void setupServiceLocator() {
   );
   getIt.registerSingleton<ICategoryRepository>(
     CachedCategoryRepository(),
+  );
+
+  getIt.registerSingleton<IBeneficiaryRepository>(
+    ApiBeneficiaryRepository(getIt<ApiService>()),
   );
 }

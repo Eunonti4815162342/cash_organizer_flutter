@@ -156,7 +156,6 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     if (beneficiary != null) {
-      // INTELIGENCIA DE AUTORRELLENADO
       try {
         final suggestion = await _beneficiaryRepo.getTransactionSuggestion(beneficiary.id);
         if (suggestion != null) {

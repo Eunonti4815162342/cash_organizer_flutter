@@ -112,7 +112,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     padding: const EdgeInsets.only(bottom: 100),
                     child: Column(
                       children: [
-                        // Type selector
                         Container(
                           color: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

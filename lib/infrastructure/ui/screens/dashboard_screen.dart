@@ -62,7 +62,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector(provider))),
                           ],
                         ),
-                  const SizedBox(height: 16),
                   _buildBalanceSection(l10n, provider),
                   const SizedBox(height: 16),
                   _buildCategoriesSection(l10n, isMobile, provider),

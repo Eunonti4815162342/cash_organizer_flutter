@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../domain/models/category.dart';
+import '../../../domain/models/financial_entity.dart';
 import '../../../services/api_service.dart';
 
 class CategoryFormDialog extends StatefulWidget {
@@ -25,8 +26,9 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
   late final ApiService _apiService;
   late TextEditingController _nameController;
   CategoryType _selectedType = CategoryType.expense;
+  FinancialEntity? _selectedEntity;
   int? _selectedParentId;
-  List<Category> _parentCategories = [];
+  List<FinancialEntity> _entities = [];
   bool _isLoading = false;
 
   final FocusNode _nameFocus = FocusNode();
@@ -41,6 +43,7 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
     
     if (widget.category != null) {
       _selectedType = widget.category!.type;
+      _selectedEntity = widget.category!.financialEntity;
     } else if (widget.parentCategoryId != null || widget.subcategory != null) {
       _selectedParentId = widget.parentCategoryId;
     }
@@ -49,14 +52,20 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
       if (_nameFocus.hasFocus) _nameController.clear();
     });
 
-    _loadParents();
+    _loadData();
   }
 
-  Future<void> _loadParents() async {
-    final cats = await _apiService.fetchCategories();
-    setState(() {
-      _parentCategories = cats;
-    });
+  Future<void> _loadData() async {
+    try {
+      final ents = await _apiService.fetchEntities();
+      setState(() {
+        _entities = ents;
+        if (_selectedEntity != null) {
+          // Re-vincular con el objeto de la lista para que el Dropdown lo reconozca
+          _selectedEntity = _entities.firstWhere((e) => e.id == _selectedEntity!.id, orElse: () => _selectedEntity!);
+        }
+      });
+    } catch (_) {}
   }
 
   @override
@@ -97,6 +106,20 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
               ],
               onChanged: (v) => setState(() => _selectedType = v!),
             ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<FinancialEntity?>(
+              value: _selectedEntity,
+              decoration: InputDecoration(
+                labelText: l10n.entity,
+                hintText: 'Personal / General',
+                prefixIcon: const Icon(Icons.account_balance_outlined, size: 18),
+              ),
+              items: [
+                const DropdownMenuItem<FinancialEntity?>(value: null, child: Text('Personal / General')),
+                ..._entities.map((e) => DropdownMenuItem(value: e, child: Text(e.name))),
+              ],
+              onChanged: (v) => setState(() => _selectedEntity = v),
+            ),
           ],
         ],
       ),
@@ -119,27 +142,33 @@ class _CategoryFormDialogState extends State<CategoryFormDialog> {
 
     try {
       if (widget.subcategory != null) {
-        // Edit existing subcategory
         result = await _apiService.updateSubcategory(
           widget.subcategory!.id, 
           Subcategory(id: widget.subcategory!.id, name: _nameController.text)
         );
       } else if (_selectedParentId != null) {
-        // New subcategory
         result = await _apiService.createSubcategory(
           _selectedParentId!, 
           Subcategory(id: 0, name: _nameController.text)
         );
       } else if (widget.category != null) {
-        // Edit existing category
         result = await _apiService.updateCategory(
           widget.category!.id, 
-          Category(id: widget.category!.id, name: _nameController.text, type: _selectedType)
+          Category(
+            id: widget.category!.id, 
+            name: _nameController.text, 
+            type: _selectedType,
+            financialEntity: _selectedEntity,
+          )
         );
       } else {
-        // New category
         result = await _apiService.createCategory(
-          Category(id: 0, name: _nameController.text, type: _selectedType)
+          Category(
+            id: 0, 
+            name: _nameController.text, 
+            type: _selectedType,
+            financialEntity: _selectedEntity,
+          )
         );
       }
 

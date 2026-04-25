@@ -187,9 +187,22 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                 child: Icon(Icons.folder_outlined, color: statusColor, size: 20),
               ),
               title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText, fontSize: 14)),
-              subtitle: Text(
-                isExpense ? l10n.expense.toUpperCase() : l10n.income.toUpperCase(),
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor.withValues(alpha: 0.7)),
+              subtitle: Row(
+                children: [
+                  Text(
+                    isExpense ? l10n.expense.toUpperCase() : l10n.income.toUpperCase(),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor.withValues(alpha: 0.7)),
+                  ),
+                  if (category.financialEntity != null) ...[
+                    const Text('  •  ', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                    Icon(Icons.account_balance_outlined, size: 10, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(
+                      category.financialEntity!.name.toUpperCase(),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ],
               ),
               trailing: _buildActionButtons(category),
               children: [

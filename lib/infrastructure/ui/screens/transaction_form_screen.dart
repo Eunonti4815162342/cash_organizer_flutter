@@ -11,7 +11,8 @@ import '../../../l10n/app_localizations.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionItem? transaction;
-  const TransactionFormScreen({super.key, this.transaction});
+  final AccountItem? initialAccount;
+  const TransactionFormScreen({super.key, this.transaction, this.initialAccount});
 
   @override
   State<TransactionFormScreen> createState() => _TransactionFormScreenState();
@@ -37,6 +38,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       getIt.get(),
       getIt.get(),
       initialTransaction: widget.transaction,
+      initialAccount: widget.initialAccount,
     );
 
     _amountController = TextEditingController(text: '0.00');

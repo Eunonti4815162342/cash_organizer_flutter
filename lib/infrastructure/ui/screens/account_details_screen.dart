@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
+import '../../../domain/models/financial_entity.dart';
 import '../../../domain/repositories/transaction_repository.dart';
 import '../styles/app_styles.dart';
 import '../widgets/transaction_list_item.dart';
 import '../widgets/skeleton_widgets.dart';
 import '../widgets/ui_helpers.dart';
+import 'transaction_form_screen.dart';
 
 class AccountDetailsScreen extends StatefulWidget {
-  final AccountItem account;
+  final AccountItem? account;
+  final FinancialEntity? entity;
 
-  const AccountDetailsScreen({super.key, required this.account});
+  const AccountDetailsScreen({super.key, this.account, this.entity});
 
   @override
   State<AccountDetailsScreen> createState() => _AccountDetailsScreenState();
@@ -30,8 +33,9 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
   void _refreshTransactions() {
     setState(() {
       _transactionsFuture = _transactionRepo.fetchTransactions(
-        accountId: widget.account.id.toString(),
-        // Traemos los últimos 3 meses por defecto para esta vista de detalle
+        accountId: widget.account?.id.toString(),
+        // Nota: Si el backend soporta entityId, se podría añadir aquí. 
+        // Por ahora filtramos por cuenta si viene informada.
         startDate: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
         endDate: DateTime.now().add(const Duration(days: 1)).toIso8601String(),
       );
@@ -40,20 +44,22 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final balance = widget.account.amount.value / 100;
-    final isNegative = balance < 0 || widget.account.amount.isNegative;
+    final String title = widget.account?.name ?? widget.entity?.name ?? 'Details';
+    final balanceValue = widget.account?.amount.value ?? 0;
+    final double balanceDouble = balanceValue / 100;
+    final isNegative = balanceDouble < 0;
 
     return Scaffold(
       backgroundColor: AppColors.windowBackground,
       appBar: AppBar(
-        title: Text(widget.account.name),
+        title: Text(title),
         elevation: 0,
         backgroundColor: isNegative ? AppColors.expenseRed : AppColors.primaryBlue,
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // Header con saldo (NATAVE Style)
+          // Header con saldo o info de entidad
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
@@ -64,20 +70,26 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
             child: Column(
               children: [
                 Text(
-                  widget.account.accountType?.toUpperCase() ?? 'GENERAL ACCOUNT',
+                  widget.account != null ? (widget.account!.accountType?.toUpperCase() ?? 'GENERAL ACCOUNT') : 'ENTITY OVERVIEW',
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  '€ ${balance.toStringAsFixed(2)}',
-                  style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.bold),
-                ),
-                if (widget.account.entity != null) ...[
+                if (widget.account != null)
+                  Text(
+                    '€ ${balanceDouble.toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.bold),
+                  )
+                else
+                  Text(
+                    widget.entity?.name ?? 'All Accounts',
+                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  ),
+                if (widget.account?.entity != null) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                    child: Text(widget.account.entity!.name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                    child: Text(widget.account!.entity!.name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
                   ),
                 ],
               ],
@@ -90,7 +102,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('MOVIMIENTOS RECIENTES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1)),
+                const Text('RECENT MOVEMENTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1)),
                 IconButton(icon: const Icon(Icons.refresh, size: 18, color: Colors.grey), onPressed: _refreshTransactions),
               ],
             ),
@@ -107,19 +119,27 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
                 if (snapshot.hasError) {
                   return ErrorStateWidget(message: 'Error al cargar movimientos', onRetry: _refreshTransactions);
                 }
-                final txs = snapshot.data ?? [];
-                if (txs.isEmpty) {
+                final allTxs = snapshot.data ?? [];
+                
+                // Si es por entidad, filtramos localmente para asegurar que solo vemos transacciones de sus cuentas
+                // (esto es un fallback si el backend no filtró por entityId en el fetch genérico)
+                List<TransactionItem> filteredTxs = allTxs;
+                if (widget.entity != null && widget.account == null) {
+                  filteredTxs = allTxs.where((tx) => tx.account.entity?.id == widget.entity!.id).toList();
+                }
+
+                if (filteredTxs.isEmpty) {
                   return const EmptyStateWidget(
                     icon: Icons.receipt_long_outlined,
                     title: 'Sin movimientos',
-                    subtitle: 'No hay transacciones registradas en esta cuenta en los últimos 90 días',
+                    subtitle: 'No hay transacciones registradas en este periodo',
                   );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 8, bottom: 24),
-                  itemCount: txs.length,
+                  itemCount: filteredTxs.length,
                   itemBuilder: (context, index) => TransactionListItem(
-                    transaction: txs[index],
+                    transaction: filteredTxs[index],
                     onRefresh: _refreshTransactions,
                   ),
                 );
@@ -128,6 +148,19 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
           ),
         ],
       ),
+      floatingActionButton: widget.account != null ? FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => TransactionFormScreen(initialAccount: widget.account),
+            ),
+          ).then((value) {
+            if (value == true) _refreshTransactions();
+          });
+        },
+        backgroundColor: isNegative ? AppColors.expenseRed : AppColors.primaryBlue,
+        child: const Icon(Icons.add, color: Colors.white),
+      ) : null,
     );
   }
 }

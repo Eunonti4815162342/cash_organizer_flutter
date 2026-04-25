@@ -19,6 +19,7 @@ class TransactionFormProvider extends ChangeNotifier {
   final SessionService _sessionService;
   final ApiService _apiService;
   final TransactionItem? initialTransaction;
+  final AccountItem? initialAccount;
 
   String _selectedTypeLabel = 'EXPENSE';
   AccountItem? _selectedAccount;
@@ -43,6 +44,7 @@ class TransactionFormProvider extends ChangeNotifier {
     this._sessionService,
     this._apiService, {
     this.initialTransaction,
+    this.initialAccount,
   });
 
   String get selectedTypeLabel => _selectedTypeLabel;
@@ -70,7 +72,6 @@ class TransactionFormProvider extends ChangeNotifier {
       _accounts = await _accountRepo.fetchAccounts();
       _allCategories = await _categoryRepo.fetchCategories();
       _beneficiaries = await _beneficiaryRepo.getAllBeneficiaries();
-      // Entities solo se usan para agrupar cuentas — falla silencioso si offline
       try {
         _entities = await _apiService.fetchEntities();
       } catch (_) {
@@ -103,7 +104,11 @@ class TransactionFormProvider extends ChangeNotifier {
         if (_sessionService.lastSelectedDate != null) {
           _selectedDate = _sessionService.lastSelectedDate!;
         }
-        if (_accounts.isNotEmpty) {
+        
+        // AUTOCOMPLETADO DE CUENTA
+        if (initialAccount != null) {
+          _selectedAccount = _accounts.firstWhere((a) => a.id == initialAccount!.id, orElse: () => _accounts.first);
+        } else if (_accounts.isNotEmpty) {
           _selectedAccount = _accounts.first;
         }
       }
@@ -142,7 +147,6 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
 
     if (beneficiary != null) {
-      // Inteligencia: autocompletado
       try {
         final suggestion = await _beneficiaryRepo.getTransactionSuggestion(beneficiary.id);
         if (suggestion != null) {

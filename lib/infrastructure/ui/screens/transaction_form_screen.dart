@@ -490,6 +490,37 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
   }
 
+  void _showNewBeneficiaryDialog(TransactionFormProvider provider) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Beneficiary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Enter name'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+            onPressed: () async {
+              if (controller.text.isEmpty) return;
+              final newBeneficiary = Beneficiary(id: 0, name: controller.text);
+              final saved = await getIt<ApiService>().createBeneficiary(newBeneficiary);
+              if (saved != null) {
+                provider.setSelectedBeneficiary(saved);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('SAVE', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBeneficiaryPicker(List<Beneficiary> beneficiaries, AppLocalizations l10n, TransactionFormProvider provider) {
     String search = '';
     showModalBottomSheet(
@@ -509,9 +540,19 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
               ),
               Expanded(
                 child: ListView.builder(
-                  itemCount: beneficiaries.length,
+                  itemCount: beneficiaries.length + 1,
                   itemBuilder: (context, index) {
-                    final beneficiary = beneficiaries[index];
+                    if (index == 0) {
+                      return ListTile(
+                        leading: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
+                        title: const Text('ADD NEW BENEFICIARY', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showNewBeneficiaryDialog(provider);
+                        },
+                      );
+                    }
+                    final beneficiary = beneficiaries[index - 1];
                     if (search.isNotEmpty && !beneficiary.name.toLowerCase().contains(search)) {
                       return const SizedBox();
                     }

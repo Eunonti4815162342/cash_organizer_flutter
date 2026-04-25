@@ -508,7 +508,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             onPressed: () async {
               if (controller.text.isEmpty) return;
               final newBeneficiary = Beneficiary(id: 0, name: controller.text);
-              final saved = await getIt<ApiService>().createBeneficiary(newBeneficiary);
+              final saved = await getIt.get<ApiService>().createBeneficiary(newBeneficiary);
               if (saved != null) {
                 provider.setSelectedBeneficiary(saved);
                 if (mounted) Navigator.pop(context);

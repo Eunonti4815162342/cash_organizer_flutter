@@ -226,24 +226,20 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           initiallyExpanded: true,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: InkWell(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => AccountDetailsScreen(entity: entity))),
-            borderRadius: BorderRadius.circular(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, color: AppColors.primaryBlue, size: 16),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 10),
-                Expanded(child: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
-                Text('€ ${entityTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: entityTotal < 0 ? AppColors.expenseRed : AppColors.primaryBlue)),
-              ],
-            ),
+                child: Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, color: AppColors.primaryBlue, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+              Text('€ ${entityTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: entityTotal < 0 ? AppColors.expenseRed : AppColors.primaryBlue)),
+            ],
           ),
           trailing: IconButton(
             icon: Icon(Icons.delete_outline, size: 17, color: Colors.grey.shade300),

@@ -173,7 +173,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             child: Column(
                               children: [
                                 _buildSelectionTile(
-                                  label: provider.selectedTypeLabel == 'TRANSFER' ? 'FROM ${l10n.accounts.toUpperCase()}' : l10n.accounts.toUpperCase(),
+                                  label: widget.initialAccount != null 
+                                      ? widget.initialAccount!.name.toUpperCase() 
+                                      : (provider.selectedTypeLabel == 'TRANSFER' ? 'FROM ${l10n.accounts.toUpperCase()}' : l10n.accounts.toUpperCase()),
                                   value: provider.selectedAccount?.name ?? 'Select...',
                                   icon: Icons.account_balance_wallet_outlined,
                                   onTap: widget.initialAccount != null ? null : () => _showAccountPicker(true, l10n, provider),

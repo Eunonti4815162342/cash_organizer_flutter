@@ -38,6 +38,7 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _accounts = await _accountRepo.fetchAccounts();
+      // SELECCIÓN TOTAL PARA VISIBILIDAD MÁXIMA
       _selectedAccountIds = _accounts.map((a) => a.id).toList();
       await refreshDashboard();
     } catch (e) {

@@ -211,6 +211,8 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final entityAccounts = _allAccounts.where((a) => a.entity?.id == entity.id).toList();
     final entityTotal = entityAccounts.fold(0.0, (sum, item) => sum + (item.amount.value / 100));
 
+    if (entityAccounts.isEmpty) return const SizedBox(); // No mostrar bancos vacíos si no tienen cuentas asociadas todavía
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),

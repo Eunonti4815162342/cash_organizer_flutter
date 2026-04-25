@@ -386,6 +386,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     final reportTitle = _selectedReportTitle;
     if (reportTitle == null) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
     final messenger = ScaffoldMessenger.of(context);
 

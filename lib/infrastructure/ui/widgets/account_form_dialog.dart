@@ -199,7 +199,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
         flags: 0,
         accountType: _selectedType,
         notes: _notesController.text,
-        entity: _selectedEntity,
+        entity: _selectedEntity, // Aquí aseguramos que viaja el objeto completo con ID
       );
       await _accountRepo.saveAccount(newAccount);
       if (mounted) Navigator.pop(context, true);

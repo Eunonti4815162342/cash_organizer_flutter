@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
 import '../providers/transaction_form_provider.dart';
 import '../styles/app_styles.dart';
+import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/category.dart';
 import '../../../domain/models/financial_entity.dart';

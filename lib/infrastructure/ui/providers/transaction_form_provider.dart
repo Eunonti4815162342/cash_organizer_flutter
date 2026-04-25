@@ -110,10 +110,9 @@ class TransactionFormProvider extends ChangeNotifier {
         
         // CONTEXTO DE CUENTA
         if (initialAccount != null) {
-          _selectedAccount = _accounts.firstWhere((a) => a.id == initialAccount!.id, orElse: () => _accounts.first);
-        } else if (_accounts.isNotEmpty) {
-          _selectedAccount = _accounts.first;
+          _selectedAccount = _accounts.firstWhere((a) => a.id == initialAccount!.id, orElse: () => null);
         }
+        // Si no hay initialAccount, _selectedAccount se queda en null para obligar a seleccionar.
       }
 
       _isLoading = false;

@@ -1,3 +1,5 @@
+import 'financial_entity.dart';
+
 enum CategoryType { expense, income }
 
 class Subcategory {
@@ -34,6 +36,7 @@ class Category {
   final String? iconName;
   final CategoryType type;
   final List<Subcategory> subcategories;
+  final FinancialEntity? financialEntity;
 
   Category({
     required this.id,
@@ -41,6 +44,7 @@ class Category {
     this.iconName,
     required this.type,
     this.subcategories = const [],
+    this.financialEntity,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,9 @@ class Category {
       subcategories: (json['subcategories'] as List?)
           ?.map((s) => Subcategory.fromJson(s))
           .toList() ?? [],
+      financialEntity: json['financialEntity'] != null 
+          ? FinancialEntity.fromJson(json['financialEntity']) 
+          : null,
     );
   }
 
@@ -61,6 +68,7 @@ class Category {
       'name': name,
       'iconName': iconName,
       'type': type == CategoryType.income ? 'INCOME' : 'EXPENSE',
+      if (financialEntity != null) 'financialEntity': financialEntity!.toJson(),
     };
   }
 }

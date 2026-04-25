@@ -30,7 +30,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   List<Category> _categories = [];
   List<int> _selectedCategoryIds = [];
-  Map<String, double> _categoryStats = {};
+  Map<String, double> _currentStats = {};
   bool _groupBySubcategory = false;
 
   bool _isLoading = false;
@@ -39,34 +39,60 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   void initState() {
     super.initState();
     _apiService = GetIt.instance.get<ApiService>();
-    _loadData();
+    // Carga inicial tras el primer frame para tener acceso al contexto de l10n
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+    final l10n = AppLocalizations.of(context)!;
     try {
       final accs = await _apiService.fetchAccounts();
       final cats = await _apiService.fetchCategories();
 
-      if (_selectedAccountIds.isEmpty) _selectedAccountIds = accs.map((a) => a.id).toList();
+      if (_selectedAccountIds.isEmpty) {
+        _selectedAccountIds = accs.map((a) => a.id).toList();
+      }
 
-      final stats = await _apiService.fetchCategoryStats(
-        startDate: _startDate.toIso8601String(),
-        endDate: _endDate.toIso8601String(),
-        accountIds: _selectedAccountIds,
-        groupBySubcategory: _groupBySubcategory,
-      );
+      final reportTitle = _selectedReportTitle ?? l10n.categoryAnalysis;
+      Map<String, double> stats = {};
+
+      if (reportTitle == l10n.categoryAnalysis) {
+        stats = await _apiService.fetchCategoryStats(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.toIso8601String(),
+          accountIds: _selectedAccountIds,
+          groupBySubcategory: _groupBySubcategory,
+        );
+      } else if (reportTitle == 'Entity Analysis') {
+        stats = await _apiService.fetchEntityStats(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.toIso8601String(),
+          accountIds: _selectedAccountIds,
+        );
+      } else if (reportTitle == 'Beneficiary Analysis') {
+        stats = await _apiService.fetchBeneficiaryStats(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.toIso8601String(),
+          accountIds: _selectedAccountIds,
+        );
+      } else {
+        // Local calculation for Account Balance
+        final filtered = accs.where((a) => _selectedAccountIds.contains(a.id)).toList();
+        stats = {for (var a in filtered) a.name: (a.amount.value / 100).abs().toDouble()};
+      }
 
       if (mounted) {
         setState(() {
           _accounts = accs;
           _categories = cats;
-          _categoryStats = stats;
-          _selectedReportTitle ??= AppLocalizations.of(context)!.categoryAnalysis;
+          _currentStats = stats;
+          _selectedReportTitle = reportTitle;
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('Error loading report data: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -175,11 +201,13 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           Text(l10n.reportTypes, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 16),
           _buildReportTypeCard(l10n.categoryAnalysis, l10n.categoriesAnalysis, Icons.category_outlined),
+          _buildReportTypeCard('Entity Analysis', 'Spending by financial entity', Icons.business_outlined),
+          _buildReportTypeCard('Beneficiary Analysis', 'Spending by beneficiary', Icons.person_search_outlined),
           _buildReportTypeCard(l10n.accountBalanceReport, l10n.spendingByAccount, Icons.account_balance_wallet_outlined),
           const SizedBox(height: 24),
           Text(l10n.filterByAccounts, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
-          ..._accounts.take(5).map((acc) => CheckboxListTile(
+          ..._accounts.take(8).map((acc) => CheckboxListTile(
             title: Text(acc.name, style: const TextStyle(fontSize: 12)),
             value: _selectedAccountIds.contains(acc.id),
             dense: true,
@@ -193,21 +221,23 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
               _loadData();
             },
           )),
-          const SizedBox(height: 24),
-          Text(l10n.analysisLevel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            title: Text(l10n.groupBySubcategory, style: const TextStyle(fontSize: 12)),
-            value: _groupBySubcategory,
-            activeThumbColor: AppColors.primaryBlue,
-            activeTrackColor: AppColors.primaryBlue,
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            onChanged: (val) {
-              setState(() => _groupBySubcategory = val);
-              _loadData();
-            },
-          ),
+          if (_selectedReportTitle == l10n.categoryAnalysis) ...[
+            const SizedBox(height: 24),
+            Text(l10n.analysisLevel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: Text(l10n.groupBySubcategory, style: const TextStyle(fontSize: 12)),
+              value: _groupBySubcategory,
+              activeThumbColor: AppColors.primaryBlue,
+              activeTrackColor: AppColors.primaryBlue,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (val) {
+                setState(() => _groupBySubcategory = val);
+                _loadData();
+              },
+            ),
+          ],
           const SizedBox(height: 32),
           _buildExportButton(l10n, isMobile: isMobile),
         ],
@@ -218,7 +248,10 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Widget _buildReportTypeCard(String title, String subtitle, IconData icon) {
     bool isSelected = _selectedReportTitle == title;
     return GestureDetector(
-      onTap: () => setState(() => _selectedReportTitle = title),
+      onTap: () {
+        setState(() => _selectedReportTitle = title);
+        _loadData();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -280,18 +313,18 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                   height: isMobile ? 220 : 300,
                   child: _isPieChart
                     ? DonutChart(
-                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(),
+                        data: _currentStats,
                         thickness: isMobile ? 35 : 50,
                         colors: List.generate(15, (index) => _getPaletteColor(index)),
                       )
                     : CustomBarChart(
-                        data: _selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(),
+                        data: _currentStats,
                         barWidth: isMobile ? 20 : 30,
                         colors: List.generate(15, (index) => _getPaletteColor(index)),
                       ),
                 ),
                 const SizedBox(height: 32),
-                _buildModernLegend(_selectedReportTitle == l10n.categoryAnalysis ? _categoryStats : _getAccountStats(), isMobile: isMobile),
+                _buildModernLegend(_currentStats, isMobile: isMobile),
               ],
             ),
           ),
@@ -327,11 +360,6 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Map<String, double> _getAccountStats() {
-    final filtered = _accounts.where((a) => _selectedAccountIds.contains(a.id)).toList();
-    return {for (var a in filtered) a.name: (a.amount.value / 100).abs().toDouble()};
-  }
-
   Widget _buildExportButton(AppLocalizations l10n, {bool isMobile = false}) {
     return SizedBox(
       width: double.infinity,
@@ -357,7 +385,6 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Future<void> _generatePdf() async {
     if (_selectedReportTitle == null) return;
 
-    final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
     final messenger = ScaffoldMessenger.of(context);
 
@@ -377,7 +404,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text(l10n.exportError)));
+        messenger.showSnackBar(const SnackBar(content: Text('Error al exportar el informe')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

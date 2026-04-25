@@ -31,6 +31,48 @@ class ReportApi {
     return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
   }
 
+  Future<Map<String, double>> fetchEntityStats({
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+  }) async {
+    final params = <String, String>{};
+    if (startDate != null) params['startDate'] = startDate;
+    if (endDate != null) params['endDate'] = endDate;
+    if (accountIds != null) params['accountIds'] = accountIds.join(',');
+    
+    final uri = Uri.parse('${_client.baseUrl}/reports/entity-stats').replace(queryParameters: params);
+    final headers = await _client.authHeaders();
+    AppLogger.logRequest('GET', uri.toString(), headers);
+
+    final response = await http.get(uri, headers: headers)
+        .timeout(Duration(seconds: _client.apiTimeout));
+        
+    final Map<String, dynamic> data = _client.processResponse(response);
+    return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+  }
+
+  Future<Map<String, double>> fetchBeneficiaryStats({
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+  }) async {
+    final params = <String, String>{};
+    if (startDate != null) params['startDate'] = startDate;
+    if (endDate != null) params['endDate'] = endDate;
+    if (accountIds != null) params['accountIds'] = accountIds.join(',');
+    
+    final uri = Uri.parse('${_client.baseUrl}/reports/beneficiary-stats').replace(queryParameters: params);
+    final headers = await _client.authHeaders();
+    AppLogger.logRequest('GET', uri.toString(), headers);
+
+    final response = await http.get(uri, headers: headers)
+        .timeout(Duration(seconds: _client.apiTimeout));
+        
+    final Map<String, dynamic> data = _client.processResponse(response);
+    return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+  }
+
   Future<Uint8List?> downloadPdf({
     required String title,
     required String chartType,

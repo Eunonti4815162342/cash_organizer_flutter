@@ -88,6 +88,28 @@ class ApiService {
         groupBySubcategory: groupBySubcategory,
       );
 
+  Future<Map<String, double>> fetchEntityStats({
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+  }) =>
+      _reports.fetchEntityStats(
+        startDate: startDate,
+        endDate: endDate,
+        accountIds: accountIds,
+      );
+
+  Future<Map<String, double>> fetchBeneficiaryStats({
+    String? startDate,
+    String? endDate,
+    List<int>? accountIds,
+  }) =>
+      _reports.fetchBeneficiaryStats(
+        startDate: startDate,
+        endDate: endDate,
+        accountIds: accountIds,
+      );
+
   Future<Uint8List?> downloadPdfReport({
     required String title,
     required String chartType,

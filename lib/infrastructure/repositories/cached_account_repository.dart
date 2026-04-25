@@ -96,5 +96,9 @@ class CachedAccountRepository implements IAccountRepository {
     'accountType': account.accountType ?? 'CASH',
     'notes': account.notes,
     'active': true,
+    if (account.entity != null)
+      'entity': {
+        'id': account.entity!.id,
+      },
   };
 }

@@ -9,6 +9,8 @@ import '../../../domain/models/category.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../domain/models/beneficiary.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../services/api_service.dart';
+import '../../../service_locator.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionItem? transaction;

@@ -82,6 +82,7 @@ class CachedTransactionRepository implements ITransactionRepository {
     'toAccount': tx.toAccount != null ? {'id': tx.toAccount!.id} : null,
     'category': tx.category != null ? {'id': tx.category!.id} : null,
     'subcategory': tx.subcategory != null ? {'id': tx.subcategory!.id} : null,
+    'beneficiary': tx.beneficiary != null ? {'id': tx.beneficiary!.id} : null,
     'type': tx.type.name,
     'description': tx.description,
     'date': tx.date,

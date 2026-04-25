@@ -19,8 +19,8 @@ class ProductionEnvironment implements Environment {
 
   @override
   List<String> get allowedOrigins => [
-    'https://cashorganizer.com',
-    'https://app.cashorganizer.com',
+    'https://natave.com',
+    'https://app.natave.com',
   ];
 
   @override

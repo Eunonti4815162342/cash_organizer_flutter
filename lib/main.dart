@@ -46,18 +46,18 @@ void main() async {
   syncManager.scheduleTask();
   runApp(ValueListenableBuilder<Locale>(
     valueListenable: _appLocale,
-    builder: (context, locale, child) => CashKeepApp(locale: locale),
+    builder: (context, locale, child) => NataveApp(locale: locale),
   ));
 }
 
-class CashKeepApp extends StatefulWidget {
+class NataveApp extends StatefulWidget {
   final Locale locale;
-  const CashKeepApp({super.key, required this.locale});
+  const NataveApp({super.key, required this.locale});
   @override
-  State<CashKeepApp> createState() => _CashKeepAppState();
+  State<NataveApp> createState() => _NataveAppState();
 }
 
-class _CashKeepAppState extends State<CashKeepApp> {
+class _NataveAppState extends State<NataveApp> {
   bool _isLoggedIn = false;
   bool _isLoading = false;
   @override
@@ -97,7 +97,7 @@ class _CashKeepAppState extends State<CashKeepApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CashKeep',
+      title: 'NATAVE',
       debugShowCheckedModeBanner: false,
       locale: widget.locale,
       localizationsDelegates: const [AppLocalizations.delegate, GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
@@ -146,7 +146,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       case 2: return l10n.accounts;
       case 3: return l10n.reports;
       case 4: return l10n.categories;
-      default: return 'CashKeep';
+      default: return 'NATAVE';
     }
   }
 
@@ -220,7 +220,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
                   title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
                   onTap: () async {
                     await _apiService.logout();
-                    if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => CashKeepApp(locale: _appLocale.value)), (route) => false);
+                    if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => NataveApp(locale: _appLocale.value)), (route) => false);
                   },
                 ),
                 const SizedBox(height: 40),
@@ -232,7 +232,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
     );
   }
 
-  Widget _buildSidebar(AppLocalizations l10n) {
+  Widget _sidebarSidebar(AppLocalizations l10n) {
     return Container(
       width: 200, decoration: const BoxDecoration(color: AppColors.sidebarBackground, border: Border(right: BorderSide(color: Colors.black12))),
       child: ListView(
@@ -251,7 +251,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
             title: const Text('Logout', style: TextStyle(fontSize: 13, color: Colors.redAccent)),
             onTap: () async {
               await _apiService.logout();
-              if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => CashKeepApp(locale: _appLocale.value)), (route) => false);
+              if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => NataveApp(locale: _appLocale.value)), (route) => false);
             },
           ),
         ],
@@ -304,6 +304,10 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       onSelected: (value) => _appLocale.value = Locale(value),
       itemBuilder: (context) => [const PopupMenuItem(value: 'en', child: Text('English')), const PopupMenuItem(value: 'es', child: Text('Español')), const PopupMenuItem(value: 'pt', child: Text('Português'))],
     );
+  }
+
+  Widget _buildSidebar(AppLocalizations l10n) {
+    return _sidebarSidebar(l10n);
   }
 }
 

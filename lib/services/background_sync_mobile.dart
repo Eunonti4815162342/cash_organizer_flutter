@@ -2,7 +2,7 @@ import 'package:workmanager/workmanager.dart';
 import 'background_sync.dart';
 import 'sync_service.dart';
 
-const String syncTaskName = "com.cashorganizer.syncTask";
+const String syncTaskName = "com.natave.syncTask";
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {

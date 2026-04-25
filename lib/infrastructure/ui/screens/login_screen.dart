@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Icon(Icons.account_balance_wallet, size: 64, color: AppColors.primaryBlue),
               const SizedBox(height: 16),
               const Text(
-                'CashKeep',
+                'NATAVE',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
               ),
               const SizedBox(height: 24),

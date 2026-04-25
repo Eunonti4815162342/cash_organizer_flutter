@@ -19,8 +19,8 @@ class StagingEnvironment implements Environment {
 
   @override
   List<String> get allowedOrigins => [
-    'https://staging.cashorganizer.com',
-    'https://app-staging.cashorganizer.com',
+    'https://staging.natave.com',
+    'https://app-staging.natave.com',
   ];
 
   @override

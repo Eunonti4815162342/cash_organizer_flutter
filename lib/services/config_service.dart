@@ -56,7 +56,7 @@ class ConfigService {
   static int get backgroundSyncIntervalMinutes => _config['backgroundSyncIntervalMinutes'] ?? 60;
 
   /// Database name for SQLite
-  static String get databaseName => _config['databaseName'] ?? 'cash_organizer.db';
+  static String get databaseName => _config['databaseName'] ?? 'natave.db';
 
   /// Get all config as a map
   static Map<String, dynamic> getAll() => Map.from(_config);
@@ -73,7 +73,7 @@ class ConfigService {
       'enableBiometric': true,
       'enableBackgroundSync': true,
       'backgroundSyncIntervalMinutes': 15,
-      'databaseName': 'cash_organizer_dev.db',
+      'databaseName': 'natave_dev.db',
     };
   }
 }

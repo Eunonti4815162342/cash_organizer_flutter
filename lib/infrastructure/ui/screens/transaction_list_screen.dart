@@ -27,9 +27,17 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   FinancialEntity? _selectedEntity;
   String _searchQuery = '';
   
+  // Filtro de fecha: por defecto el mes actual
+  late DateTime _startDate;
+  late DateTime _endDate;
+
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _startDate = DateTime(now.year, now.month, 1);
+    _endDate = now;
+    
     _loadEntities();
     _refreshTransactions();
   }
@@ -44,12 +52,40 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   void _refreshTransactions() {
     setState(() {
       _transactionsFuture = _transactionRepo.fetchTransactions(
-        // Si hay empresa seleccionada, el backend filtrará por las cuentas de esa empresa
-        // Para simplificar, traemos todas y filtramos localmente o pasamos los accountIds
-        startDate: DateTime.now().subtract(const Duration(days: 30)).toIso8601String(),
-        endDate: DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+        startDate: _startDate.toIso8601String(),
+        // Añadimos un día al final para incluir las transacciones de hoy si es necesario
+        endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
       );
     });
+  }
+
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryBlue,
+              onPrimary: Colors.white,
+              onSurface: AppColors.primaryText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _refreshTransactions();
+    }
   }
 
   @override
@@ -98,9 +134,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   return EmptyStateWidget(
                     icon: Icons.receipt_long_outlined,
                     title: l10n.noData,
-                    subtitle: _searchQuery.isEmpty && _selectedEntity == null 
-                        ? 'No hay movimientos en los últimos 30 días' 
-                        : 'No se encontraron resultados para los filtros aplicados',
+                    subtitle: 'No se encontraron resultados para los filtros aplicados',
                   );
                 }
 
@@ -137,27 +171,61 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       color: Colors.white,
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: TextField(
-              onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: InputDecoration(
-                hintText: l10n.search,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: EdgeInsets.zero,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: l10n.search,
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    contentPadding: EdgeInsets.zero,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                onPressed: _refreshTransactions,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primaryBlue),
-            onPressed: _refreshTransactions,
-          ),
+          const SizedBox(height: 8),
+          _buildDateRangeButton(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeButton() {
+    return InkWell(
+      onTap: _selectDateRange,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.primaryBlue.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.primaryBlue),
+            const SizedBox(width: 8),
+            Text(
+              '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryBlue),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.primaryBlue),
+          ],
+        ),
       ),
     );
   }

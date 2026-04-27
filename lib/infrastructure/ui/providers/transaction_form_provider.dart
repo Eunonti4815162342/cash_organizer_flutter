@@ -130,7 +130,7 @@ class TransactionFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSelectedAccount(AccountItem account) {
+  void setSelectedAccount(AccountItem? account) {
     _selectedAccount = account;
     notifyListeners();
   }

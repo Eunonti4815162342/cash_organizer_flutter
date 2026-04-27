@@ -180,6 +180,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   value: provider.selectedAccount?.name ?? 'Select...',
                                   icon: Icons.account_balance_wallet_outlined,
                                   onTap: widget.initialAccount != null ? null : () => _showAccountPicker(true, l10n, provider),
+                                  onClear: (widget.initialAccount != null || provider.selectedAccount == null) ? null : () => provider.setSelectedAccount(null),
                                   isLocked: widget.initialAccount != null,
                                 ),
                                 _buildDivider(),
@@ -196,6 +197,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                     value: provider.selectedToAccount?.name ?? 'Select...',
                                     icon: Icons.swap_horiz_outlined,
                                     onTap: () => _showAccountPicker(false, l10n, provider),
+                                    onClear: provider.selectedToAccount == null ? null : () => provider.setSelectedToAccount(null),
                                   ),
                                   _buildDivider(),
                                 ] else ...[
@@ -204,6 +206,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                     value: provider.selectedBeneficiary?.name ?? 'Select...',
                                     icon: Icons.person_outline,
                                     onTap: () => _showBeneficiaryPicker(provider.beneficiaries, l10n, provider),
+                                    onClear: provider.selectedBeneficiary == null ? null : () => provider.setSelectedBeneficiary(null),
                                   ),
                                   _buildDivider(),
                                   _buildSelectionTile(
@@ -213,6 +216,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                         : (provider.selectedCategory?.name ?? 'Select...'),
                                     icon: Icons.category_outlined,
                                     onTap: () => _showCategoryPicker(provider.filteredCategories, l10n, provider),
+                                    onClear: provider.selectedCategory == null ? null : () {
+                                      provider.setSelectedCategory(null);
+                                      provider.setSelectedSubcategory(null);
+                                    },
                                   ),
                                   _buildDivider(),
                                 ],
@@ -308,13 +315,36 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
   }
 
-  Widget _buildSelectionTile({required String label, required String value, required IconData icon, required VoidCallback? onTap, bool isLocked = false}) {
+  Widget _buildSelectionTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback? onTap,
+    VoidCallback? onClear,
+    bool isLocked = false,
+  }) {
     return ListTile(
       onTap: onTap,
       leading: Icon(icon, color: isLocked ? Colors.grey : const Color(0xFF4A636F)),
       title: Text(label, style: TextStyle(fontSize: 10, color: isLocked ? Colors.grey : const Color(0xFF009FFB), fontWeight: FontWeight.bold)),
       subtitle: Text(value, style: TextStyle(fontSize: 16, color: isLocked ? Colors.grey : const Color(0xFF4A636F))),
-      trailing: isLocked ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey) : const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onClear != null)
+            IconButton(
+              icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+              onPressed: onClear,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          if (!isLocked) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ] else
+            const Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+        ],
+      ),
     );
   }
 

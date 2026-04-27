@@ -312,6 +312,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       final catIds = _selectedCategories.isNotEmpty ? _selectedCategories.map((c) => c.id).toList() : null;
       final benIds = _selectedBeneficiaries.isNotEmpty ? _selectedBeneficiaries.map((b) => b.id).toList() : null;
 
+      // Obtener el código de idioma actual (es, en, etc.)
+      final String languageCode = Localizations.localeOf(context).languageCode;
+
       final pdf = await _apiService.downloadPdfReport(
         title: 'INFORME DE AUDITORÍA NATAVE',
         chartType: _isPieChart ? 'PIE' : 'BAR',
@@ -321,7 +324,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         accountIds: accIds,
         categoryIds: catIds,
         beneficiaryIds: benIds, 
-        lang: 'es',
+        lang: languageCode, // ENVIAMOS EL IDIOMA REAL
       );
       if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe.pdf');
     } catch (e) {

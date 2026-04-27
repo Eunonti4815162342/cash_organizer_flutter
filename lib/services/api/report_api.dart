@@ -14,21 +14,17 @@ class ReportApi {
     List<int>? accountIds,
     bool groupBySubcategory = false,
   }) async {
-    final params = <String, String>{};
+    final params = <String, String>{
+      'groupBySubcategory': groupBySubcategory.toString(),
+    };
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
-    if (accountIds != null) params['accountIds'] = accountIds.join(',');
-    if (groupBySubcategory) params['groupBySubcategory'] = 'true';
-    
-    final uri = Uri.parse('${_client.baseUrl}/reports/category-stats').replace(queryParameters: params);
-    final headers = await _client.authHeaders();
-    AppLogger.logRequest('GET', uri.toString(), headers);
+    if (accountIds != null && accountIds.isNotEmpty) {
+      params['accountIds'] = accountIds.join(',');
+    }
 
-    final response = await http.get(uri, headers: headers)
-        .timeout(Duration(seconds: _client.apiTimeout));
-        
-    final Map<String, dynamic> data = _client.processResponse(response);
-    return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+    final response = await _client.get('/reports/category-stats', queryParameters: params);
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
   }
 
   Future<Map<String, double>> fetchEntityStats({
@@ -39,17 +35,12 @@ class ReportApi {
     final params = <String, String>{};
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
-    if (accountIds != null) params['accountIds'] = accountIds.join(',');
-    
-    final uri = Uri.parse('${_client.baseUrl}/reports/entity-stats').replace(queryParameters: params);
-    final headers = await _client.authHeaders();
-    AppLogger.logRequest('GET', uri.toString(), headers);
+    if (accountIds != null && accountIds.isNotEmpty) {
+      params['accountIds'] = accountIds.join(',');
+    }
 
-    final response = await http.get(uri, headers: headers)
-        .timeout(Duration(seconds: _client.apiTimeout));
-        
-    final Map<String, dynamic> data = _client.processResponse(response);
-    return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+    final response = await _client.get('/reports/entity-stats', queryParameters: params);
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
   }
 
   Future<Map<String, double>> fetchBeneficiaryStats({
@@ -60,17 +51,12 @@ class ReportApi {
     final params = <String, String>{};
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
-    if (accountIds != null) params['accountIds'] = accountIds.join(',');
-    
-    final uri = Uri.parse('${_client.baseUrl}/reports/beneficiary-stats').replace(queryParameters: params);
-    final headers = await _client.authHeaders();
-    AppLogger.logRequest('GET', uri.toString(), headers);
+    if (accountIds != null && accountIds.isNotEmpty) {
+      params['accountIds'] = accountIds.join(',');
+    }
 
-    final response = await http.get(uri, headers: headers)
-        .timeout(Duration(seconds: _client.apiTimeout));
-        
-    final Map<String, dynamic> data = _client.processResponse(response);
-    return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
+    final response = await _client.get('/reports/beneficiary-stats', queryParameters: params);
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
   }
 
   Future<Uint8List?> downloadPdf({
@@ -81,6 +67,7 @@ class ReportApi {
     String? endDate,
     List<int>? accountIds,
     List<int>? categoryIds,
+    List<int>? beneficiaryIds,
     String lang = 'en',
   }) async {
     final params = <String, String>{
@@ -91,8 +78,16 @@ class ReportApi {
     if (reportType != null) params['reportType'] = reportType;
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
-    if (accountIds != null) params['accountIds'] = accountIds.join(',');
-    if (categoryIds != null) params['categoryIds'] = categoryIds.join(',');
+    
+    if (accountIds != null && accountIds.isNotEmpty) {
+      params['accountIds'] = accountIds.join(',');
+    }
+    if (categoryIds != null && categoryIds.isNotEmpty) {
+      params['categoryIds'] = categoryIds.join(',');
+    }
+    if (beneficiaryIds != null && beneficiaryIds.isNotEmpty) {
+      params['beneficiaryIds'] = beneficiaryIds.join(',');
+    }
     
     final baseUrl = _client.baseUrl.endsWith('/') ? _client.baseUrl.substring(0, _client.baseUrl.length - 1) : _client.baseUrl;
     final uri = Uri.parse('$baseUrl/reports/download').replace(queryParameters: params);
@@ -102,6 +97,11 @@ class ReportApi {
     final response = await http.get(uri, headers: headers)
         .timeout(Duration(seconds: _client.apiTimeout));
         
-    return response.bodyBytes;
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      _client.processResponse(response);
+      return null;
+    }
   }
 }

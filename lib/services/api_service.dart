@@ -119,6 +119,7 @@ class ApiService {
     String? endDate,
     List<int>? accountIds,
     List<int>? categoryIds,
+    List<int>? beneficiaryIds,
     String lang = 'en',
   }) =>
       _reports.downloadPdf(
@@ -129,6 +130,7 @@ class ApiService {
         endDate: endDate,
         accountIds: accountIds,
         categoryIds: categoryIds,
+        beneficiaryIds: beneficiaryIds,
         lang: lang,
       );
 }

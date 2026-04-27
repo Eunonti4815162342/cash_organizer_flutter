@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 import 'package:get_it/get_it.dart';
+import 'package:printing/printing.dart';
 import '../styles/app_styles.dart';
 import '../widgets/donut_chart.dart';
 import '../widgets/bar_chart.dart';
+import '../widgets/ui_helpers.dart';
 import '../../../services/api_service.dart';
+import '../../../domain/models/transaction_item.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/category.dart';
+import '../../../domain/models/financial_entity.dart';
+import '../../../domain/models/beneficiary.dart';
+import '../../../domain/repositories/transaction_repository.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ReportsListScreen extends StatefulWidget {
@@ -17,409 +22,376 @@ class ReportsListScreen extends StatefulWidget {
 }
 
 class _ReportsListScreenState extends State<ReportsListScreen> {
-  late final ApiService _apiService;
+  final ApiService _apiService = GetIt.instance.get<ApiService>();
+  final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
 
-  String? _selectedReportTitle;
-  bool _isPieChart = true;
+  List<FinancialEntity> _entities = [];
+  List<AccountItem> _allAccounts = [];
+  List<Category> _allCategories = [];
+  List<Beneficiary> _allBeneficiaries = [];
 
+  final Set<FinancialEntity> _selectedEntities = {};
+  final Set<AccountItem> _selectedAccounts = {};
+  final Set<Category> _selectedCategories = {};
+  final Set<Subcategory> _selectedSubcategories = {};
+  final Set<Beneficiary> _selectedBeneficiaries = {};
+  
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _endDate = DateTime.now().add(const Duration(days: 1));
 
-  List<AccountItem> _accounts = [];
-  List<int> _selectedAccountIds = [];
-
-  List<Category> _categories = [];
-  List<int> _selectedCategoryIds = [];
-  Map<String, double> _currentStats = {};
-  bool _groupBySubcategory = false;
-
-  bool _isLoading = false;
+  List<TransactionItem> _allPeriodTransactions = [];
+  List<TransactionItem> _filteredTransactions = [];
+  Map<String, double> _chartStats = {};
+  bool _isLoading = true;
+  bool _isPieChart = true;
 
   @override
   void initState() {
     super.initState();
-    _apiService = GetIt.instance.get<ApiService>();
-    // Carga inicial tras el primer frame para tener acceso al contexto de l10n
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    _loadInitialData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    final l10n = AppLocalizations.of(context)!;
     try {
-      final accs = await _apiService.fetchAccounts();
-      final cats = await _apiService.fetchCategories();
-
-      if (_selectedAccountIds.isEmpty) {
-        _selectedAccountIds = accs.map((a) => a.id).toList();
-      }
-
-      final reportTitle = _selectedReportTitle ?? l10n.categoryAnalysis;
-      Map<String, double> stats = {};
-
-      if (reportTitle == l10n.categoryAnalysis) {
-        stats = await _apiService.fetchCategoryStats(
-          startDate: _startDate.toIso8601String(),
-          endDate: _endDate.toIso8601String(),
-          accountIds: _selectedAccountIds,
-          groupBySubcategory: _groupBySubcategory,
-        );
-      } else if (reportTitle == 'Entity Analysis') {
-        stats = await _apiService.fetchEntityStats(
-          startDate: _startDate.toIso8601String(),
-          endDate: _endDate.toIso8601String(),
-          accountIds: _selectedAccountIds,
-        );
-      } else if (reportTitle == 'Beneficiary Analysis') {
-        stats = await _apiService.fetchBeneficiaryStats(
-          startDate: _startDate.toIso8601String(),
-          endDate: _endDate.toIso8601String(),
-          accountIds: _selectedAccountIds,
-        );
-      } else {
-        // Local calculation for Account Balance
-        final filtered = accs.where((a) => _selectedAccountIds.contains(a.id)).toList();
-        stats = {for (var a in filtered) a.name: (a.amount.value / 100).abs().toDouble()};
-      }
-
+      final results = await Future.wait([
+        _apiService.fetchEntities(),
+        _apiService.fetchAccounts(),
+        _apiService.fetchCategories(),
+        _apiService.fetchBeneficiaries(),
+      ]);
       if (mounted) {
         setState(() {
-          _accounts = accs;
-          _categories = cats;
-          _currentStats = stats;
-          _selectedReportTitle = reportTitle;
-          _isLoading = false;
+          _entities = results[0] as List<FinancialEntity>;
+          _allAccounts = results[1] as List<AccountItem>;
+          _allCategories = results[2] as List<Category>;
+          _allBeneficiaries = results[3] as List<Beneficiary>;
         });
+        await _refreshDataFromApi();
       }
     } catch (e) {
-      debugPrint('Error loading report data: $e');
+      debugPrint('Error: $e');
+    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _refreshDataFromApi() async {
+    setState(() => _isLoading = true);
+    try {
+      final txs = await _transactionRepo.fetchTransactions(
+        startDate: _startDate.toIso8601String(),
+        endDate: _endDate.toIso8601String(),
+      );
+      if (mounted) {
+        setState(() => _allPeriodTransactions = txs);
+        _applyLocalFilters();
+      }
+    } catch (e) {
+      debugPrint('Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _applyLocalFilters() {
+    final filtered = _allPeriodTransactions.where((tx) {
+      if (_selectedAccounts.isNotEmpty && !_selectedAccounts.any((a) => a.id == tx.account.id)) return false;
+      if (_selectedEntities.isNotEmpty && !_selectedEntities.any((e) => e.id == tx.account.entity?.id)) return false;
+      if (_selectedCategories.isNotEmpty && !_selectedCategories.any((c) => c.id == tx.category?.id)) return false;
+      if (_selectedSubcategories.isNotEmpty && !_selectedSubcategories.any((s) => s.id == tx.subcategory?.id)) return false;
+      if (_selectedBeneficiaries.isNotEmpty && !_selectedBeneficiaries.any((b) => b.id == tx.beneficiary?.id)) return false;
+      return true;
+    }).toList();
+
+    final Map<String, double> stats = {};
+    for (var tx in filtered) {
+      String key = _selectedCategories.length == 1 
+          ? (tx.subcategory?.name ?? 'General') 
+          : (tx.category?.name ?? 'Otros');
+      stats[key] = (stats[key] ?? 0) + (tx.amount.value / 100).abs();
+    }
+
+    setState(() {
+      _filteredTransactions = filtered;
+      _chartStats = stats;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final isMobile = MediaQuery.of(context).size.width < AppDimens.mobileBreakpoint;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F9),
-      body: Column(
+      backgroundColor: const Color(0xFFF1F5F9),
+      appBar: AppBar(
+        title: const Text('AUDITORÍA Y CONTROL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDataFromApi),
+        ],
+      ),
+      body: Row(
         children: [
-          _buildTopBar(l10n, isMobile),
+          _buildSidebar(),
           Expanded(
-            child: _isLoading
+            child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
-              : isMobile ? _buildMobileLayout(l10n) : _buildDesktopLayout(l10n),
+              : _buildMainDashboard(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTopBar(AppLocalizations l10n, bool isMobile) {
+  Widget _buildSidebar() {
     return Container(
-      height: 60,
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.black12)),
-      ),
-      child: Row(
+      width: 280,
+      decoration: BoxDecoration(color: Colors.white, border: Border(right: BorderSide(color: Colors.grey.shade200))),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          Icon(Icons.analytics_outlined, color: AppColors.primaryBlue, size: isMobile ? 20 : 24),
-          const SizedBox(width: 8),
-          Expanded(child: Text(l10n.reports.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14, letterSpacing: 1.2, color: AppColors.primaryText), overflow: TextOverflow.ellipsis)),
-          _buildDateRangeChip(isMobile),
-          IconButton(icon: Icon(Icons.refresh, size: isMobile ? 18 : 20), onPressed: _loadData),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateRangeChip(bool isMobile) {
-    return ActionChip(
-      backgroundColor: AppColors.white,
-      padding: EdgeInsets.zero,
-      side: const BorderSide(color: AppColors.black12),
-      avatar: const Icon(Icons.calendar_today, size: 12, color: AppColors.primaryBlue),
-      label: Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: TextStyle(fontSize: isMobile ? 10 : 12)),
-      onPressed: _selectDateRange,
-    );
-  }
-
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-      builder: (context, child) => Theme(
-        data: ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryBlue)),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-      _loadData();
-    }
-  }
-
-  Widget _buildDesktopLayout(AppLocalizations l10n) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 3, child: _buildSidebar(l10n)),
-        Expanded(flex: 9, child: _buildMainContent(l10n)),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(AppLocalizations l10n) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          _buildMainContent(l10n, isMobile: true),
-          const SizedBox(height: 12),
-          _buildSidebar(l10n, isMobile: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebar(AppLocalizations l10n, {bool isMobile = false}) {
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.reportTypes, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 16),
-          _buildReportTypeCard(l10n.categoryAnalysis, l10n.categoriesAnalysis, Icons.category_outlined),
-          _buildReportTypeCard('Entity Analysis', 'Spending by financial entity', Icons.business_outlined),
-          _buildReportTypeCard('Beneficiary Analysis', 'Spending by beneficiary', Icons.person_search_outlined),
-          _buildReportTypeCard(l10n.accountBalanceReport, l10n.spendingByAccount, Icons.account_balance_wallet_outlined),
+          _buildLabel('PERIODO'),
+          _buildDateSelector(),
           const SizedBox(height: 24),
-          Text(l10n.filterByAccounts, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
-          ..._accounts.take(8).map((acc) => CheckboxListTile(
-            title: Text(acc.name, style: const TextStyle(fontSize: 12)),
-            value: _selectedAccountIds.contains(acc.id),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            fillColor: WidgetStateProperty.resolveWith<Color>((states) =>
-              states.contains(WidgetState.selected) ? AppColors.primaryBlue : Colors.grey),
-            onChanged: (val) {
-              setState(() {
-                val! ? _selectedAccountIds.add(acc.id) : _selectedAccountIds.remove(acc.id);
-              });
-              _loadData();
-            },
-          )),
-          if (_selectedReportTitle == l10n.categoryAnalysis) ...[
-            const SizedBox(height: 24),
-            Text(l10n.analysisLevel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              title: Text(l10n.groupBySubcategory, style: const TextStyle(fontSize: 12)),
-              value: _groupBySubcategory,
-              activeThumbColor: AppColors.primaryBlue,
-              activeTrackColor: AppColors.primaryBlue,
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (val) {
-                setState(() => _groupBySubcategory = val);
-                _loadData();
-              },
-            ),
-          ],
-          const SizedBox(height: 32),
-          _buildExportButton(l10n, isMobile: isMobile),
+          _buildLabel('EMPRESAS'),
+          _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: 'Empresas...', items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _applyLocalFilters(); }),
+          const SizedBox(height: 12),
+          _buildLabel('CUENTA'),
+          _buildMultiSelector<AccountItem>(selectedItems: _selectedAccounts, hint: 'Cuentas...', items: _selectedEntities.isNotEmpty ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).toList() : _allAccounts, label: (a) => a.name, onChanged: _applyLocalFilters),
+          const SizedBox(height: 24),
+          _buildLabel('CATEGORÍAS'),
+          _buildMultiSelector<Category>(selectedItems: _selectedCategories, hint: 'Categorías...', items: _allCategories, label: (c) => c.name, onChanged: () { _selectedSubcategories.clear(); _applyLocalFilters(); }),
+          const SizedBox(height: 12),
+          _buildLabel('SUBCATEGORÍAS'),
+          _buildMultiSelector<Subcategory>(selectedItems: _selectedSubcategories, hint: 'Subcategorías...', items: _selectedCategories.isNotEmpty ? _selectedCategories.expand((c) => c.subcategories).toList() : [], label: (s) => s.name, onChanged: _applyLocalFilters, isEnabled: _selectedCategories.isNotEmpty),
+          const SizedBox(height: 24),
+          _buildLabel('BENEFICIARIOS'),
+          _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: 'Beneficiarios...', items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
+          const SizedBox(height: 40),
+          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: const Text('GENERAR PDF SEGREGADO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+          const SizedBox(height: 12),
+          TextButton(onPressed: _clearFilters, child: const Text('LIMPIAR FILTROS', style: TextStyle(fontSize: 11, color: Colors.redAccent))),
         ],
       ),
     );
   }
 
-  Widget _buildReportTypeCard(String title, String subtitle, IconData icon) {
-    bool isSelected = _selectedReportTitle == title;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedReportTitle = title);
-        _loadData();
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryBlue : AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: isSelected ? AppColors.white : AppColors.primaryBlue, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? AppColors.white : AppColors.primaryText)),
-                Text(subtitle, style: TextStyle(fontSize: 9, color: isSelected ? Colors.white70 : Colors.grey)),
-              ]),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainContent(AppLocalizations l10n, {bool isMobile = false}) {
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 4.0 : 24.0),
+  Widget _buildMainDashboard() {
+    if (_chartStats.isEmpty) return const EmptyStateWidget(icon: Icons.filter_alt_outlined, title: 'Sin resultados', subtitle: 'Prueba con otra combinación de filtros');
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.all(isMobile ? 16 : 32),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-              boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 10))],
-            ),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20)]),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(child: Text(_selectedReportTitle ?? '', style: TextStyle(fontSize: isMobile ? 15 : 18, fontWeight: FontWeight.bold, color: AppColors.primaryText), overflow: TextOverflow.ellipsis)),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.pie_chart_outline, size: isMobile ? 20 : 24, color: _isPieChart ? AppColors.primaryBlue : Colors.grey),
-                          onPressed: () => setState(() => _isPieChart = true),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.bar_chart_outlined, size: isMobile ? 20 : 24, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey),
-                          onPressed: () => setState(() => _isPieChart = false),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: isMobile ? 220 : 300,
-                  child: _isPieChart
-                    ? DonutChart(
-                        data: _currentStats,
-                        thickness: isMobile ? 35 : 50,
-                        colors: List.generate(15, (index) => _getPaletteColor(index)),
-                      )
-                    : CustomBarChart(
-                        data: _currentStats,
-                        barWidth: isMobile ? 20 : 30,
-                        colors: List.generate(15, (index) => _getPaletteColor(index)),
-                      ),
-                ),
-                const SizedBox(height: 32),
-                _buildModernLegend(_currentStats, isMobile: isMobile),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(_selectedCategories.length == 1 ? 'Análisis: ${_selectedCategories.first.name}' : 'Distribución General', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  _buildChartToggle(),
+                ]),
+                const SizedBox(height: 40),
+                SizedBox(height: 300, child: _isPieChart ? DonutChart(data: _chartStats, colors: AppColors.chartPalette) : CustomBarChart(data: _chartStats, colors: AppColors.chartPalette)),
+                const SizedBox(height: 40),
+                _buildLegend(),
               ],
             ),
           ),
+          const SizedBox(height: 32),
+          _buildMovementPreview(),
         ],
       ),
     );
   }
 
-  Widget _buildModernLegend(Map<String, double> stats, {bool isMobile = false}) {
-    if (stats.isEmpty) return const Text('No data for this selection', style: TextStyle(color: Colors.grey));
-    final total = stats.values.fold(0.0, (sum, val) => sum + val);
-
-    return Wrap(
-      spacing: isMobile ? 12 : 24,
-      runSpacing: isMobile ? 12 : 16,
-      children: stats.entries.toList().asMap().entries.map((entry) {
-        final percentage = total == 0 ? "0" : (entry.value.value / total * 100).toStringAsFixed(1);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 10, height: 10, decoration: BoxDecoration(color: _getPaletteColor(entry.key), borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.value.key, style: TextStyle(fontSize: isMobile ? 11 : 12, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
-                Text('$percentage% • €${entry.value.value.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              ],
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildExportButton(AppLocalizations l10n, {bool isMobile = false}) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isLoading ? null : _generatePdf,
-        icon: Icon(Icons.picture_as_pdf, size: isMobile ? 14 : 16),
-        label: Text(l10n.exportPdf.toUpperCase(), style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBlue,
-          foregroundColor: AppColors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+  Widget _buildMovementPreview() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('MOVIMIENTOS FILTRADOS (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Divider(),
+          ..._filteredTransactions.take(15).map((tx) => ListTile(
+            dense: true,
+            title: Text(tx.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 11)),
+            trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold)),
+          )),
+        ],
       ),
     );
   }
 
-  Color _getPaletteColor(int index) {
-    return AppColors.chartPalette[index % AppColors.chartPalette.length];
+  Widget _buildLegend() {
+    return Wrap(
+      spacing: 24, runSpacing: 12,
+      children: _chartStats.entries.map((e) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: AppColors.chartPalette[_chartStats.keys.toList().indexOf(e.key) % AppColors.chartPalette.length], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          Text('${e.key}: €${e.value.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+        ],
+      )).toList(),
+    );
   }
 
+  Widget _buildChartToggle() {
+    return Row(children: [
+      IconButton(icon: Icon(Icons.pie_chart_outline, color: _isPieChart ? AppColors.primaryBlue : Colors.grey), onPressed: () => setState(() => _isPieChart = true)),
+      IconButton(icon: Icon(Icons.bar_chart_outlined, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey), onPressed: () => setState(() => _isPieChart = false)),
+    ]);
+  }
+
+  Widget _buildMultiSelector<T>({required Set<T> selectedItems, required String hint, required List<T> items, required String Function(T) label, required VoidCallback onChanged, bool isEnabled = true}) {
+    return InkWell(
+      onTap: !isEnabled ? null : () => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => _MultiSearchModal<T>(title: hint, items: items, label: label, initialSelection: selectedItems.toList(), onDone: (res) { setState(() { selectedItems.clear(); selectedItems.addAll(res); }); onChanged(); })),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: !isEnabled ? Colors.grey.shade100 : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [Expanded(child: Text(selectedItems.isEmpty ? hint : selectedItems.length == 1 ? label(selectedItems.first) : '${selectedItems.length} seleccionados', style: TextStyle(fontSize: 12, color: selectedItems.isEmpty ? Colors.grey.shade400 : AppColors.primaryText, fontWeight: selectedItems.isEmpty ? FontWeight.normal : FontWeight.w600), overflow: TextOverflow.ellipsis)), Icon(Icons.keyboard_arrow_down, size: 16, color: !isEnabled ? Colors.grey.shade300 : AppColors.primaryBlue)])),
+    );
+  }
+
+  Widget _buildLabel(String t) => Padding(padding: const EdgeInsets.only(bottom: 6, left: 4), child: Text(t, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)));
+
+  Widget _buildDateSelector() => InkWell(
+    onTap: () async {
+      final picked = await showDateRangePicker(context: context, initialDateRange: DateTimeRange(start: _startDate, end: _endDate), firstDate: DateTime(2000), lastDate: DateTime(2101));
+      if (picked != null) { setState(() { _startDate = picked.start; _endDate = picked.end; }); _refreshDataFromApi(); }
+    },
+    child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [const Icon(Icons.date_range, size: 14, color: AppColors.primaryBlue), const SizedBox(width: 8), Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: const TextStyle(fontSize: 11))])),
+  );
+
+  void _clearFilters() { setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _applyLocalFilters(); }
+
   Future<void> _generatePdf() async {
-    final reportTitle = _selectedReportTitle;
-    if (reportTitle == null) return;
-
-    final l10n = AppLocalizations.of(context)!;
-    final localeCode = Localizations.localeOf(context).languageCode;
-    final messenger = ScaffoldMessenger.of(context);
-
     setState(() => _isLoading = true);
     try {
-      String type = 'CATEGORY';
-      if (reportTitle == 'Entity Analysis') {
-        type = 'ENTITY';
-      } else if (reportTitle == 'Beneficiary Analysis') {
-        type = 'BENEFICIARY';
-      } else if (reportTitle == l10n.accountBalanceReport) {
-        type = 'ACCOUNT';
-      }
+      final accIds = _selectedAccounts.isNotEmpty 
+          ? _selectedAccounts.map((a) => a.id).toList() 
+          : (_selectedEntities.isNotEmpty 
+              ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).map((a) => a.id).toList() 
+              : null);
+      final catIds = _selectedCategories.isNotEmpty ? _selectedCategories.map((c) => c.id).toList() : null;
+      final benIds = _selectedBeneficiaries.isNotEmpty ? _selectedBeneficiaries.map((b) => b.id).toList() : null;
 
-      final pdfBytes = await _apiService.downloadPdfReport(
-        title: reportTitle,
+      final pdf = await _apiService.downloadPdfReport(
+        title: 'INFORME DE AUDITORÍA NATAVE',
         chartType: _isPieChart ? 'PIE' : 'BAR',
-        reportType: type,
+        reportType: 'ENTITY', 
         startDate: _startDate.toIso8601String(),
         endDate: _endDate.toIso8601String(),
-        accountIds: _selectedAccountIds,
-        categoryIds: _selectedCategoryIds,
-        lang: localeCode,
+        accountIds: accIds,
+        categoryIds: catIds,
+        beneficiaryIds: benIds, // AHORA SÍ SE ENVÍA
+        lang: 'es',
       );
-      if (pdfBytes != null) {
-        await Printing.layoutPdf(onLayout: (format) async => pdfBytes, name: 'Report.pdf');
-      }
+      if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe.pdf');
     } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(const SnackBar(content: Text('Error al exportar el informe')));
-      }
+      debugPrint('Error PDF: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+}
+
+class _MultiSearchModal<T> extends StatefulWidget {
+  final String title;
+  final List<T> items;
+  final String Function(T) label;
+  final List<T> initialSelection;
+  final Function(List<T>) onDone;
+
+  const _MultiSearchModal({required this.title, required this.items, required this.label, required this.initialSelection, required this.onDone});
+
+  @override
+  State<_MultiSearchModal<T>> createState() => _MultiSearchModalState<T>();
+}
+
+class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
+  late List<T> _filteredItems;
+  final List<T> _tempSelection = [];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredItems = widget.items;
+    _tempSelection.addAll(widget.initialSelection);
+  }
+
+  void _filter(String q) {
+    setState(() {
+      _filteredItems = widget.items.where((i) => widget.label(i).toLowerCase().contains(q.toLowerCase())).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    if (_tempSelection.length == widget.items.length) {
+                      _tempSelection.clear();
+                    } else {
+                      _tempSelection.clear();
+                      _tempSelection.addAll(widget.items);
+                    }
+                  });
+                },
+                child: Text(_tempSelection.length == widget.items.length ? 'DESMARCAR TODO' : 'SELECCIONAR TODO', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () { widget.onDone(_tempSelection); Navigator.pop(context); },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 0),
+                child: const Text('ACEPTAR'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: _filter,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _filteredItems.length,
+              itemBuilder: (context, i) {
+                final item = _filteredItems[i];
+                final isSelected = _tempSelection.contains(item);
+                return CheckboxListTile(
+                  value: isSelected,
+                  title: Text(widget.label(item), style: const TextStyle(fontSize: 14)),
+                  activeColor: AppColors.primaryBlue,
+                  onChanged: (val) {
+                    setState(() {
+                      val == true ? _tempSelection.add(item) : _tempSelection.remove(item);
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

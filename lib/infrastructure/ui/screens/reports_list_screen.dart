@@ -120,31 +120,45 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 800;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         title: const Text('AUDITORÍA Y CONTROL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         actions: [
+          if (isMobile) 
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
+                tooltip: 'Filtros',
+              ),
+            ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDataFromApi),
         ],
       ),
+      endDrawer: isMobile ? Drawer(child: _buildSidebarContent()) : null,
       body: Row(
         children: [
-          _buildSidebar(),
+          if (!isMobile) _buildSidebarContent(width: 280),
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
-              : _buildMainDashboard(),
+              : _buildMainDashboard(isMobile: isMobile),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSidebar() {
+  Widget _buildSidebarContent({double? width}) {
     return Container(
-      width: 280,
-      decoration: BoxDecoration(color: Colors.white, border: Border(right: BorderSide(color: Colors.grey.shade200))),
+      width: width,
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        border: width != null ? Border(right: BorderSide(color: Colors.grey.shade200)) : null
+      ),
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -166,7 +180,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _buildLabel('BENEFICIARIOS'),
           _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: 'Beneficiarios...', items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
           const SizedBox(height: 40),
-          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: const Text('GENERAR PDF SEGREGADO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: const Text('GENERAR PDF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
           const SizedBox(height: 12),
           TextButton(onPressed: _clearFilters, child: const Text('LIMPIAR FILTROS', style: TextStyle(fontSize: 11, color: Colors.redAccent))),
         ],
@@ -174,64 +188,88 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
-  Widget _buildMainDashboard() {
+  Widget _buildMainDashboard({bool isMobile = false}) {
     if (_chartStats.isEmpty) return const EmptyStateWidget(icon: Icons.filter_alt_outlined, title: 'Sin resultados', subtitle: 'Prueba con otra combinación de filtros');
+    
+    final padding = isMobile ? const EdgeInsets.all(12) : const EdgeInsets.all(32);
+    final cardPadding = isMobile ? const EdgeInsets.all(16) : const EdgeInsets.all(32);
+    final chartHeight = isMobile ? 220.0 : 300.0;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: padding,
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(32),
+            padding: cardPadding,
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20)]),
             child: Column(
               children: [
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(_selectedCategories.length == 1 ? 'Análisis: ${_selectedCategories.first.name}' : 'Distribución General', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Expanded(
+                    child: Text(
+                      _selectedCategories.length == 1 ? 'Análisis: ${_selectedCategories.first.name}' : 'Distribución General', 
+                      style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   _buildChartToggle(),
                 ]),
-                const SizedBox(height: 40),
-                SizedBox(height: 300, child: _isPieChart ? DonutChart(data: _chartStats, colors: AppColors.chartPalette) : CustomBarChart(data: _chartStats, colors: AppColors.chartPalette)),
-                const SizedBox(height: 40),
-                _buildLegend(),
+                SizedBox(height: isMobile ? 24 : 40),
+                SizedBox(
+                  height: chartHeight, 
+                  child: _isPieChart 
+                    ? DonutChart(data: _chartStats, colors: AppColors.chartPalette) 
+                    : CustomBarChart(data: _chartStats, colors: AppColors.chartPalette)
+                ),
+                SizedBox(height: isMobile ? 24 : 40),
+                _buildLegend(isMobile: isMobile),
               ],
             ),
           ),
           const SizedBox(height: 32),
-          _buildMovementPreview(),
+          _buildMovementPreview(isMobile: isMobile),
         ],
       ),
     );
   }
 
-  Widget _buildMovementPreview() {
+  Widget _buildMovementPreview({bool isMobile = false}) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('MOVIMIENTOS FILTRADOS (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
           const Divider(),
-          ..._filteredTransactions.take(15).map((tx) => ListTile(
+          ..._filteredTransactions.take(isMobile ? 8 : 15).map((tx) => ListTile(
+            contentPadding: EdgeInsets.zero,
             dense: true,
-            title: Text(tx.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 11)),
-            trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold)),
+            title: Text(tx.description, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+            subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
+            trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
           )),
         ],
       ),
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildLegend({bool isMobile = false}) {
     return Wrap(
-      spacing: 24, runSpacing: 12,
+      spacing: isMobile ? 12 : 24, 
+      runSpacing: isMobile ? 8 : 12,
       children: _chartStats.entries.map((e) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 10, height: 10, decoration: BoxDecoration(color: AppColors.chartPalette[_chartStats.keys.toList().indexOf(e.key) % AppColors.chartPalette.length], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 8),
-          Text('${e.key}: €${e.value.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+          Container(
+            width: 8, height: 8, 
+            decoration: BoxDecoration(
+              color: AppColors.chartPalette[_chartStats.keys.toList().indexOf(e.key) % AppColors.chartPalette.length],
+              borderRadius: BorderRadius.circular(2)
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text('${e.key}: €${e.value.toStringAsFixed(0)}', style: TextStyle(fontSize: isMobile ? 10 : 12)),
         ],
       )).toList(),
     );
@@ -239,8 +277,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildChartToggle() {
     return Row(children: [
-      IconButton(icon: Icon(Icons.pie_chart_outline, color: _isPieChart ? AppColors.primaryBlue : Colors.grey), onPressed: () => setState(() => _isPieChart = true)),
-      IconButton(icon: Icon(Icons.bar_chart_outlined, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey), onPressed: () => setState(() => _isPieChart = false)),
+      IconButton(icon: Icon(Icons.pie_chart_outline, color: _isPieChart ? AppColors.primaryBlue : Colors.grey, size: 20), onPressed: () => setState(() => _isPieChart = true)),
+      IconButton(icon: Icon(Icons.bar_chart_outlined, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey, size: 20), onPressed: () => setState(() => _isPieChart = false)),
     ]);
   }
 
@@ -282,7 +320,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         endDate: _endDate.toIso8601String(),
         accountIds: accIds,
         categoryIds: catIds,
-        beneficiaryIds: benIds, // AHORA SÍ SE ENVÍA
+        beneficiaryIds: benIds, 
         lang: 'es',
       );
       if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe.pdf');
@@ -335,8 +373,7 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
         children: [
           Row(
             children: [
-              Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const Spacer(),
+              Expanded(child: Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
               TextButton(
                 onPressed: () {
                   setState(() {
@@ -348,13 +385,13 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
                     }
                   });
                 },
-                child: Text(_tempSelection.length == widget.items.length ? 'DESMARCAR TODO' : 'SELECCIONAR TODO', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text(_tempSelection.length == widget.items.length ? 'DESMARCAR' : 'TODOS', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () { widget.onDone(_tempSelection); Navigator.pop(context); },
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 0),
-                child: const Text('ACEPTAR'),
+                child: const Text('OK'),
               ),
             ],
           ),

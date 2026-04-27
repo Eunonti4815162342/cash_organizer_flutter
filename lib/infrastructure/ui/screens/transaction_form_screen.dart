@@ -321,12 +321,38 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   Widget _buildDivider() => const Divider(height: 1, indent: 70);
 
   Future<void> _save(AppLocalizations l10n, TransactionFormProvider provider) async {
-    _amountController.text = _amountController.text.isEmpty ? '0.00' : _amountController.text;
-    _descriptionController.text = _descriptionController.text.isEmpty ? '' : _descriptionController.text;
-
+    // 1. Sincronizar controladores con el provider
     provider.setAmount(_amountController.text);
     provider.setDescription(_descriptionController.text);
 
+    // 2. Validaciones de campos obligatorios
+    String? errorMessage;
+    final amountValue = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
+
+    if (amountValue <= 0) {
+      errorMessage = 'El importe debe ser mayor que 0';
+    } else if (provider.selectedAccount == null) {
+      errorMessage = 'Debes seleccionar una cuenta de origen';
+    } else if (provider.selectedTypeLabel == 'TRANSFER' && provider.selectedToAccount == null) {
+      errorMessage = 'Debes seleccionar una cuenta de destino';
+    } else if (provider.selectedTypeLabel != 'TRANSFER' && provider.selectedCategory == null) {
+      errorMessage = 'Debes seleccionar una categoría';
+    }
+
+    if (errorMessage != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 3. Proceder al guardado
     final success = await provider.saveTransaction();
     if (success && mounted) {
       Navigator.of(context).pop(true);

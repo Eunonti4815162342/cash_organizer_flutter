@@ -69,7 +69,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   return const SkeletonTransactionList(itemCount: 8);
                 }
                 if (snapshot.hasError) {
-                  return ErrorStateWidget(message: l10n.errorLoadingData, onRetry: _refreshTransactions);
+                  return ErrorStateWidget(message: 'Error al cargar transacciones', onRetry: _refreshTransactions);
                 }
 
                 final allTransactions = snapshot.data ?? [];
@@ -96,7 +96,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                 if (filteredTransactions.isEmpty) {
                   return EmptyStateWidget(
                     icon: Icons.receipt_long_outlined,
-                    title: l10n.noTransactions,
+                    title: l10n.noData,
                     subtitle: _searchQuery.isEmpty && _selectedEntity == null 
                         ? 'No hay movimientos en los últimos 30 días' 
                         : 'No se encontraron resultados para los filtros aplicados',

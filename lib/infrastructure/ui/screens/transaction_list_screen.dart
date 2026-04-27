@@ -6,6 +6,7 @@ import '../../../domain/repositories/transaction_repository.dart';
 import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../styles/app_styles.dart';
+import 'transaction_form_screen.dart';
 import '../widgets/transaction_list_item.dart';
 import '../widgets/skeleton_widgets.dart';
 import '../widgets/ui_helpers.dart';
@@ -115,6 +116,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TransactionFormScreen()),
+          );
+          if (result == true) {
+            _refreshTransactions();
+          }
+        },
+        backgroundColor: AppColors.primaryBlue,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

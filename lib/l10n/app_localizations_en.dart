@@ -217,4 +217,69 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get saveError =>
       'Could not save. Name may already exist or there is a connection issue.';
+
+  @override
+  String get auditReportTitle => 'NATAVE AUDIT REPORT';
+
+  @override
+  String get selectCompanies => 'Companies...';
+
+  @override
+  String get selectAccounts => 'Accounts...';
+
+  @override
+  String get selectCategories => 'Categories...';
+
+  @override
+  String get selectSubcategories => 'Subcategories...';
+
+  @override
+  String get selectBeneficiaries => 'Beneficiaries...';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get resetFilters => 'RESET FILTERS';
+
+  @override
+  String get financialAudit => 'AUDIT AND CONTROL';
+
+  @override
+  String get expenseDistribution => 'Expense Distribution';
+
+  @override
+  String get basedOnFilters => 'Based on applied filters';
+
+  @override
+  String get movementsPreview => 'MOVEMENTS PREVIEW';
+
+  @override
+  String get noMovementsFound => 'No movements found';
+
+  @override
+  String get adjustFilters => 'Try another filter combination';
+
+  @override
+  String get downloadPdf => 'DOWNLOAD PDF';
+
+  @override
+  String get clearFilters => 'CLEAR FILTERS';
+
+  @override
+  String selectItems(Object count) {
+    return '$count selected';
+  }
+
+  @override
+  String get searchHint => 'Search...';
+
+  @override
+  String get selectAll => 'ALL';
+
+  @override
+  String get deselectAll => 'DESELECT';
+
+  @override
+  String get accept => 'OK';
 }

@@ -513,6 +513,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not save. Name may already exist or there is a connection issue.'**
   String get saveError;
+
+  /// No description provided for @auditReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NATAVE AUDIT REPORT'**
+  String get auditReportTitle;
+
+  /// No description provided for @selectCompanies.
+  ///
+  /// In en, this message translates to:
+  /// **'Companies...'**
+  String get selectCompanies;
+
+  /// No description provided for @selectAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts...'**
+  String get selectAccounts;
+
+  /// No description provided for @selectCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories...'**
+  String get selectCategories;
+
+  /// No description provided for @selectSubcategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Subcategories...'**
+  String get selectSubcategories;
+
+  /// No description provided for @selectBeneficiaries.
+  ///
+  /// In en, this message translates to:
+  /// **'Beneficiaries...'**
+  String get selectBeneficiaries;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
+  /// No description provided for @resetFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'RESET FILTERS'**
+  String get resetFilters;
+
+  /// No description provided for @financialAudit.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIT AND CONTROL'**
+  String get financialAudit;
+
+  /// No description provided for @expenseDistribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense Distribution'**
+  String get expenseDistribution;
+
+  /// No description provided for @basedOnFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on applied filters'**
+  String get basedOnFilters;
+
+  /// No description provided for @movementsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'MOVEMENTS PREVIEW'**
+  String get movementsPreview;
+
+  /// No description provided for @noMovementsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No movements found'**
+  String get noMovementsFound;
+
+  /// No description provided for @adjustFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another filter combination'**
+  String get adjustFilters;
+
+  /// No description provided for @downloadPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'DOWNLOAD PDF'**
+  String get downloadPdf;
+
+  /// No description provided for @clearFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'CLEAR FILTERS'**
+  String get clearFilters;
+
+  /// No description provided for @selectItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String selectItems(Object count);
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search...'**
+  String get searchHint;
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'ALL'**
+  String get selectAll;
+
+  /// No description provided for @deselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'DESELECT'**
+  String get deselectAll;
+
+  /// No description provided for @accept.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get accept;
 }
 
 class _AppLocalizationsDelegate

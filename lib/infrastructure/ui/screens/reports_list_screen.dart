@@ -121,38 +121,39 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 800;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
-        title: const Text('AUDITORÍA Y CONTROL', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        title: Text(l10n.financialAudit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         actions: [
           if (isMobile) 
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.filter_list),
                 onPressed: () => Scaffold.of(context).openEndDrawer(),
-                tooltip: 'Filtros',
+                tooltip: l10n.reports,
               ),
             ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDataFromApi),
         ],
       ),
-      endDrawer: isMobile ? Drawer(child: _buildSidebarContent()) : null,
+      endDrawer: isMobile ? Drawer(child: _buildSidebarContent(l10n)) : null,
       body: Row(
         children: [
-          if (!isMobile) _buildSidebarContent(width: 280),
+          if (!isMobile) _buildSidebarContent(l10n, width: 280),
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
-              : _buildMainDashboard(isMobile: isMobile),
+              : _buildMainDashboard(l10n, isMobile: isMobile),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSidebarContent({double? width}) {
+  Widget _buildSidebarContent(AppLocalizations l10n, {double? width}) {
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -162,34 +163,35 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildLabel('PERIODO'),
+          _buildLabel(l10n.period.toUpperCase()),
           _buildDateSelector(),
           const SizedBox(height: 24),
-          _buildLabel('EMPRESAS'),
-          _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: 'Empresas...', items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _applyLocalFilters(); }),
+          _buildLabel(l10n.entity.toUpperCase() + 'S'),
+          _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: l10n.selectCompanies, items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _applyLocalFilters(); }),
           const SizedBox(height: 12),
-          _buildLabel('CUENTA'),
-          _buildMultiSelector<AccountItem>(selectedItems: _selectedAccounts, hint: 'Cuentas...', items: _selectedEntities.isNotEmpty ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).toList() : _allAccounts, label: (a) => a.name, onChanged: _applyLocalFilters),
+          _buildLabel(l10n.accounts.toUpperCase()),
+          _buildMultiSelector<AccountItem>(selectedItems: _selectedAccounts, hint: l10n.selectAccounts, items: _selectedEntities.isNotEmpty ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).toList() : _allAccounts, label: (a) => a.name, onChanged: _applyLocalFilters),
           const SizedBox(height: 24),
-          _buildLabel('CATEGORÍAS'),
-          _buildMultiSelector<Category>(selectedItems: _selectedCategories, hint: 'Categorías...', items: _allCategories, label: (c) => c.name, onChanged: () { _selectedSubcategories.clear(); _applyLocalFilters(); }),
+          _buildLabel(l10n.categories.toUpperCase()),
+          _buildMultiSelector<Category>(selectedItems: _selectedCategories, hint: l10n.selectCategories, items: _allCategories, label: (c) => c.name, onChanged: () { _selectedSubcategories.clear(); _applyLocalFilters(); }),
           const SizedBox(height: 12),
-          _buildLabel('SUBCATEGORÍAS'),
-          _buildMultiSelector<Subcategory>(selectedItems: _selectedSubcategories, hint: 'Subcategorías...', items: _selectedCategories.isNotEmpty ? _selectedCategories.expand((c) => c.subcategories).toList() : [], label: (s) => s.name, onChanged: _applyLocalFilters, isEnabled: _selectedCategories.isNotEmpty),
+          _buildLabel(l10n.subcategoryOf.toUpperCase()),
+          _buildMultiSelector<Subcategory>(selectedItems: _selectedSubcategories, hint: l10n.selectSubcategories, items: _selectedCategories.isNotEmpty ? _selectedCategories.expand((c) => c.subcategories).toList() : [], label: (s) => s.name, onChanged: _applyLocalFilters, isEnabled: _selectedCategories.isNotEmpty),
           const SizedBox(height: 24),
           _buildLabel('BENEFICIARIOS'),
-          _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: 'Beneficiarios...', items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
+          _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: l10n.selectBeneficiaries, items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
+          
           const SizedBox(height: 40),
-          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: const Text('GENERAR PDF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: Text(l10n.downloadPdf, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
           const SizedBox(height: 12),
-          TextButton(onPressed: _clearFilters, child: const Text('LIMPIAR FILTROS', style: TextStyle(fontSize: 11, color: Colors.redAccent))),
+          TextButton(onPressed: _clearFilters, child: Text(l10n.clearFilters, style: const TextStyle(fontSize: 11, color: Colors.redAccent))),
         ],
       ),
     );
   }
 
-  Widget _buildMainDashboard({bool isMobile = false}) {
-    if (_chartStats.isEmpty) return const EmptyStateWidget(icon: Icons.filter_alt_outlined, title: 'Sin resultados', subtitle: 'Prueba con otra combinación de filtros');
+  Widget _buildMainDashboard(AppLocalizations l10n, {bool isMobile = false}) {
+    if (_chartStats.isEmpty) return EmptyStateWidget(icon: Icons.filter_alt_outlined, title: l10n.noData, subtitle: l10n.adjustFilters);
     
     final padding = isMobile ? const EdgeInsets.all(12) : const EdgeInsets.all(32);
     final cardPadding = isMobile ? const EdgeInsets.all(16) : const EdgeInsets.all(32);
@@ -207,13 +209,18 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Expanded(
                     child: Text(
-                      _selectedCategories.length == 1 ? 'Análisis: ${_selectedCategories.first.name}' : 'Distribución General', 
+                      _selectedCategories.length == 1 ? '${l10n.categoriesAnalysis}: ${_selectedCategories.first.name}' : l10n.expenseDistribution, 
                       style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   _buildChartToggle(),
                 ]),
+                SizedBox(height: isMobile ? 8 : 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(l10n.basedOnFilters, style: TextStyle(fontSize: isMobile ? 10 : 12, color: Colors.grey.shade500)),
+                ),
                 SizedBox(height: isMobile ? 24 : 40),
                 SizedBox(
                   height: chartHeight, 
@@ -227,20 +234,20 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          _buildMovementPreview(isMobile: isMobile),
+          _buildMovementPreview(l10n, isMobile: isMobile),
         ],
       ),
     );
   }
 
-  Widget _buildMovementPreview({bool isMobile = false}) {
+  Widget _buildMovementPreview(AppLocalizations l10n, {bool isMobile = false}) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('MOVIMIENTOS FILTRADOS (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text('${l10n.movementsPreview} (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
           const Divider(),
           ..._filteredTransactions.take(isMobile ? 8 : 15).map((tx) => ListTile(
             contentPadding: EdgeInsets.zero,
@@ -283,9 +290,10 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Widget _buildMultiSelector<T>({required Set<T> selectedItems, required String hint, required List<T> items, required String Function(T) label, required VoidCallback onChanged, bool isEnabled = true}) {
+    final l10n = AppLocalizations.of(context)!;
     return InkWell(
       onTap: !isEnabled ? null : () => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => _MultiSearchModal<T>(title: hint, items: items, label: label, initialSelection: selectedItems.toList(), onDone: (res) { setState(() { selectedItems.clear(); selectedItems.addAll(res); }); onChanged(); })),
-      child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: !isEnabled ? Colors.grey.shade100 : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [Expanded(child: Text(selectedItems.isEmpty ? hint : selectedItems.length == 1 ? label(selectedItems.first) : '${selectedItems.length} seleccionados', style: TextStyle(fontSize: 12, color: selectedItems.isEmpty ? Colors.grey.shade400 : AppColors.primaryText, fontWeight: selectedItems.isEmpty ? FontWeight.normal : FontWeight.w600), overflow: TextOverflow.ellipsis)), Icon(Icons.keyboard_arrow_down, size: 16, color: !isEnabled ? Colors.grey.shade300 : AppColors.primaryBlue)])),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: !isEnabled ? Colors.grey.shade100 : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [Expanded(child: Text(selectedItems.isEmpty ? hint : selectedItems.length == 1 ? label(selectedItems.first) : l10n.selectItems(selectedItems.length), style: TextStyle(fontSize: 12, color: selectedItems.isEmpty ? Colors.grey.shade400 : AppColors.primaryText, fontWeight: selectedItems.isEmpty ? FontWeight.normal : FontWeight.w600), overflow: TextOverflow.ellipsis)), Icon(Icons.keyboard_arrow_down, size: 16, color: !isEnabled ? Colors.grey.shade300 : AppColors.primaryBlue)])),
     );
   }
 
@@ -302,6 +310,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   void _clearFilters() { setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _applyLocalFilters(); }
 
   Future<void> _generatePdf() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
     try {
       final accIds = _selectedAccounts.isNotEmpty 
@@ -312,11 +321,10 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       final catIds = _selectedCategories.isNotEmpty ? _selectedCategories.map((c) => c.id).toList() : null;
       final benIds = _selectedBeneficiaries.isNotEmpty ? _selectedBeneficiaries.map((b) => b.id).toList() : null;
 
-      // Obtener el código de idioma actual (es, en, etc.)
       final String languageCode = Localizations.localeOf(context).languageCode;
 
       final pdf = await _apiService.downloadPdfReport(
-        title: 'INFORME DE AUDITORÍA NATAVE',
+        title: l10n.auditReportTitle,
         chartType: _isPieChart ? 'PIE' : 'BAR',
         reportType: 'ENTITY', 
         startDate: _startDate.toIso8601String(),
@@ -324,9 +332,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         accountIds: accIds,
         categoryIds: catIds,
         beneficiaryIds: benIds, 
-        lang: languageCode, // ENVIAMOS EL IDIOMA REAL
+        lang: languageCode,
       );
-      if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe.pdf');
+      if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe_Natave.pdf');
     } catch (e) {
       debugPrint('Error PDF: $e');
     } finally {
@@ -368,6 +376,7 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -388,13 +397,13 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
                     }
                   });
                 },
-                child: Text(_tempSelection.length == widget.items.length ? 'DESMARCAR' : 'TODOS', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text(_tempSelection.length == widget.items.length ? l10n.deselectAll : l10n.selectAll, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () { widget.onDone(_tempSelection); Navigator.pop(context); },
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 0),
-                child: const Text('OK'),
+                child: Text(l10n.accept),
               ),
             ],
           ),
@@ -402,7 +411,7 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Buscar...',
+              hintText: l10n.searchHint,
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.grey.shade100,

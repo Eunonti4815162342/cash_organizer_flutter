@@ -218,4 +218,69 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get saveError =>
       'No se pudo guardar. El nombre puede que ya exista o hay un problema de conexión.';
+
+  @override
+  String get auditReportTitle => 'INFORME DE AUDITORÍA NATAVE';
+
+  @override
+  String get selectCompanies => 'Empresas...';
+
+  @override
+  String get selectAccounts => 'Cuentas...';
+
+  @override
+  String get selectCategories => 'Categorías...';
+
+  @override
+  String get selectSubcategories => 'Subcategorías...';
+
+  @override
+  String get selectBeneficiaries => 'Beneficiarios...';
+
+  @override
+  String get all => 'Todos';
+
+  @override
+  String get resetFilters => 'RESTABLECER FILTROS';
+
+  @override
+  String get financialAudit => 'AUDITORÍA Y CONTROL';
+
+  @override
+  String get expenseDistribution => 'Distribución de Gastos';
+
+  @override
+  String get basedOnFilters => 'Basado en los filtros aplicados';
+
+  @override
+  String get movementsPreview => 'VISTA PREVIA DE MOVIMIENTOS';
+
+  @override
+  String get noMovementsFound => 'No se encontraron movimientos';
+
+  @override
+  String get adjustFilters => 'Prueba con otra combinación de filtros';
+
+  @override
+  String get downloadPdf => 'DESCARGAR PDF';
+
+  @override
+  String get clearFilters => 'LIMPIAR FILTROS';
+
+  @override
+  String selectItems(Object count) {
+    return '$count seleccionados';
+  }
+
+  @override
+  String get searchHint => 'Buscar...';
+
+  @override
+  String get selectAll => 'TODOS';
+
+  @override
+  String get deselectAll => 'DESMARCAR';
+
+  @override
+  String get accept => 'OK';
 }

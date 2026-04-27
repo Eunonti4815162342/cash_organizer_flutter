@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import '../../../services/api_service.dart';
 import '../../../services/biometric_service.dart';
+import '../../persistence/sqlite/database_helper.dart';
 import '../styles/app_styles.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -43,7 +44,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _canUseBiometrics = canCheck && hasToken);
     }
 
-    // Auto-lanzar biometría si es posible para mayor comodidad
     if (_canUseBiometrics) {
       _handleBiometricLogin();
     }
@@ -60,7 +60,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    print('[LoginScreen] Attempting login for: ${_emailController.text}');
     setState(() {
       _isLoading = true;
       _error = null;
@@ -79,7 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _showErrorDialog('Login Error', 'Respuesta inesperada del servidor.');
       }
     } catch (e) {
-      print('[LoginScreen] Unexpected Exception: $e');
       _showErrorDialog('Connection Error', e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -109,7 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(message, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
             ),
             const SizedBox(height: 16),
-            // TODO: revisar — en producción reemplazar por mensaje genérico sin datos técnicos de infraestructura
             const Text('Verify your network connection and try again.'),
           ],
         ),
@@ -180,10 +177,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (val) => setState(() => _rememberMe = val ?? false),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -205,7 +198,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 IconButton(
                   icon: const Icon(Icons.fingerprint, size: 48, color: AppColors.primaryBlue),
                   onPressed: _handleBiometricLogin,
-                  tooltip: 'Ingresar con biometría',
                 ),
                 const Text('Usar Biometría', style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
               ],
@@ -217,6 +209,18 @@ class _LoginScreenState extends State<LoginScreen> {
               TextButton(
                 onPressed: () => setState(() => _showRegister = true),
                 child: const Text('¿No tienes cuenta? Regístrate aquí'),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () async {
+                  await DatabaseHelper().clearDatabase();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Base de datos local eliminada'), backgroundColor: Colors.orange),
+                    );
+                  }
+                },
+                child: const Text('⚠️ Borrar Base de Datos Local', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
               ),
             ],
           ),

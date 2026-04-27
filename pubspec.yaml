@@ -1,5 +1,5 @@
-name: cash_organizer_flutter
-description: "A new Flutter project."
+name: natave_flutter
+description: "NATAVE - Financial Organizer"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -28,11 +28,19 @@ dependencies:
   logger: ^2.1.0
   connectivity_plus: ^6.1.1
   shimmer: ^3.0.0
+  uuid: ^4.3.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/branding/app_icon.jpg"
+  min_sdk_android: 21
 
 flutter:
   generate: true
@@ -40,3 +48,4 @@ flutter:
   assets:
     - assets/icons/
     - assets/config.json
+    - assets/branding/

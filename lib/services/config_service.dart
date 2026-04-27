@@ -1,25 +1,19 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
 /// Service for loading runtime configuration from assets/config.json
-/// Configuration files are selected at build time via Dockerfile/Jenkinsfile
 class ConfigService {
   static late Map<String, dynamic> _config;
   static bool _initialized = false;
 
   /// Initialize config by loading from assets/config.json
-  /// The config file is selected at build time and copied to assets/config.json
   static Future<void> init() async {
     if (_initialized) return;
 
     try {
-      final response = await http.get(Uri.parse('assets/config.json'));
-      if (response.statusCode == 200) {
-        _config = jsonDecode(response.body);
-        _initialized = true;
-      } else {
-        throw Exception('Failed to load config.json: ${response.statusCode}');
-      }
+      final jsonString = await rootBundle.loadString('assets/config.json');
+      _config = jsonDecode(jsonString);
+      _initialized = true;
     } catch (e) {
       // Fallback to defaults if config fails to load
       _config = _getDefaults();
@@ -64,7 +58,7 @@ class ConfigService {
   /// Default configuration when file is not available
   static Map<String, dynamic> _getDefaults() {
     return {
-      'apiBaseUrl': 'http://localhost:8085/api',
+      'apiBaseUrl': 'http://192.168.1.192:8085/api',
       'apiTimeout': 30,
       'enableLogging': true,
       'isProduction': false,

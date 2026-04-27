@@ -1,5 +1,5 @@
 {
-  "apiBaseUrl": "http://100.86.24.70:8085/api",
+  "apiBaseUrl": "http://192.168.1.192:8085/api",
   "apiTimeout": 30,
   "enableLogging": true,
   "isProduction": false,

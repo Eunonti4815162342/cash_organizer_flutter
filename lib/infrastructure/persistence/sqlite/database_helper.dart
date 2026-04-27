@@ -99,4 +99,14 @@ class DatabaseHelper {
       await db.execute('UPDATE accounts SET server_id = id WHERE pending_sync = 0 OR pending_sync IS NULL');
     }
   }
+
+  Future<void> clearDatabase() async {
+    String path = join(await getDatabasesPath(), 'cash_organizer_v4.db');
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+    await deleteDatabase(path);
+    print('[DatabaseHelper] Base de datos local eliminada con éxito.');
+  }
 }

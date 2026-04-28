@@ -61,4 +61,22 @@ class TransactionItem {
       tags: List<String>.from(json['tags'] ?? []),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'date': date,
+    'description': description,
+    'amount': amount.toJson(),
+    'account': account.toJson(),
+    if (category != null) 'category': category!.toJson(),
+    if (subcategory != null) 'subcategory': {'id': subcategory!.id, 'name': subcategory!.name},
+    if (beneficiary != null) 'beneficiary': beneficiary!.toJson(),
+    if (toAccount != null) 'toAccount': toAccount!.toJson(),
+    'type': type.name,
+    'notes': notes,
+    'statusFlags': statusFlags,
+    'isScheduled': isScheduled,
+    'isHeader': isHeader,
+    'tags': tags,
+  };
 }

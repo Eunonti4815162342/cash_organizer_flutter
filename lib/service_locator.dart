@@ -6,16 +6,17 @@ import 'infrastructure/repositories/cached_transaction_repository.dart';
 import 'infrastructure/repositories/cached_account_repository.dart';
 import 'infrastructure/repositories/cached_category_repository.dart';
 import 'infrastructure/repositories/cached_entity_repository.dart';
+import 'infrastructure/repositories/cached_beneficiary_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_transaction_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_account_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_category_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_entity_repository.dart';
+import 'infrastructure/repositories/sqlite/sqlite_beneficiary_repository.dart';
 import 'domain/repositories/transaction_repository.dart';
 import 'domain/repositories/account_repository.dart';
 import 'domain/repositories/category_repository.dart';
 import 'domain/repositories/entity_repository.dart';
 import 'domain/repositories/beneficiary_repository.dart';
-import 'infrastructure/repositories/api_beneficiary_repository.dart';
 import 'services/biometric_service.dart';
 import 'services/session_service.dart';
 import 'infrastructure/persistence/sqlite/database_helper.dart';
@@ -51,6 +52,10 @@ void setupServiceLocator() {
       SqliteEntityRepository(), 
       instanceName: 'local_entity'
     );
+    getIt.registerSingleton<SqliteBeneficiaryRepository>(
+      SqliteBeneficiaryRepository(), 
+      instanceName: 'local_beneficiary'
+    );
   }
 
   // Repositories - Domain Interfaces
@@ -66,8 +71,7 @@ void setupServiceLocator() {
   getIt.registerSingleton<IEntityRepository>(
     CachedEntityRepository(),
   );
-
   getIt.registerSingleton<IBeneficiaryRepository>(
-    ApiBeneficiaryRepository(getIt<ApiService>()),
+    CachedBeneficiaryRepository(),
   );
 }

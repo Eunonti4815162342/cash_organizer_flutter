@@ -17,21 +17,24 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'cash_organizer_v5.db');
+    String path = join(await getDatabasesPath(), 'natave_v1.db');
     return await openDatabase(
       path,
-      version: 5,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future _onCreate(Database db, int version) async {
+    await db.execute('CREATE TABLE entities (id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)');
     await db.execute('''
-      CREATE TABLE entities (
-        id INTEGER PRIMARY KEY,
+      CREATE TABLE beneficiaries (
+        id INTEGER PRIMARY KEY, 
         name TEXT NOT NULL,
-        type TEXT NOT NULL
+        last_category_id INTEGER,
+        last_subcategory_id INTEGER,
+        last_type TEXT
       )
     ''');
 
@@ -53,13 +56,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE categories (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL
-      )
-    ''');
+    await db.execute('CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)');
 
     await db.execute('''
       CREATE TABLE subcategories (
@@ -85,6 +82,9 @@ class DatabaseHelper {
         category_id INTEGER,
         category_name TEXT,
         subcategory_id INTEGER,
+        subcategory_name TEXT,
+        beneficiary_id INTEGER,
+        beneficiary_name TEXT,
         to_account_id INTEGER,
         to_account_name TEXT,
         pending_sync INTEGER DEFAULT 0
@@ -93,35 +93,26 @@ class DatabaseHelper {
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('ALTER TABLE accounts ADD COLUMN pending_sync INTEGER DEFAULT 0');
-      await db.execute('ALTER TABLE accounts ADD COLUMN account_type TEXT');
-      await db.execute('ALTER TABLE accounts ADD COLUMN notes TEXT');
-      await db.execute('ALTER TABLE transactions ADD COLUMN subcategory_id INTEGER');
-      await db.execute('ALTER TABLE transactions ADD COLUMN to_account_id INTEGER');
-      await db.execute('ALTER TABLE transactions ADD COLUMN to_account_name TEXT');
-    }
-    if (oldVersion < 3) {
-      await db.execute('ALTER TABLE accounts ADD COLUMN server_id INTEGER');
-      await db.execute('UPDATE accounts SET server_id = id WHERE pending_sync = 0 OR pending_sync IS NULL');
-    }
-    if (oldVersion < 4) {
-      await db.execute('ALTER TABLE accounts ADD COLUMN entity_id INTEGER');
-      await db.execute('ALTER TABLE accounts ADD COLUMN entity_name TEXT');
-    }
     if (oldVersion < 5) {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS entities (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          type TEXT NOT NULL
-        )
-      ''');
+      await db.execute('CREATE TABLE IF NOT EXISTS entities (id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)');
+    }
+    if (oldVersion < 6) {
+      try { await db.execute('ALTER TABLE transactions ADD COLUMN subcategory_name TEXT'); } catch (_) {}
+      try { await db.execute('ALTER TABLE transactions ADD COLUMN beneficiary_id INTEGER'); } catch (_) {}
+      try { await db.execute('ALTER TABLE transactions ADD COLUMN beneficiary_name TEXT'); } catch (_) {}
+    }
+    if (oldVersion < 7) {
+      await db.execute('CREATE TABLE IF NOT EXISTS beneficiaries (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+    }
+    if (oldVersion < 8) {
+      try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_category_id INTEGER'); } catch (_) {}
+      try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_subcategory_id INTEGER'); } catch (_) {}
+      try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_type TEXT'); } catch (_) {}
     }
   }
 
   Future<void> clearDatabase() async {
-    String path = join(await getDatabasesPath(), 'cash_organizer_v5.db');
+    String path = join(await getDatabasesPath(), 'natave_v1.db');
     if (_database != null) {
       await _database!.close();
       _database = null;

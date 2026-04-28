@@ -337,7 +337,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
     final txRepo = getIt<ITransactionRepository>(instanceName: 'local_transaction');
     
     // 1. Obtener datos locales
-    final txs = await txRepo.fetchTransactions(accountId: account.id.toString());
+    // final txs = await txRepo.fetchTransactions(accountId: account.id.toString());
     
     // 2. Determinar servicio según plataforma
     String cloudService = 'Cloud';

@@ -27,6 +27,25 @@ class TransactionListItem extends StatelessWidget {
     if (isNegative && !isTransfer) textColor = Colors.red.shade700;
     if (isTransfer) textColor = AppColors.primaryText;
 
+    // LÓGICA DE TÍTULOS
+    String mainTitle = 'General';
+    String? subTitle;
+
+    if (isTransfer) {
+      mainTitle = 'Transferencia';
+      subTitle = '${transaction.account.name} → ${transaction.toAccount?.name ?? '???'}';
+    } else {
+      mainTitle = transaction.category?.name ?? 'General';
+      if (transaction.subcategory != null) {
+        mainTitle += ' > ${transaction.subcategory!.name}';
+      }
+      
+      List<String> subParts = [];
+      if (transaction.beneficiary != null) subParts.add(transaction.beneficiary!.name);
+      subParts.add(transaction.account.name);
+      subTitle = subParts.join(' · ');
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Card(
@@ -47,7 +66,6 @@ class TransactionListItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             child: Row(
               children: [
-                // Indicador lateral redondeado
                 Container(
                   width: 4,
                   height: 44,
@@ -57,52 +75,43 @@ class TransactionListItem extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                // Nombre y Categoría
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        transaction.type == TransactionType.TRANSFER
-                            ? 'Transfer · ${transaction.account.name} → ${transaction.toAccount?.name ?? '???'}'
-                            : '${transaction.beneficiary?.name ?? (transaction.category?.name ?? 'General')}${transaction.description.isNotEmpty ? ' · ${transaction.description}' : ''}',
-                        style: AppTextStyles.listItemTitle,
+                        mainTitle,
+                        style: AppTextStyles.listItemTitle.copyWith(fontSize: 14),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Text(
-                            transaction.type == TransactionType.TRANSFER ? 'Movimiento interno' : transaction.account.name,
-                            style: AppTextStyles.listItemSubtitle,
-                          ),
-                          if (transaction.tags.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            ...transaction.tags.take(2).map((tag) => Container(
-                              margin: const EdgeInsets.only(right: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: indicatorColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(tag, style: TextStyle(fontSize: 10, color: indicatorColor)),
-                            )),
-                          ],
-                        ],
+                      Text(
+                        subTitle,
+                        style: AppTextStyles.listItemSubtitle.copyWith(fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      if (transaction.description.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          transaction.description,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                // Valor y Fecha
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '${isNegative ? '-' : '+'}€${(transaction.amount.value / 100).abs().toStringAsFixed(2)}',
-                      style: AppTextStyles.amountText.copyWith(color: textColor),
+                      style: AppTextStyles.amountText.copyWith(color: textColor, fontSize: 15),
                     ),
                     const SizedBox(height: 3),
                     Text(transaction.date.split('T')[0], style: AppTextStyles.dateSmall),

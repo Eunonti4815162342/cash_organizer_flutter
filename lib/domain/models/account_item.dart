@@ -14,6 +14,12 @@ class Amount {
       json['isNegative'] ?? json['negative'] ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'value': value,
+    'currency': currency,
+    'isNegative': isNegative,
+  };
 }
 
 abstract class AccountBase {
@@ -82,4 +88,16 @@ class AccountItem extends AccountBase {
       accountOrder: json['accountOrder'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'amount': amount.toJson(),
+    if (entity != null) 'entity': entity!.toJson(),
+    'description': description,
+    'accountType': accountType,
+    'flags': flags,
+    'notes': notes,
+    'accountOrder': accountOrder,
+  };
 }

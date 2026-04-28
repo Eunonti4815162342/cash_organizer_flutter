@@ -44,11 +44,18 @@ class AuthApi {
 
   Future<bool> isOnline() async {
     try {
-      // Usamos un timeout muy corto para el check de conectividad
-      await _client.get('auth/login'); // O cualquier endpoint ligero
+      // Usamos un endpoint que acepte GET (como accounts)
+      // Si el servidor responde (aunque sea un 401), significa que hay conexión
+      await _client.get('accounts');
       return true;
     } catch (e) {
-      return false;
+      // Si el error es de red (ConnectionException/Timeout), devolvemos false
+      // Si el error es de servidor o auth (401, 500), devolvemos true porque el servidor es alcanzable
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('connection') || errStr.contains('timeout') || errStr.contains('socket')) {
+        return false;
+      }
+      return true; // El servidor respondió, ergo hay conexión
     }
   }
 }

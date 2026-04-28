@@ -6,12 +6,18 @@ import '../../service_locator.dart';
 
 class CachedAccountRepository implements IAccountRepository {
   final ApiService _apiService = getIt<ApiService>();
-
-  IAccountRepository? get _localRepo =>
-      kIsWeb ? null : getIt<IAccountRepository>(instanceName: 'local_account');
+  IAccountRepository? get _localRepo => kIsWeb ? null : getIt<IAccountRepository>(instanceName: 'local_account');
 
   @override
   Future<List<AccountItem>> fetchAccounts() async {
+    if (!kIsWeb) {
+      final local = await _localRepo?.fetchAccounts() ?? [];
+      if (local.isNotEmpty) {
+        _refreshInBackground();
+        return local;
+      }
+    }
+
     try {
       final remote = await _apiService.fetchAccounts();
       if (remote.isNotEmpty && !kIsWeb) {
@@ -19,42 +25,43 @@ class CachedAccountRepository implements IAccountRepository {
       }
       return remote;
     } catch (e) {
-      if (kIsWeb) return [];
-      return await _localRepo?.fetchAccounts() ?? [];
+      return [];
     }
   }
 
-  /// Intenta crear en el backend. Si no hay red, guarda localmente con ID
-  /// temporal negativo y pending_sync=1. Devuelve el AccountItem resultante.
+  Future<void> _refreshInBackground() async {
+    try {
+      final remote = await _apiService.fetchAccounts();
+      if (remote.isNotEmpty && !kIsWeb) {
+        await _localRepo?.saveAll(remote);
+      }
+    } catch (_) {}
+  }
+
   @override
   Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true}) async {
-    try {
-      final result = await _apiService.createAccount(_buildPayload(account));
-      if (result != null && !kIsWeb) {
-        await _localRepo?.saveAll([result]);
-        return result;
-      }
-      return account;
-    } catch (e) {
-      if (!kIsWeb) {
-        return await _localRepo?.saveAccount(account, isSynced: false) ?? account;
-      }
-      rethrow;
-    }
+    if (kIsWeb) return await _apiService.createAccount(account.toJson()) ?? account;
+    
+    final saved = await _localRepo!.saveAccount(account, isSynced: false);
+    _apiService.createAccount(account.toJson()).then((remote) {
+      if (remote != null) _localRepo?.markAsSynced(saved.id, remote.id);
+    }).catchError((_) {
+      return null;
+    });
+
+    return saved;
   }
 
   @override
   Future<void> updateAccount(AccountItem account, {bool isSynced = true}) async {
-    try {
-      final result = await _apiService.updateAccount(account.id, _buildPayload(account));
-      if (result != null && !kIsWeb) {
-        await _localRepo?.saveAll([result]);
-      }
-    } catch (e) {
-      if (!kIsWeb) {
-        await _localRepo?.updateAccount(account, isSynced: false);
-      }
+    if (kIsWeb) {
+      await _apiService.updateAccount(account.id, account.toJson());
+      return;
     }
+    await _localRepo!.updateAccount(account, isSynced: false);
+    _apiService.updateAccount(account.id, account.toJson()).catchError((_) {
+      return null;
+    });
   }
 
   @override
@@ -69,36 +76,9 @@ class CachedAccountRepository implements IAccountRepository {
   }
 
   @override
-  Future<List<AccountItem>> getPendingCreatesToSync() async {
-    if (kIsWeb) return [];
-    return await _localRepo?.getPendingCreatesToSync() ?? [];
-  }
-
+  Future<List<AccountItem>> getPendingCreatesToSync() => _localRepo?.getPendingCreatesToSync() ?? Future.value([]);
   @override
-  Future<List<AccountItem>> getPendingToSync() async {
-    if (kIsWeb) return [];
-    return await _localRepo?.getPendingToSync() ?? [];
-  }
-
+  Future<List<AccountItem>> getPendingToSync() => _localRepo?.getPendingToSync() ?? Future.value([]);
   @override
-  Future<void> markAsSynced(int localId, int serverId) async {
-    if (!kIsWeb) await _localRepo?.markAsSynced(localId, serverId);
-  }
-
-  Map<String, dynamic> _buildPayload(AccountItem account) => {
-    'name': account.name,
-    'description': account.description,
-    'amount': {
-      'value': account.amount.value,
-      'currency': account.amount.currency,
-      'isNegative': account.amount.isNegative,
-    },
-    'accountType': account.accountType ?? 'CASH',
-    'notes': account.notes,
-    'active': true,
-    if (account.entity != null)
-      'entity': {
-        'id': account.entity!.id,
-      },
-  };
+  Future<void> markAsSynced(int localId, int serverId) => _localRepo?.markAsSynced(localId, serverId) ?? Future.value();
 }

@@ -5,12 +5,16 @@ import '../providers/transaction_form_provider.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/transaction_item.dart';
-import '../../../domain/models/category.dart';
+import '../../../domain/models/category.dart' as cat_model;
 import '../../../domain/models/financial_entity.dart';
 import '../../../domain/models/beneficiary.dart';
+import '../../../domain/repositories/transaction_repository.dart';
+import '../../../domain/repositories/account_repository.dart';
+import '../../../domain/repositories/category_repository.dart';
+import '../../../domain/repositories/entity_repository.dart';
+import '../../../domain/repositories/beneficiary_repository.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../services/api_service.dart';
-import '../../../service_locator.dart';
+import '../../../services/session_service.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionItem? transaction;
@@ -34,12 +38,12 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
     final getIt = GetIt.instance;
     _provider = TransactionFormProvider(
-      getIt.get(),
-      getIt.get(),
-      getIt.get(),
-      getIt.get(),
-      getIt.get(),
-      getIt.get(),
+      getIt.get<ITransactionRepository>(),
+      getIt.get<IAccountRepository>(),
+      getIt.get<ICategoryRepository>(),
+      getIt.get<IEntityRepository>(),
+      getIt.get<IBeneficiaryRepository>(),
+      getIt.get<SessionService>(),
       initialTransaction: widget.transaction,
       initialAccount: widget.initialAccount,
     );
@@ -62,12 +66,15 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     });
 
     _provider.loadData().then((_) {
+      if (!mounted) return;
       if (widget.transaction != null) {
-        _amountController.text = _provider.amount;
-        _descriptionController.text = _provider.description;
+        setState(() {
+          _amountController.text = _provider.amount;
+          _descriptionController.text = _provider.description;
+        });
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _amountFocus.requestFocus();
+        if (_amountFocus.canRequestFocus) _amountFocus.requestFocus();
       });
     });
   }
@@ -108,7 +115,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             body: SafeArea(
               child: Stack(
                 children: [
-                  SingleChildScrollView(
+                  provider.isLoading 
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
                     padding: const EdgeInsets.only(bottom: 100),
                     child: Column(
                       children: [
@@ -129,7 +138,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             ),
                           ),
                         ),
-                        // Amount card
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                           child: Card(
@@ -161,7 +169,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Form fields card
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Card(
@@ -351,11 +358,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   Widget _buildDivider() => const Divider(height: 1, indent: 70);
 
   Future<void> _save(AppLocalizations l10n, TransactionFormProvider provider) async {
-    // 1. Sincronizar controladores con el provider
     provider.setAmount(_amountController.text);
     provider.setDescription(_descriptionController.text);
 
-    // 2. Validaciones de campos obligatorios
     String? errorMessage;
     final amountValue = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
 
@@ -382,7 +387,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       return;
     }
 
-    // 3. Proceder al guardado
     final success = await provider.saveTransaction();
     if (success && mounted) {
       Navigator.of(context).pop(true);
@@ -488,7 +492,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
   }
 
-  void _showCategoryPicker(List<Category> categories, AppLocalizations l10n, TransactionFormProvider provider) {
+  void _showCategoryPicker(List<cat_model.Category> categories, AppLocalizations l10n, TransactionFormProvider provider) {
     String search = '';
     showModalBottomSheet(
       context: context,
@@ -530,7 +534,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
                           onTap: () {
                             provider.setSelectedCategory(category);
-                            provider.setSelectedSubcategory(sub); // ASIGNAR SUBCATEGORÍA
+                            provider.setSelectedSubcategory(sub);
                             Navigator.pop(context);
                           },
                         )),
@@ -565,11 +569,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             onPressed: () async {
               if (controller.text.isEmpty) return;
               final newBeneficiary = Beneficiary(id: 0, name: controller.text);
-              final saved = await getIt.get<ApiService>().createBeneficiary(newBeneficiary);
-              if (saved != null) {
-                provider.setSelectedBeneficiary(saved);
-                if (mounted) Navigator.pop(context);
-              }
+              provider.setSelectedBeneficiary(newBeneficiary);
+              if (mounted) Navigator.pop(context);
             },
             child: const Text('SAVE', style: TextStyle(color: Colors.white)),
           ),

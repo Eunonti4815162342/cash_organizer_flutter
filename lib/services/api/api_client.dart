@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../../core/exceptions/app_exceptions.dart';
@@ -8,14 +7,9 @@ import '../../config/environment_factory.dart';
 
 /// Shared HTTP concerns: base URL resolution, auth headers, error mapping.
 class ApiClient {
-  static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
-  static const String _defaultNativeUrl = 'http://192.168.1.192:8085/api';
-  static const String _defaultWebUrl = 'http://localhost:8085/api';
-
   final _storage = const FlutterSecureStorage();
 
   String get baseUrl {
-    if (_envApiBaseUrl.isNotEmpty) return _envApiBaseUrl;
     return EnvironmentFactory.getApiBaseUrl();
   }
 

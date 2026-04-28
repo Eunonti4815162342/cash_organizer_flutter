@@ -18,33 +18,16 @@ class SqliteAccountRepository implements IAccountRepository {
   @override
   Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
-    final int effectiveId;
-    final int? serverId;
+    final int effectiveId = isSynced ? account.id : -(DateTime.now().millisecondsSinceEpoch % 1000000000);
 
-    if (isSynced) {
-      effectiveId = account.id;
-      serverId = account.id;
-    } else {
-      effectiveId = -(DateTime.now().millisecondsSinceEpoch % 1000000000);
-      serverId = null;
-    }
-
+    final row = _toRow(account, id: effectiveId, serverId: isSynced ? account.id : null, pendingSync: isSynced ? 0 : 1);
     await db.insert(
       'accounts',
-      _toRow(account, id: effectiveId, serverId: serverId, pendingSync: isSynced ? 0 : 1),
+      row,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    return AccountItem(
-      id: effectiveId,
-      name: account.name,
-      amount: account.amount,
-      flags: account.flags,
-      description: account.description,
-      accountType: account.accountType,
-      notes: account.notes,
-      entity: account.entity,
-    );
+    return _fromRow(row);
   }
 
   @override
@@ -54,7 +37,7 @@ class SqliteAccountRepository implements IAccountRepository {
       ..remove('id')
       ..remove('server_id');
     
-    final updated = await db.update('accounts', row, where: 'server_id = ?', whereArgs: [account.id]);
+    int updated = await db.update('accounts', row, where: 'server_id = ?', whereArgs: [account.id]);
     if (updated == 0) {
       await db.update('accounts', row, where: 'id = ?', whereArgs: [account.id]);
     }
@@ -79,9 +62,7 @@ class SqliteAccountRepository implements IAccountRepository {
   Future<AccountItem?> getById(int id) async {
     final db = await _dbHelper.database;
     var maps = await db.query('accounts', where: 'server_id = ?', whereArgs: [id]);
-    if (maps.isEmpty) {
-      maps = await db.query('accounts', where: 'id = ?', whereArgs: [id]);
-    }
+    if (maps.isEmpty) maps = await db.query('accounts', where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
     return _fromRow(maps.first);
   }
@@ -103,18 +84,7 @@ class SqliteAccountRepository implements IAccountRepository {
   @override
   Future<void> markAsSynced(int localId, int serverId) async {
     final db = await _dbHelper.database;
-    await db.update(
-      'accounts',
-      {'server_id': serverId, 'pending_sync': 0},
-      where: 'id = ?',
-      whereArgs: [localId],
-    );
-    await db.update(
-      'transactions',
-      {'account_id': serverId},
-      where: 'account_id = ?',
-      whereArgs: [localId],
-    );
+    await db.update('accounts', {'server_id': serverId, 'pending_sync': 0}, where: 'id = ?', whereArgs: [localId]);
   }
 
   AccountItem _fromRow(Map<String, dynamic> m) {
@@ -123,7 +93,7 @@ class SqliteAccountRepository implements IAccountRepository {
       entity = FinancialEntity(
         id: m['entity_id'] as int,
         name: m['entity_name'] as String? ?? 'Desconocido',
-        type: EntityType.LEGAL, // Valor por defecto
+        type: EntityType.LEGAL,
       );
     }
 
@@ -139,24 +109,21 @@ class SqliteAccountRepository implements IAccountRepository {
     );
   }
 
-  Map<String, dynamic> _toRow(AccountItem account, {
-    required int id,
-    required int? serverId,
-    required int pendingSync,
-  }) =>
-      {
-        'id': id,
-        'server_id': serverId,
-        'name': account.name,
-        'amount_value': account.amount.value,
-        'amount_currency': account.amount.currency,
-        'is_negative': account.amount.isNegative ? 1 : 0,
-        'description': account.description,
-        'account_type': account.accountType,
-        'notes': account.notes,
-        'last_updated': DateTime.now().toIso8601String(),
-        'pending_sync': pendingSync,
-        'entity_id': account.entity?.id,
-        'entity_name': account.entity?.name,
-      };
+  Map<String, dynamic> _toRow(AccountItem account, {required int id, int? serverId, required int pendingSync}) {
+    return {
+      'id': id,
+      'server_id': serverId,
+      'name': account.name,
+      'amount_value': account.amount.value,
+      'amount_currency': account.amount.currency,
+      'is_negative': account.amount.isNegative ? 1 : 0,
+      'description': account.description,
+      'account_type': account.accountType,
+      'notes': account.notes,
+      'last_updated': DateTime.now().toIso8601String(),
+      'pending_sync': pendingSync,
+      'entity_id': account.entity?.id,
+      'entity_name': account.entity?.name,
+    };
+  }
 }

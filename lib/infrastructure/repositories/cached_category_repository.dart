@@ -6,43 +6,53 @@ import '../../service_locator.dart';
 
 class CachedCategoryRepository implements ICategoryRepository {
   final ApiService _apiService = getIt<ApiService>();
-  
   ICategoryRepository? get _localRepo => kIsWeb ? null : getIt<ICategoryRepository>(instanceName: 'local_category');
 
   @override
   Future<List<Category>> fetchCategories() async {
-    try {
-      final remoteCategories = await _apiService.fetchCategories();
-      if (remoteCategories.isNotEmpty) {
-        if (!kIsWeb) {
-          await _localRepo?.saveAll(remoteCategories);
-        }
-        return remoteCategories;
+    // 1. LOCAL FIRST
+    if (!kIsWeb) {
+      final local = await _localRepo?.fetchCategories() ?? [];
+      if (local.isNotEmpty) {
+        _refreshInBackground();
+        return local;
       }
+    }
+
+    // 2. NETWORK FALLBACK
+    try {
+      final remote = await _apiService.fetchCategories();
+      if (remote.isNotEmpty && !kIsWeb) {
+        await _localRepo?.saveAll(remote);
+      }
+      return remote;
     } catch (e) {
-      print('[CachedCategoryRepository] Error: $e');
-      if (kIsWeb) return [];
-    }
-    return kIsWeb ? [] : (await _localRepo?.fetchCategories() ?? []);
-  }
-
-  @override
-  Future<void> saveCategory(Category category) async {
-    if (!kIsWeb) {
-      await _localRepo?.saveCategory(category);
+      return [];
     }
   }
 
-  @override
-  Future<void> saveAll(List<Category> categories) async {
-    if (!kIsWeb) {
-      await _localRepo?.saveAll(categories);
-    }
+  Future<void> _refreshInBackground() async {
+    try {
+      final remote = await _apiService.fetchCategories();
+      if (remote.isNotEmpty && !kIsWeb) {
+        await _localRepo?.saveAll(remote);
+      }
+    } catch (_) {}
   }
 
   @override
   Future<Category?> getById(int id) async {
     if (kIsWeb) return null;
     return await _localRepo?.getById(id);
+  }
+
+  @override
+  Future<void> saveAll(List<Category> categories) async {
+    if (!kIsWeb) await _localRepo?.saveAll(categories);
+  }
+
+  @override
+  Future<void> saveCategory(Category category) async {
+    if (!kIsWeb) await _localRepo?.saveCategory(category);
   }
 }

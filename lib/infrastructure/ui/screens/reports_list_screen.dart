@@ -62,13 +62,14 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Future<void> _loadInitialData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
+    
+    // Ejecutamos en paralelo pero capturando errores individuales para no bloquear el resto
     try {
-      // Usamos los repositorios Cached para asegurar funcionamiento Offline
       final results = await Future.wait([
-        _entityRepo.fetchEntities(),
-        _accountRepo.fetchAccounts(),
-        _categoryRepo.fetchCategories(),
-        _beneficiaryRepo.getAllBeneficiaries(),
+        _entityRepo.fetchEntities().catchError((_) => <FinancialEntity>[]),
+        _accountRepo.fetchAccounts().catchError((_) => <AccountItem>[]),
+        _categoryRepo.fetchCategories().catchError((_) => <Category>[]),
+        _beneficiaryRepo.getAllBeneficiaries().catchError((_) => <Beneficiary>[]),
       ]);
       
       if (mounted) {
@@ -89,7 +90,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Future<void> _refreshDataFromApi() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    // Si ya tenemos transacciones, no mostramos el loader principal para evitar parpadeos
+    if (_allPeriodTransactions.isEmpty) setState(() => _isLoading = true);
+    
     try {
       final txs = await _transactionRepo.fetchTransactions(
         startDate: _startDate.toIso8601String(),
@@ -235,7 +238,17 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: l10n.selectBeneficiaries, items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
           
           const SizedBox(height: 40),
-          ElevatedButton.icon(onPressed: _generatePdf, icon: const Icon(Icons.picture_as_pdf, size: 16), label: Text(l10n.downloadPdf, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+          ElevatedButton.icon(
+            onPressed: _generatePdf, 
+            icon: const Icon(Icons.picture_as_pdf, size: 16), 
+            label: Text(l10n.downloadPdf, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), 
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue, 
+              foregroundColor: Colors.white, 
+              padding: const EdgeInsets.symmetric(vertical: 16), 
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+            )
+          ),
           const SizedBox(height: 12),
           TextButton(onPressed: _clearFilters, child: Text(l10n.clearFilters, style: const TextStyle(fontSize: 11, color: Colors.redAccent))),
         ],
@@ -364,6 +377,19 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Future<void> _generatePdf() async {
     final l10n = AppLocalizations.of(context)!;
+    
+    // Verificamos conexión rápida antes de intentar el PDF
+    try {
+      final online = await _apiService.isOnline();
+      if (!online) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La generación de PDF requiere conexión a internet.'), backgroundColor: Colors.orange),
+        );
+        return;
+      }
+    } catch (_) {}
+
     setState(() => _isLoading = true);
     try {
       final accIds = _selectedAccounts.isNotEmpty 
@@ -390,6 +416,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       if (pdf != null) await Printing.layoutPdf(onLayout: (f) async => pdf, name: 'Informe_Natave.pdf');
     } catch (e) {
       debugPrint('Error PDF: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al generar el PDF. Verifica tu conexión.'), backgroundColor: Colors.redAccent),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

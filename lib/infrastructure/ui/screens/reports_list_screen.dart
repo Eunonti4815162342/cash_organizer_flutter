@@ -68,7 +68,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         _entityRepo.fetchEntities(),
         _accountRepo.fetchAccounts(),
         _categoryRepo.fetchCategories(),
-        _beneficiaryRepo.fetchBeneficiaries(),
+        _beneficiaryRepo.getAllBeneficiaries(),
       ]);
       
       if (mounted) {
@@ -219,7 +219,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _buildLabel(l10n.period.toUpperCase()),
           _buildDateSelector(),
           const SizedBox(height: 24),
-          _buildLabel(l10n.entity.toUpperCase() + 'S'),
+          _buildLabel('${l10n.entity.toUpperCase()}S'),
           _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: l10n.selectCompanies, items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _applyLocalFilters(); }),
           const SizedBox(height: 12),
           _buildLabel(l10n.accounts.toUpperCase()),

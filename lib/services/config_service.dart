@@ -26,7 +26,7 @@ class ConfigService {
   static String get apiBaseUrl => _config['apiBaseUrl'] ?? 'http://localhost:8085/api';
 
   /// Get API timeout in seconds
-  static int get apiTimeout => _config['apiTimeout'] ?? 30;
+  static int get apiTimeout => _config['apiTimeout'] ?? 10;
 
   /// Whether logging is enabled
   static bool get enableLogging => _config['enableLogging'] ?? false;
@@ -59,7 +59,7 @@ class ConfigService {
   static Map<String, dynamic> _getDefaults() {
     return {
       'apiBaseUrl': 'http://192.168.1.192:8085/api',
-      'apiTimeout': 30,
+      'apiTimeout': 10,
       'enableLogging': true,
       'isProduction': false,
       'environmentName': 'Development',

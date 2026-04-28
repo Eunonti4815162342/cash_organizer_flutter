@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/logger/app_logger.dart';
 import 'api_client.dart';
@@ -11,18 +9,12 @@ class AuthApi {
   AuthApi(this._client);
 
   Future<Map<String, dynamic>?> login(String email, String password, {bool rememberMe = false}) async {
-    final url = '${_client.baseUrl}/auth/login';
-    final body = jsonEncode({'email': email, 'password': password, 'rememberMe': rememberMe});
-    
-    AppLogger.logRequest('POST', url, _client.jsonHeaders());
-    
-    final response = await http.post(
-      Uri.parse(url),
-      headers: _client.jsonHeaders(),
-      body: body,
-    ).timeout(Duration(seconds: _client.apiTimeout));
+    final data = await _client.post('auth/login', body: {
+      'email': email,
+      'password': password,
+      'rememberMe': rememberMe,
+    });
 
-    final data = _client.processResponse(response);
     if (data != null && data['token'] != null) {
       await _storage.write(key: 'jwt_token', value: data['token']);
       AppLogger.info('Login successful for $email');
@@ -31,44 +23,18 @@ class AuthApi {
   }
 
   Future<bool> register(String email, String password) async {
-    final url = '${_client.baseUrl}/auth/register';
-    final body = jsonEncode({'email': email, 'password': password});
-    
-    AppLogger.logRequest('POST', url, _client.jsonHeaders());
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: _client.jsonHeaders(),
-      body: body,
-    ).timeout(Duration(seconds: _client.apiTimeout));
-    
-    final success = _client.isSuccess(response.statusCode);
-    if (success) {
-      AppLogger.info('Registration successful for $email');
-    }
-    return success;
+    await _client.post('auth/register', body: {'email': email, 'password': password});
+    return true;
   }
 
   Future<bool> forgotPassword(String email) async {
-    final url = '${_client.baseUrl}/auth/forgot-password';
-    AppLogger.logRequest('POST', url, _client.jsonHeaders());
-    final response = await http.post(
-      Uri.parse(url),
-      headers: _client.jsonHeaders(),
-      body: jsonEncode({'email': email}),
-    ).timeout(Duration(seconds: _client.apiTimeout));
-    return _client.isSuccess(response.statusCode);
+    await _client.post('auth/forgot-password', body: {'email': email});
+    return true;
   }
 
   Future<bool> resetPassword(String token, String newPassword) async {
-    final url = '${_client.baseUrl}/auth/reset-password';
-    AppLogger.logRequest('POST', url, _client.jsonHeaders());
-    final response = await http.post(
-      Uri.parse(url),
-      headers: _client.jsonHeaders(),
-      body: jsonEncode({'token': token, 'newPassword': newPassword}),
-    ).timeout(Duration(seconds: _client.apiTimeout));
-    return _client.isSuccess(response.statusCode);
+    await _client.post('auth/reset-password', body: {'token': token, 'newPassword': newPassword});
+    return true;
   }
 
   Future<void> logout() async {
@@ -78,12 +44,10 @@ class AuthApi {
 
   Future<bool> isOnline() async {
     try {
-      final response = await http
-          .get(Uri.parse('${_client.baseUrl}/auth/login'))
-          .timeout(const Duration(seconds: 2));
-      return response.statusCode != 0;
+      // Usamos un timeout muy corto para el check de conectividad
+      await _client.get('auth/login'); // O cualquier endpoint ligero
+      return true;
     } catch (e) {
-      AppLogger.debug('Connectivity check failed', e);
       return false;
     }
   }

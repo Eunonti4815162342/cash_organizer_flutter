@@ -17,16 +17,24 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'cash_organizer_v4.db');
+    String path = join(await getDatabasesPath(), 'cash_organizer_v5.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE entities (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL
+      )
+    ''');
+
     await db.execute('''
       CREATE TABLE accounts (
         id INTEGER PRIMARY KEY,
@@ -101,10 +109,19 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE accounts ADD COLUMN entity_id INTEGER');
       await db.execute('ALTER TABLE accounts ADD COLUMN entity_name TEXT');
     }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS entities (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future<void> clearDatabase() async {
-    String path = join(await getDatabasesPath(), 'cash_organizer_v4.db');
+    String path = join(await getDatabasesPath(), 'cash_organizer_v5.db');
     if (_database != null) {
       await _database!.close();
       _database = null;

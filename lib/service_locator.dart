@@ -5,12 +5,15 @@ import 'services/api_service.dart';
 import 'infrastructure/repositories/cached_transaction_repository.dart';
 import 'infrastructure/repositories/cached_account_repository.dart';
 import 'infrastructure/repositories/cached_category_repository.dart';
+import 'infrastructure/repositories/cached_entity_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_transaction_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_account_repository.dart';
 import 'infrastructure/repositories/sqlite/sqlite_category_repository.dart';
+import 'infrastructure/repositories/sqlite/sqlite_entity_repository.dart';
 import 'domain/repositories/transaction_repository.dart';
 import 'domain/repositories/account_repository.dart';
 import 'domain/repositories/category_repository.dart';
+import 'domain/repositories/entity_repository.dart';
 import 'domain/repositories/beneficiary_repository.dart';
 import 'infrastructure/repositories/api_beneficiary_repository.dart';
 import 'services/biometric_service.dart';
@@ -44,6 +47,10 @@ void setupServiceLocator() {
       SqliteCategoryRepository(), 
       instanceName: 'local_category'
     );
+    getIt.registerSingleton<IEntityRepository>(
+      SqliteEntityRepository(), 
+      instanceName: 'local_entity'
+    );
   }
 
   // Repositories - Domain Interfaces
@@ -55,6 +62,9 @@ void setupServiceLocator() {
   );
   getIt.registerSingleton<ICategoryRepository>(
     CachedCategoryRepository(),
+  );
+  getIt.registerSingleton<IEntityRepository>(
+    CachedEntityRepository(),
   );
 
   getIt.registerSingleton<IBeneficiaryRepository>(

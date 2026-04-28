@@ -12,6 +12,10 @@ import '../../../domain/models/category.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../domain/models/beneficiary.dart';
 import '../../../domain/repositories/transaction_repository.dart';
+import '../../../domain/repositories/account_repository.dart';
+import '../../../domain/repositories/category_repository.dart';
+import '../../../domain/repositories/entity_repository.dart';
+import '../../../domain/repositories/beneficiary_repository.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ReportsListScreen extends StatefulWidget {
@@ -24,6 +28,10 @@ class ReportsListScreen extends StatefulWidget {
 class _ReportsListScreenState extends State<ReportsListScreen> {
   final ApiService _apiService = GetIt.instance.get<ApiService>();
   final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
+  final IAccountRepository _accountRepo = GetIt.instance.get<IAccountRepository>();
+  final ICategoryRepository _categoryRepo = GetIt.instance.get<ICategoryRepository>();
+  final IEntityRepository _entityRepo = GetIt.instance.get<IEntityRepository>();
+  final IBeneficiaryRepository _beneficiaryRepo = GetIt.instance.get<IBeneficiaryRepository>();
 
   List<FinancialEntity> _entities = [];
   List<AccountItem> _allAccounts = [];
@@ -52,14 +60,17 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
+      // Usamos los repositorios Cached para asegurar funcionamiento Offline
       final results = await Future.wait([
-        _apiService.fetchEntities(),
-        _apiService.fetchAccounts(),
-        _apiService.fetchCategories(),
-        _apiService.fetchBeneficiaries(),
+        _entityRepo.fetchEntities(),
+        _accountRepo.fetchAccounts(),
+        _categoryRepo.fetchCategories(),
+        _beneficiaryRepo.fetchBeneficiaries(),
       ]);
+      
       if (mounted) {
         setState(() {
           _entities = results[0] as List<FinancialEntity>;
@@ -70,13 +81,14 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         await _refreshDataFromApi();
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      debugPrint('Error loading initial report data: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _refreshDataFromApi() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final txs = await _transactionRepo.fetchTransactions(
@@ -88,7 +100,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         _applyLocalFilters();
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      debugPrint('Error refreshing report transactions: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../../../domain/models/account_item.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../domain/repositories/account_repository.dart';
-import '../../../infrastructure/repositories/cached_account_repository.dart';
+import '../../../domain/repositories/entity_repository.dart';
 import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'account_details_screen.dart';
@@ -20,8 +21,9 @@ class AccountTransactionsScreen extends StatefulWidget {
 }
 
 class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
-  final IAccountRepository _accountRepo = CachedAccountRepository();
-  final ApiService _apiService = ApiService();
+  final IAccountRepository _accountRepo = GetIt.instance.get<IAccountRepository>();
+  final IEntityRepository _entityRepo = GetIt.instance.get<IEntityRepository>();
+  final ApiService _apiService = GetIt.instance.get<ApiService>();
   
   List<FinancialEntity> _entities = [];
   List<AccountItem> _allAccounts = [];
@@ -35,19 +37,24 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   }
 
   Future<void> _refreshData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final ents = await _apiService.fetchEntities();
-      final accs = await _accountRepo.fetchAccounts();
+      // Usamos los repositorios que manejan caché/fallback automáticamente
+      final results = await Future.wait([
+        _entityRepo.fetchEntities(),
+        _accountRepo.fetchAccounts(),
+      ]);
       
       if (mounted) {
         setState(() {
-          _entities = ents;
-          _allAccounts = accs;
+          _entities = results[0] as List<FinancialEntity>;
+          _allAccounts = results[1] as List<AccountItem>;
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('Error refreshing account data: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -157,7 +164,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText)),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText)),
                   Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                 ],
               ),
@@ -172,7 +179,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   void _showNewEntityDialog() {
     showDialog(
       context: context,
-      builder: (context) => EntityFormDialog(),
+      builder: (context) => const EntityFormDialog(),
     ).then((saved) {
       if (saved == true) _refreshData();
     });
@@ -211,7 +218,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final entityAccounts = _allAccounts.where((a) => a.entity?.id == entity.id).toList();
     final entityTotal = entityAccounts.fold(0.0, (sum, item) => sum + (item.amount.value / 100));
 
-    // Mostrar siempre el banco si el usuario lo ha creado, para que pueda ver que no tiene cuentas
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
@@ -303,7 +309,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primaryBlue.withValues(alpha: 0.06) : Colors.transparent,
-          border: isSelected ? Border(left: BorderSide(color: AppColors.primaryBlue, width: 3)) : null,
+          border: isSelected ? const Border(left: BorderSide(color: AppColors.primaryBlue, width: 3)) : null,
         ),
         padding: EdgeInsets.only(left: isIndented ? 20 : 16, right: 12, top: 12, bottom: 12),
         child: Row(
@@ -400,7 +406,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Hero header ──────────────────────────────────────────────────
           Container(
             margin: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -427,7 +432,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Action row — top right
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -438,7 +442,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Type icon circle
                 Container(
                   padding: const EdgeInsets.all(11),
                   decoration: BoxDecoration(
@@ -448,7 +451,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                   child: Icon(typeIcon, color: Colors.white, size: 22),
                 ),
                 const SizedBox(height: 14),
-                // Account name
                 Text(
                   acc.name,
                   style: const TextStyle(
@@ -467,7 +469,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                   ),
                 ],
                 const SizedBox(height: 18),
-                // Balance
                 Text(
                   '${acc.amount.currency} ${balance.toStringAsFixed(2)}',
                   style: const TextStyle(
@@ -478,7 +479,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Type badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -497,11 +497,9 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                 ),
               ],
             ),
-          ),   // inner Container (gradient)
-            ),  // ClipRRect
-          ),    // outer Container (shadow + margin)
-
-          // ── Warning banner ───────────────────────────────────────────────
+          ),
+            ),
+          ),
           if (acc.isUnbalanced)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -523,8 +521,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                 ],
               ),
             ),
-
-          // ── Details section ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(

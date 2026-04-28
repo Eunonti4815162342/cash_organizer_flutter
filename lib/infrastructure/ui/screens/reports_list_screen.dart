@@ -128,18 +128,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       appBar: AppBar(
         title: Text(l10n.financialAudit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         actions: [
-          if (isMobile) 
-            Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: () => Scaffold.of(context).openEndDrawer(),
-                tooltip: l10n.reports,
-              ),
-            ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDataFromApi),
         ],
       ),
       endDrawer: isMobile ? Drawer(child: _buildSidebarContent(l10n)) : null,
+      floatingActionButton: isMobile ? _buildFilterFAB(l10n) : null,
       body: Row(
         children: [
           if (!isMobile) _buildSidebarContent(l10n, width: 280),
@@ -149,6 +142,52 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
               : _buildMainDashboard(l10n, isMobile: isMobile),
           ),
         ],
+      ),
+    );
+  }
+
+  int get _activeFiltersCount {
+    int count = 0;
+    if (_selectedEntities.isNotEmpty) count++;
+    if (_selectedAccounts.isNotEmpty) count++;
+    if (_selectedCategories.isNotEmpty) count++;
+    if (_selectedSubcategories.isNotEmpty) count++;
+    if (_selectedBeneficiaries.isNotEmpty) count++;
+    return count;
+  }
+
+  Widget _buildFilterFAB(AppLocalizations l10n) {
+    final count = _activeFiltersCount;
+    return FloatingActionButton.extended(
+      onPressed: () => Scaffold.of(context).openEndDrawer(),
+      backgroundColor: AppColors.primaryBlue,
+      foregroundColor: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.filter_list_rounded, size: 20),
+          if (count > 0)
+            Positioned(
+              right: -8,
+              top: -8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      label: Text(
+        l10n.reports.toUpperCase(),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
       ),
     );
   }

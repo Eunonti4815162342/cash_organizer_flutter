@@ -142,6 +142,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get language => 'Idioma';
 
   @override
+  String get backup => 'Cloud Backup (iCloud/Drive)';
+
+  @override
   String get deleteForever => 'Excluir para sempre';
 
   @override

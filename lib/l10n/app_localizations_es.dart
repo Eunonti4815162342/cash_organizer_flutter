@@ -142,6 +142,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get language => 'Idioma';
 
   @override
+  String get backup => 'Copia en Nube (iCloud/Drive)';
+
+  @override
   String get deleteForever => 'Eliminar para siempre';
 
   @override

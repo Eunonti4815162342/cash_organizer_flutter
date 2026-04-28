@@ -141,6 +141,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
+  String get backup => 'Cloud Backup (iCloud/Drive)';
+
+  @override
   String get deleteForever => 'Delete Forever';
 
   @override

@@ -1,8 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:get_it/get_it.dart';
 import 'l10n/app_localizations.dart';
 import 'infrastructure/ui/styles/app_styles.dart';
 import 'infrastructure/ui/screens/dashboard_screen.dart';
@@ -11,6 +13,9 @@ import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
+import 'domain/models/account_item.dart';
+import 'domain/repositories/account_repository.dart';
+import 'domain/repositories/transaction_repository.dart';
 import 'services/api_service.dart';
 import 'services/config_service.dart';
 import 'services/connectivity_service.dart';
@@ -214,6 +219,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
                 _buildSidebarItem(3, Icons.bar_chart_outlined, l10n.reports),
                 _buildSidebarItem(4, Icons.category_outlined, l10n.categories),
                 const Divider(),
+                _buildBackupSidebarItem(l10n),
                 _buildLanguageSidebarItem(l10n),
                 ListTile(
                   leading: const Icon(Icons.logout, size: 20, color: Colors.redAccent),
@@ -292,6 +298,73 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
         showDialog(context: context, builder: (context) => SimpleDialog(title: Text(l10n.language), children: [_languageOption('en', 'English'), _languageOption('es', 'Español'), _languageOption('pt', 'Português')]));
       },
     );
+  }
+
+  Widget _buildBackupSidebarItem(AppLocalizations l10n) {
+    return ListTile(
+      leading: const Icon(Icons.cloud_upload_outlined, size: 20),
+      title: Text(l10n.backup),
+      onTap: () => _showBackupDialog(l10n),
+    );
+  }
+
+  void _showBackupDialog(AppLocalizations l10n) async {
+    final getIt = GetIt.instance;
+    final accountRepo = getIt<IAccountRepository>(instanceName: 'local_account');
+    final accounts = await accountRepo.fetchAccounts();
+    
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(l10n.backup),
+        children: accounts.isEmpty 
+          ? [const Padding(padding: EdgeInsets.all(16), child: Text('No hay cuentas disponibles'))]
+          : accounts.map((account) => SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(context);
+              _performCloudBackup(account);
+            },
+            child: Text(account.name),
+          )).toList(),
+      ),
+    );
+  }
+
+  Future<void> _performCloudBackup(AccountItem account) async {
+    final getIt = GetIt.instance;
+    final txRepo = getIt<ITransactionRepository>(instanceName: 'local_transaction');
+    
+    // 1. Obtener datos locales
+    final txs = await txRepo.fetchTransactions(accountId: account.id.toString());
+    
+    // 2. Determinar servicio según plataforma
+    String cloudService = 'Cloud';
+    if (!kIsWeb) {
+      if (Platform.isIOS) cloudService = 'iCloud';
+      if (Platform.isAndroid) cloudService = 'Google Drive';
+    }
+
+    // 3. Simular/Ejecutar envío
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Iniciando backup de "${account.name}" en $cloudService...')),
+    );
+
+    // TODO: Integración real:
+    // iOS: Use icloud_storage package
+    // Android: Use google_sign_in + googleapis (Drive API)
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Backup completado con éxito en $cloudService (Simulado)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Widget _languageOption(String code, String name) {

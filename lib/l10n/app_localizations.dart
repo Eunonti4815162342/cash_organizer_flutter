@@ -364,6 +364,12 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get language;
 
+  /// No description provided for @backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Backup (iCloud/Drive)'**
+  String get backup;
+
   /// No description provided for @deleteForever.
   ///
   /// In en, this message translates to:

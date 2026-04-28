@@ -44,6 +44,7 @@
   "property": "Property",
   "share": "Share",
   "language": "Language",
+  "backup": "Cloud Backup (iCloud/Drive)",
   "deleteForever": "Delete Forever",
   "closeAccount": "Close Account",
   "removeAccount": "Remove Account",

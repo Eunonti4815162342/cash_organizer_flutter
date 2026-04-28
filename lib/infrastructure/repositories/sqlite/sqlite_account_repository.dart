@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../../../../domain/models/account_item.dart';
+import '../../../../domain/models/financial_entity.dart';
 import '../../../../domain/repositories/account_repository.dart';
 import '../../../../service_locator.dart';
 import '../../persistence/sqlite/database_helper.dart';
@@ -14,9 +15,6 @@ class SqliteAccountRepository implements IAccountRepository {
     return maps.map(_fromRow).toList();
   }
 
-  /// Guarda una cuenta nueva. Si isSynced=false (offline), genera un ID
-  /// local negativo basado en timestamp y deja server_id = NULL.
-  /// Devuelve el AccountItem con el ID efectivo asignado.
   @override
   Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
@@ -27,7 +25,6 @@ class SqliteAccountRepository implements IAccountRepository {
       effectiveId = account.id;
       serverId = account.id;
     } else {
-      // ID local negativo único basado en timestamp
       effectiveId = -(DateTime.now().millisecondsSinceEpoch % 1000000000);
       serverId = null;
     }
@@ -56,8 +53,7 @@ class SqliteAccountRepository implements IAccountRepository {
     final row = _toRow(account, id: account.id, serverId: isSynced ? account.id : null, pendingSync: isSynced ? 0 : 2)
       ..remove('id')
       ..remove('server_id');
-    row['pending_sync'] = isSynced ? 0 : 2;
-    // Actualiza por server_id si existe, si no por id local
+    
     final updated = await db.update('accounts', row, where: 'server_id = ?', whereArgs: [account.id]);
     if (updated == 0) {
       await db.update('accounts', row, where: 'id = ?', whereArgs: [account.id]);
@@ -66,6 +62,7 @@ class SqliteAccountRepository implements IAccountRepository {
 
   @override
   Future<void> saveAll(List<AccountItem> accounts) async {
+    if (accounts.isEmpty) return;
     final db = await _dbHelper.database;
     await db.transaction((txn) async {
       for (final account in accounts) {
@@ -81,7 +78,6 @@ class SqliteAccountRepository implements IAccountRepository {
   @override
   Future<AccountItem?> getById(int id) async {
     final db = await _dbHelper.database;
-    // Busca por server_id primero, luego por id local
     var maps = await db.query('accounts', where: 'server_id = ?', whereArgs: [id]);
     if (maps.isEmpty) {
       maps = await db.query('accounts', where: 'id = ?', whereArgs: [id]);
@@ -104,8 +100,6 @@ class SqliteAccountRepository implements IAccountRepository {
     return maps.map(_fromRow).toList();
   }
 
-  /// Cuando una cuenta offline se sincroniza: actualiza server_id, limpia
-  /// pending_sync, y reasigna account_id en transacciones con el ID temporal.
   @override
   Future<void> markAsSynced(int localId, int serverId) async {
     final db = await _dbHelper.database;
@@ -115,7 +109,6 @@ class SqliteAccountRepository implements IAccountRepository {
       where: 'id = ?',
       whereArgs: [localId],
     );
-    // Reasigna referencias en transacciones que usaban el ID temporal
     await db.update(
       'transactions',
       {'account_id': serverId},
@@ -124,15 +117,27 @@ class SqliteAccountRepository implements IAccountRepository {
     );
   }
 
-  AccountItem _fromRow(Map<String, dynamic> m) => AccountItem(
-    id: (m['server_id'] ?? m['id']) as int,
-    name: m['name'] as String,
-    amount: Amount(m['amount_value'] as int, m['amount_currency'] as String, m['is_negative'] == 1),
-    flags: 0,
-    description: m['description'] as String?,
-    accountType: m['account_type'] as String?,
-    notes: m['notes'] as String?,
-  );
+  AccountItem _fromRow(Map<String, dynamic> m) {
+    FinancialEntity? entity;
+    if (m['entity_id'] != null) {
+      entity = FinancialEntity(
+        id: m['entity_id'] as int,
+        name: m['entity_name'] as String? ?? 'Desconocido',
+        type: EntityType.LEGAL, // Valor por defecto
+      );
+    }
+
+    return AccountItem(
+      id: (m['server_id'] ?? m['id']) as int,
+      name: m['name'] as String,
+      amount: Amount(m['amount_value'] as int, m['amount_currency'] as String, m['is_negative'] == 1),
+      flags: 0,
+      description: m['description'] as String?,
+      accountType: m['account_type'] as String?,
+      notes: m['notes'] as String?,
+      entity: entity,
+    );
+  }
 
   Map<String, dynamic> _toRow(AccountItem account, {
     required int id,
@@ -151,5 +156,7 @@ class SqliteAccountRepository implements IAccountRepository {
         'notes': account.notes,
         'last_updated': DateTime.now().toIso8601String(),
         'pending_sync': pendingSync,
+        'entity_id': account.entity?.id,
+        'entity_name': account.entity?.name,
       };
 }

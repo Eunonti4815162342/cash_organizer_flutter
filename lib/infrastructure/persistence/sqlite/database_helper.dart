@@ -20,15 +20,13 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'cash_organizer_v4.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future _onCreate(Database db, int version) async {
-    // accounts: id es local (puede ser negativo para offline creates),
-    // server_id es el ID del backend (null mientras pending_sync=1)
     await db.execute('''
       CREATE TABLE accounts (
         id INTEGER PRIMARY KEY,
@@ -41,7 +39,9 @@ class DatabaseHelper {
         account_type TEXT,
         notes TEXT,
         last_updated TEXT,
-        pending_sync INTEGER DEFAULT 0
+        pending_sync INTEGER DEFAULT 0,
+        entity_id INTEGER,
+        entity_name TEXT
       )
     ''');
 
@@ -94,9 +94,12 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE transactions ADD COLUMN to_account_name TEXT');
     }
     if (oldVersion < 3) {
-      // Añade server_id a accounts; para registros ya sincronizados server_id = id
       await db.execute('ALTER TABLE accounts ADD COLUMN server_id INTEGER');
       await db.execute('UPDATE accounts SET server_id = id WHERE pending_sync = 0 OR pending_sync IS NULL');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE accounts ADD COLUMN entity_id INTEGER');
+      await db.execute('ALTER TABLE accounts ADD COLUMN entity_name TEXT');
     }
   }
 
@@ -107,6 +110,5 @@ class DatabaseHelper {
       _database = null;
     }
     await deleteDatabase(path);
-    print('[DatabaseHelper] Base de datos local eliminada con éxito.');
   }
 }

@@ -96,7 +96,7 @@ class ApiClient {
     if (e.toString().contains('TimeoutException')) {
       throw TimeoutException(message: 'Request timed out', originalError: e, stackTrace: stack);
     }
-    if (e is AppException) rethrow;
+    if (e is AppException) throw e;
     throw UnknownException(message: e.toString(), originalError: e, stackTrace: stack);
   }
 

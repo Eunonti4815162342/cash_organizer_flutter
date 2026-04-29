@@ -5,7 +5,6 @@ import '../styles/app_styles.dart';
 import '../../../domain/models/category.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/repositories/category_repository.dart';
-import '../../../infrastructure/repositories/cached_category_repository.dart';
 import '../../../services/api_service.dart';
 import '../widgets/category_form_dialog.dart';
 import '../widgets/ui_helpers.dart';
@@ -18,7 +17,7 @@ class CategoryListScreen extends StatefulWidget {
 }
 
 class _CategoryListScreenState extends State<CategoryListScreen> {
-  final ICategoryRepository _categoryRepo = CachedCategoryRepository();
+  late final ICategoryRepository _categoryRepo;
   late final ApiService _apiService;
   late Future<List<Category>> _categoriesFuture;
   final TextEditingController _searchController = TextEditingController();
@@ -27,6 +26,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   void initState() {
     super.initState();
+    _categoryRepo = GetIt.instance.get<ICategoryRepository>();
     _apiService = GetIt.instance.get<ApiService>();
     _refresh();
   }
@@ -303,12 +303,12 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(context);
-              final result = await _apiService.deleteCategory(category.id);
-              if (result['success']) {
+              try {
+                await _categoryRepo.deleteCategory(category.id);
                 _refresh();
-              } else {
+              } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
@@ -357,8 +357,14 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(context);
-              final success = await _apiService.deleteSubcategory(sub.id);
-              if (success) _refresh();
+              try {
+                await _categoryRepo.deleteSubcategory(sub.id);
+                _refresh();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
             },
             child: const Text('DELETE', style: TextStyle(color: AppColors.white)),
           ),

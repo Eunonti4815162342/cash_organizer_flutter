@@ -15,7 +15,7 @@ class LocalPdfReportGenerator {
     switch (currency.toUpperCase()) {
       case 'BRL': return 'R\$';
       case 'USD': return '\$';
-      case 'EUR': return '€';
+      case 'EUR': return '\u20AC'; // Usamos el código Unicode para evitar errores de renderizado
       default: return currency;
     }
   }
@@ -23,11 +23,13 @@ class LocalPdfReportGenerator {
   static Future<Uint8List> generate({
     required String title,
     required String period,
-    required Map<String, Map<String, double>> summary, // Label -> Currency -> Total
+    required Map<String, Map<String, double>> summary,
     required Map<String, Map<String, List<TransactionItem>>> segregatedData,
     String lang = 'es',
   }) async {
     final pdf = pw.Document();
+    
+    // Usamos fuentes integradas pero con manejo explícito de Unicode si es necesario
     final fontRegular = pw.Font.helvetica();
     final fontBold = pw.Font.helveticaBold();
 
@@ -43,14 +45,14 @@ class LocalPdfReportGenerator {
           pw.Text('PERIODO: $period', style: pw.TextStyle(font: fontRegular, fontSize: 8, color: _textLight)),
           pw.SizedBox(height: 20),
 
-          // Resumen Multimoneda
+          // Resumen
           if (summary.isNotEmpty) ...[
             pw.Text('RESUMEN GENERAL', style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain)),
             pw.SizedBox(height: 10),
             pw.Table(
               columnWidths: {
-                0: const pw.FlexColumnWidth(2),
-                1: const pw.FlexColumnWidth(2),
+                0: const pw.FlexColumnWidth(3),
+                1: const pw.FlexColumnWidth(1),
               },
               children: summary.entries.map((e) => pw.TableRow(
                 decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _border, width: 0.5))),
@@ -63,8 +65,8 @@ class LocalPdfReportGenerator {
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: e.value.entries.map((currencyEntry) => 
-                        pw.Text('${_getCurrencySymbol(currencyEntry.key)} ${currencyEntry.value.toStringAsFixed(2)}', 
+                      children: e.value.entries.map((curr) => 
+                        pw.Text('${_getCurrencySymbol(curr.key)} ${curr.value.toStringAsFixed(2)}', 
                           style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain))
                       ).toList(),
                     ),
@@ -77,7 +79,7 @@ class LocalPdfReportGenerator {
             pw.SizedBox(height: 20),
           ],
 
-          // Contenido Segregado
+          // Datos por Entidad
           ...segregatedData.entries.expand((entityEntry) {
             final List<pw.Widget> widgets = [];
             
@@ -121,8 +123,7 @@ class LocalPdfReportGenerator {
                     ...accEntry.value.map((tx) {
                       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.parse(tx.date));
                       final catStr = (tx.category?.name ?? 'Otros') + (tx.subcategory != null ? ' > ${tx.subcategory!.name}' : '');
-                      final symbol = _getCurrencySymbol(tx.amount.currency);
-                      final amountStr = '${tx.amount.isNegative ? '-' : '+'} $symbol${(tx.amount.value / 100).abs().toStringAsFixed(2)}';
+                      final amountStr = '${tx.amount.isNegative ? '-' : '+'} ${_getCurrencySymbol(tx.amount.currency)}${(tx.amount.value / 100).abs().toStringAsFixed(2)}';
                       
                       return pw.TableRow(
                         decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _border, width: 0.5))),

@@ -18,15 +18,14 @@ class SqliteReportRepository implements IReportRepository {
     bool groupBySubcategory = false,
   }) async {
     final db = await _dbHelper.database;
-    final labelColumn = groupBySubcategory ? 'subcategory_name' : 'category_name';
+    final labelColumn = groupBySubcategory ? 't.subcategory_name' : 't.category_name';
     
-    // UI simple: sumamos todo asumiendo una moneda base por ahora para el gráfico circular
-    String query = 'SELECT $labelColumn as label, SUM(amount_value) as total FROM transactions WHERE 1=1';
+    String query = 'SELECT $labelColumn as label, SUM(t.amount_value) as total FROM transactions t WHERE 1=1';
     final args = <dynamic>[];
-    if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
-    if (endDate != null) { query += ' AND date <= ?'; args.add(endDate); }
+    if (startDate != null) { query += ' AND t.date >= ?'; args.add(startDate); }
+    if (endDate != null) { query += ' AND t.date <= ?'; args.add(endDate); }
     if (accountIds != null && accountIds.isNotEmpty) {
-      query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
+      query += ' AND t.account_id IN (${accountIds.map((_) => '?').join(',')})';
       args.addAll(accountIds);
     }
     query += ' GROUP BY $labelColumn';
@@ -34,7 +33,6 @@ class SqliteReportRepository implements IReportRepository {
     return { for (var row in results) (row['label']?.toString() ?? 'Uncategorized'): (row['total'] as num).toDouble() / 100.0 };
   }
 
-  // Método interno para obtener estadísticas desglosadas por moneda para el PDF
   Future<Map<String, Map<String, double>>> _fetchCategoryStatsByCurrency({
     String? startDate,
     String? endDate,
@@ -42,18 +40,18 @@ class SqliteReportRepository implements IReportRepository {
   }) async {
     final db = await _dbHelper.database;
     String query = '''
-      SELECT category_name as label, amount_currency as currency, SUM(amount_value) as total 
-      FROM transactions 
+      SELECT t.category_name as label, t.amount_currency as currency, SUM(t.amount_value) as total 
+      FROM transactions t
       WHERE 1=1
     ''';
     final args = <dynamic>[];
-    if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
-    if (endDate != null) { query += ' AND date <= ?'; args.add(endDate); }
+    if (startDate != null) { query += ' AND t.date >= ?'; args.add(startDate); }
+    if (endDate != null) { query += ' AND t.date <= ?'; args.add(endDate); }
     if (accountIds != null && accountIds.isNotEmpty) {
-      query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
+      query += ' AND t.account_id IN (${accountIds.map((_) => '?').join(',')})';
       args.addAll(accountIds);
     }
-    query += ' GROUP BY category_name, amount_currency';
+    query += ' GROUP BY t.category_name, t.amount_currency';
     
     final List<Map<String, dynamic>> results = await db.rawQuery(query, args);
     final Map<String, Map<String, double>> stats = {};
@@ -89,32 +87,35 @@ class SqliteReportRepository implements IReportRepository {
   }) async {
     final db = await _dbHelper.database;
     
-    // 1. Obtener datos para el resumen desglosados por moneda
     final summary = await _fetchCategoryStatsByCurrency(
       startDate: startDate,
       endDate: endDate,
       accountIds: accountIds,
     );
 
-    // 2. Obtener transacciones segregadas
-    String query = 'SELECT * FROM transactions WHERE 1=1';
+    // JOIN con la tabla 'accounts' para sacar el 'entity_name' real
+    String query = '''
+      SELECT t.*, a.entity_name as real_entity_name 
+      FROM transactions t
+      LEFT JOIN accounts a ON t.account_id = a.id
+      WHERE 1=1
+    ''';
     final args = <dynamic>[];
-    if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
-    if (endDate != null) { query += ' AND date <= ?'; args.add(endDate); }
+    if (startDate != null) { query += ' AND t.date >= ?'; args.add(startDate); }
+    if (endDate != null) { query += ' AND t.date <= ?'; args.add(endDate); }
     if (accountIds != null && accountIds.isNotEmpty) {
-      query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
+      query += ' AND t.account_id IN (${accountIds.map((_) => '?').join(',')})';
       args.addAll(accountIds);
     }
-    query += ' ORDER BY account_name, date DESC';
+    query += ' ORDER BY a.entity_name, t.account_name, t.date DESC';
 
     final List<Map<String, dynamic>> rows = await db.rawQuery(query, args);
     final Map<String, Map<String, List<TransactionItem>>> segregatedData = {};
 
     for (var row in rows) {
       final tx = _mapToTransactionItem(row);
-      final fullName = row['account_name']?.toString() ?? 'Default';
-      final entityName = fullName.contains(' > ') ? fullName.split(' > ').first : 'General';
-      final accountName = fullName;
+      final entityName = row['real_entity_name']?.toString() ?? 'General';
+      final accountName = row['account_name']?.toString() ?? 'Default';
 
       segregatedData.putIfAbsent(entityName, () => {});
       segregatedData[entityName]!.putIfAbsent(accountName, () => []);

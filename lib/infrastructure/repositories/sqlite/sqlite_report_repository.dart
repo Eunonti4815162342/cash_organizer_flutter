@@ -20,111 +20,60 @@ class SqliteReportRepository implements IReportRepository {
     final db = await _dbHelper.database;
     final labelColumn = groupBySubcategory ? 'subcategory_name' : 'category_name';
     
-    String query = '''
-      SELECT $labelColumn as label, SUM(amount_value) as total 
-      FROM transactions 
-      WHERE 1=1
-    ''';
-    
+    // UI simple: sumamos todo asumiendo una moneda base por ahora para el gráfico circular
+    String query = 'SELECT $labelColumn as label, SUM(amount_value) as total FROM transactions WHERE 1=1';
     final args = <dynamic>[];
-    if (startDate != null) {
-      query += ' AND date >= ?';
-      args.add(startDate);
-    }
-    if (endDate != null) {
-      query += ' AND date <= ?';
-      args.add(endDate);
-    }
+    if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
+    if (endDate != null) { query += ' AND date <= ?'; args.add(endDate); }
     if (accountIds != null && accountIds.isNotEmpty) {
       query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
       args.addAll(accountIds);
     }
-    
     query += ' GROUP BY $labelColumn';
-    
     final List<Map<String, dynamic>> results = await db.rawQuery(query, args);
-    
-    return {
-      for (var row in results)
-        (row['label']?.toString() ?? 'Uncategorized'): (row['total'] as num).toDouble() / 100.0
-    };
+    return { for (var row in results) (row['label']?.toString() ?? 'Uncategorized'): (row['total'] as num).toDouble() / 100.0 };
   }
 
-  @override
-  Future<Map<String, double>> fetchEntityStats({
+  // Método interno para obtener estadísticas desglosadas por moneda para el PDF
+  Future<Map<String, Map<String, double>>> _fetchCategoryStatsByCurrency({
     String? startDate,
     String? endDate,
     List<int>? accountIds,
   }) async {
     final db = await _dbHelper.database;
-    
     String query = '''
-      SELECT account_name as label, SUM(amount_value) as total 
+      SELECT category_name as label, amount_currency as currency, SUM(amount_value) as total 
       FROM transactions 
       WHERE 1=1
     ''';
-    
     final args = <dynamic>[];
-    if (startDate != null) {
-      query += ' AND date >= ?';
-      args.add(startDate);
-    }
-    if (endDate != null) {
-      query += ' AND date <= ?';
-      args.add(endDate);
-    }
+    if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
+    if (endDate != null) { query += ' AND date <= ?'; args.add(endDate); }
     if (accountIds != null && accountIds.isNotEmpty) {
       query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
       args.addAll(accountIds);
     }
-    
-    query += ' GROUP BY account_name';
+    query += ' GROUP BY category_name, amount_currency';
     
     final List<Map<String, dynamic>> results = await db.rawQuery(query, args);
-    
-    return {
-      for (var row in results)
-        (row['label']?.toString() ?? 'Unknown Account'): (row['total'] as num).toDouble() / 100.0
-    };
+    final Map<String, Map<String, double>> stats = {};
+
+    for (var row in results) {
+      final label = row['label']?.toString() ?? 'Otros';
+      final currency = row['currency']?.toString() ?? 'EUR';
+      final total = (row['total'] as num).toDouble() / 100.0;
+      
+      stats.putIfAbsent(label, () => {});
+      stats[label]![currency] = total;
+    }
+    return stats;
   }
 
   @override
-  Future<Map<String, double>> fetchBeneficiaryStats({
-    String? startDate,
-    String? endDate,
-    List<int>? accountIds,
-  }) async {
-    final db = await _dbHelper.database;
-    
-    String query = '''
-      SELECT beneficiary_name as label, SUM(amount_value) as total 
-      FROM transactions 
-      WHERE beneficiary_name IS NOT NULL
-    ''';
-    
-    final args = <dynamic>[];
-    if (startDate != null) {
-      query += ' AND date >= ?';
-      args.add(startDate);
-    }
-    if (endDate != null) {
-      query += ' AND date <= ?';
-      args.add(endDate);
-    }
-    if (accountIds != null && accountIds.isNotEmpty) {
-      query += ' AND account_id IN (${accountIds.map((_) => '?').join(',')})';
-      args.addAll(accountIds);
-    }
-    
-    query += ' GROUP BY beneficiary_name';
-    
-    final List<Map<String, dynamic>> results = await db.rawQuery(query, args);
-    
-    return {
-      for (var row in results)
-        row['label'].toString(): (row['total'] as num).toDouble() / 100.0
-    };
-  }
+  Future<Map<String, double>> fetchEntityStats({ String? startDate, String? endDate, List<int>? accountIds }) async => fetchCategoryStats(startDate: startDate, endDate: endDate, accountIds: accountIds);
+
+  @override
+  Future<Map<String, double>> fetchBeneficiaryStats({ String? startDate, String? endDate, List<int>? accountIds }) async => fetchCategoryStats(startDate: startDate, endDate: endDate, accountIds: accountIds);
 
   @override
   Future<Uint8List?> downloadPdf({
@@ -140,12 +89,14 @@ class SqliteReportRepository implements IReportRepository {
   }) async {
     final db = await _dbHelper.database;
     
-    final summary = await fetchCategoryStats(
+    // 1. Obtener datos para el resumen desglosados por moneda
+    final summary = await _fetchCategoryStatsByCurrency(
       startDate: startDate,
       endDate: endDate,
       accountIds: accountIds,
     );
 
+    // 2. Obtener transacciones segregadas
     String query = 'SELECT * FROM transactions WHERE 1=1';
     final args = <dynamic>[];
     if (startDate != null) { query += ' AND date >= ?'; args.add(startDate); }
@@ -162,7 +113,7 @@ class SqliteReportRepository implements IReportRepository {
     for (var row in rows) {
       final tx = _mapToTransactionItem(row);
       final fullName = row['account_name']?.toString() ?? 'Default';
-      final entityName = fullName.split(' > ').first;
+      final entityName = fullName.contains(' > ') ? fullName.split(' > ').first : 'General';
       final accountName = fullName;
 
       segregatedData.putIfAbsent(entityName, () => {});
@@ -172,7 +123,7 @@ class SqliteReportRepository implements IReportRepository {
 
     return await LocalPdfReportGenerator.generate(
       title: title,
-      period: '${startDate ?? "Inception"} - ${endDate ?? "Today"}',
+      period: '${startDate?.split('T').first ?? "Inception"} - ${endDate?.split('T').first ?? "Today"}',
       summary: summary,
       segregatedData: segregatedData,
       lang: lang,
@@ -184,34 +135,12 @@ class SqliteReportRepository implements IReportRepository {
       id: m['id'] as int,
       date: m['date'] as String,
       description: m['description'] as String? ?? '',
-      amount: Amount(
-        m['amount_value'] as int,
-        m['amount_currency'] as String,
-        m['is_negative'] == 1,
-      ),
-      account: AccountItem(
-        id: m['account_id'] as int,
-        name: m['account_name'] as String,
-        amount: Amount(0, 'EUR', false),
-        flags: 0,
-      ),
-      category: m['category_id'] != null ? Category(
-        id: m['category_id'] as int,
-        name: m['category_name'] as String,
-        type: CategoryType.expense,
-      ) : null,
-      subcategory: m['subcategory_id'] != null ? Subcategory(
-        id: m['subcategory_id'] as int,
-        name: m['subcategory_name'] as String,
-      ) : null,
-      beneficiary: m['beneficiary_id'] != null ? Beneficiary(
-        id: m['beneficiary_id'] as int,
-        name: m['beneficiary_name'] as String,
-      ) : null,
-      type: TransactionType.values.firstWhere(
-        (e) => e.name == (m['type'] as String),
-        orElse: () => TransactionType.EXPENSE,
-      ),
+      amount: Amount(m['amount_value'] as int, m['amount_currency'] as String, m['is_negative'] == 1),
+      account: AccountItem(id: m['account_id'] as int, name: m['account_name'] as String, amount: Amount(0, 'EUR', false), flags: 0),
+      category: m['category_id'] != null ? Category(id: m['category_id'] as int, name: m['category_name'] as String, type: CategoryType.expense) : null,
+      subcategory: m['subcategory_id'] != null ? Subcategory(id: m['subcategory_id'] as int, name: m['subcategory_name'] as String) : null,
+      beneficiary: m['beneficiary_id'] != null ? Beneficiary(id: m['beneficiary_id'] as int, name: m['beneficiary_name'] as String) : null,
+      type: TransactionType.values.firstWhere((e) => e.name == (m['type'] as String), orElse: () => TransactionType.EXPENSE),
       isScheduled: false,
       isHeader: false,
       tags: [],

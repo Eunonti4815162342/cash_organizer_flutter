@@ -21,4 +21,9 @@ class ApiBeneficiaryRepository implements IBeneficiaryRepository {
     if (suggestion == null) return null;
     return suggestion as Map<String, dynamic>;
   }
+
+  @override
+  Future<void> updateBeneficiaryMemory(int id, int? catId, int? subId, String? type) async {
+    // Por ahora, el API no soporta actualización de memoria de beneficiario individualmente.
+  }
 }

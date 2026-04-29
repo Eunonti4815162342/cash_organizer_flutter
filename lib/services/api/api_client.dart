@@ -1,13 +1,14 @@
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../../core/exceptions/app_exceptions.dart';
 import '../../core/logger/app_logger.dart';
 import '../../config/environment_factory.dart';
+import '../../core/ports/storage_port.dart';
+import '../storage/storage_factory.dart';
 
 /// Shared HTTP concerns: base URL resolution, auth headers, error mapping.
 class ApiClient {
-  final _storage = const FlutterSecureStorage();
+  final StoragePort _storage = StorageFactory.create();
 
   String get baseUrl {
     return EnvironmentFactory.getApiBaseUrl();

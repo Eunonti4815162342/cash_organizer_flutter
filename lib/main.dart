@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'l10n/app_localizations.dart';
 import 'infrastructure/ui/styles/app_styles.dart';
@@ -21,6 +20,7 @@ import 'services/config_service.dart';
 import 'services/connectivity_service.dart';
 import 'service_locator.dart';
 import 'config/environment_factory.dart';
+import 'services/storage/storage_factory.dart';
 
 // Importación condicional
 import 'services/background_sync.dart'
@@ -73,7 +73,7 @@ class _NataveAppState extends State<NataveApp> {
   Future<void> _checkLoginStatus() async {
     setState(() => _isLoading = true);
     try {
-      final storage = const FlutterSecureStorage();
+      final storage = StorageFactory.create();
       final token = await storage.read(key: 'jwt_token');
       
       if (token != null) {

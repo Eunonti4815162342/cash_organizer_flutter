@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import '../../../services/api_service.dart';
 import '../../../services/biometric_service.dart';
+import '../../../core/ports/storage_port.dart';
+import '../../../services/storage/storage_factory.dart';
 import '../../persistence/sqlite/database_helper.dart';
 import '../styles/app_styles.dart';
 import 'register_screen.dart';
@@ -21,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   late final ApiService _apiService;
   final _biometricService = BiometricService();
-  final _storage = const FlutterSecureStorage();
+  final StoragePort _storage = StorageFactory.create();
   bool _isLoading = false;
   bool _showRegister = false;
   bool _showForgotPassword = false;

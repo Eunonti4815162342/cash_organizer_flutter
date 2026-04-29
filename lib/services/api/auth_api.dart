@@ -1,10 +1,11 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/logger/app_logger.dart';
+import '../../core/ports/storage_port.dart';
+import '../storage/storage_factory.dart';
 import 'api_client.dart';
 
 class AuthApi {
   final ApiClient _client;
-  final _storage = const FlutterSecureStorage();
+  final StoragePort _storage = StorageFactory.create();
 
   AuthApi(this._client);
 

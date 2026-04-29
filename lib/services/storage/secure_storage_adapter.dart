@@ -29,3 +29,5 @@ class SecureStorageAdapter implements StoragePort {
     await _storage.deleteAll();
   }
 }
+
+StoragePort getStorageAdapter() => SecureStorageAdapter();

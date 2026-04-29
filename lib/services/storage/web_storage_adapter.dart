@@ -33,3 +33,5 @@ class WebStorageAdapter implements StoragePort {
     await prefs.clear();
   }
 }
+
+StoragePort getStorageAdapter() => WebStorageAdapter();

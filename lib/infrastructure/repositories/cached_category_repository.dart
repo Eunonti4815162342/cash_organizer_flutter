@@ -19,21 +19,15 @@ class CachedCategoryRepository implements ICategoryRepository {
     }
     try {
       final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 2));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
       return remote;
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }
 
   Future<void> _refreshInBackground() async {
     try {
       final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 5));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
     } catch (_) {}
   }
 
@@ -51,26 +45,28 @@ class CachedCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     if (!kIsWeb) await _localRepo?.saveCategory(category);
-    if (!kIsWeb) {
-      try {
-        await _apiService.createCategory(category);
-      } catch (_) {}
+    _apiService.createCategory(category).catchError((_) => null);
+  }
+
+  @override
+  Future<void> saveSubcategory(int categoryId, Subcategory sub) async {
+    if (!kIsWeb) await _localRepo?.saveSubcategory(categoryId, sub);
+    if (sub.id > 0) {
+      _apiService.updateSubcategory(sub.id, sub).catchError((_) => null);
+    } else {
+      _apiService.createSubcategory(categoryId, sub).catchError((_) => null);
     }
   }
 
   @override
   Future<void> deleteCategory(int id) async {
     if (!kIsWeb) await _localRepo?.deleteCategory(id);
-    try {
-      await _apiService.deleteCategory(id);
-    } catch (_) {}
+    _apiService.deleteCategory(id).catchError((_) => null);
   }
 
   @override
   Future<void> deleteSubcategory(int id) async {
     if (!kIsWeb) await _localRepo?.deleteSubcategory(id);
-    try {
-      await _apiService.deleteSubcategory(id);
-    } catch (_) {}
+    _apiService.deleteSubcategory(id).catchError((_) => null);
   }
 }

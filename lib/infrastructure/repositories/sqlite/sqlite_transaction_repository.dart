@@ -12,14 +12,11 @@ import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper
 class SqliteTransactionRepository implements ITransactionRepository {
   final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
 
-  /// Construye los argumentos de filtrado para SQLite (Lógica compartida)
   static Map<String, dynamic> buildFilterConditions(TransactionFilters f, {String alias = 't'}) {
     List<String> conditions = ['1=1'];
     List<dynamic> args = [];
-
     if (f.startDate != null) { conditions.add('$alias.date >= ?'); args.add(f.startDate); }
     if (f.endDate != null) { conditions.add('$alias.date <= ?'); args.add(f.endDate); }
-    
     if (f.accountIds != null && f.accountIds!.isNotEmpty) {
       conditions.add('$alias.account_id IN (${f.accountIds!.map((_) => '?').join(',')})');
       args.addAll(f.accountIds!);
@@ -36,7 +33,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
       conditions.add('$alias.beneficiary_id IN (${f.beneficiaryIds!.map((_) => '?').join(',')})');
       args.addAll(f.beneficiaryIds!);
     }
-
     return {'clause': conditions.join(' AND '), 'args': args};
   }
 
@@ -44,7 +40,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
   Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) async {
     final db = await _dbHelper.database;
     final f = buildFilterConditions(filters);
-
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT t.*, a.entity_id, a.entity_name as account_entity_name 
       FROM transactions t
@@ -52,7 +47,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
       WHERE ${f['clause']}
       ORDER BY t.date DESC
     ''', f['args']);
-    
     return _mapRows(maps);
   }
 
@@ -60,7 +54,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
   Future<TransactionItem> saveTransaction(TransactionItem tx, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
     int? beneficiaryId = tx.beneficiary?.id;
-
     if (tx.beneficiary != null) {
       if (beneficiaryId == null || beneficiaryId <= 0) {
         beneficiaryId = await db.insert('beneficiaries', {
@@ -77,18 +70,15 @@ class SqliteTransactionRepository implements ITransactionRepository {
         }, where: 'id = ?', whereArgs: [beneficiaryId]);
       }
     }
-
     final int effectiveId = isSynced ? tx.id : -(DateTime.now().millisecondsSinceEpoch % 1000000000);
     final row = _toRow(tx, id: effectiveId, serverId: isSynced ? tx.id : null, pendingSync: isSynced ? 0 : 1, overrideBeneficiaryId: beneficiaryId);
     await db.insert('transactions', row, conflictAlgorithm: ConflictAlgorithm.replace);
-    
     final List<Map<String, dynamic>> result = await db.rawQuery('''
       SELECT t.*, a.entity_id, a.entity_name as account_entity_name 
       FROM transactions t
       LEFT JOIN accounts a ON t.account_id = a.id
       WHERE t.id = ?
     ''', [effectiveId]);
-    
     return _mapRows(result).first;
   }
 
@@ -96,7 +86,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
   Future<void> updateTransaction(TransactionItem tx, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
     int? beneficiaryId = tx.beneficiary?.id;
-
     if (tx.beneficiary != null) {
       if (beneficiaryId == null || beneficiaryId <= 0) {
         beneficiaryId = await db.insert('beneficiaries', {
@@ -113,19 +102,17 @@ class SqliteTransactionRepository implements ITransactionRepository {
         }, where: 'id = ?', whereArgs: [beneficiaryId]);
       }
     }
-
     final row = _toRow(tx, id: tx.id, serverId: isSynced ? tx.id : null, pendingSync: isSynced ? 0 : 2, overrideBeneficiaryId: beneficiaryId);
     int updated = await db.update('transactions', row, where: 'server_id = ?', whereArgs: [tx.id]);
-    if (updated == 0) {
-      await db.update('transactions', row, where: 'id = ?', whereArgs: [tx.id]);
-    }
+    if (updated == 0) await db.update('transactions', row, where: 'id = ?', whereArgs: [tx.id]);
   }
 
   @override
   Future<void> deleteTransaction(int id) async {
     final db = await _dbHelper.database;
-    await db.delete('transactions', where: 'server_id = ?', whereArgs: [id]);
-    await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
+    // BLINDAJE DE BORRADO: Borramos por ambos campos para asegurar que desaparece
+    // tanto si es el ID local como si es el server_id
+    await db.delete('transactions', where: 'id = ? OR server_id = ?', whereArgs: [id, id]);
   }
 
   @override
@@ -182,10 +169,10 @@ class SqliteTransactionRepository implements ITransactionRepository {
     await db.update('transactions', {'pending_sync': 0, 'server_id': serverId}, where: 'id = ?', whereArgs: [localId]);
   }
 
-  Map<String, dynamic> _toRow(TransactionItem tx, {required int id, int? serverId, required int pendingSync, int? overrideBeneficiaryId}) {
+  Map<String, dynamic> _toRow(TransactionItem tx, {required int id, int? server_id, required int pendingSync, int? overrideBeneficiaryId}) {
     return {
       'id': id,
-      'server_id': serverId,
+      'server_id': server_id,
       'amount_value': tx.amount.value,
       'amount_currency': tx.amount.currency,
       'is_negative': tx.amount.isNegative ? 1 : 0,

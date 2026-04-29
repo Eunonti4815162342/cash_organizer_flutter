@@ -7,4 +7,7 @@ abstract class ICategoryRepository {
   Future<Category?> getById(int id);
   Future<void> deleteCategory(int id);
   Future<void> deleteSubcategory(int id);
+  
+  // Nuevo método para subcategorías
+  Future<void> saveSubcategory(int categoryId, Subcategory subcategory);
 }

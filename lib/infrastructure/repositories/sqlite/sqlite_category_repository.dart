@@ -23,20 +23,10 @@ class SqliteCategoryRepository implements ICategoryRepository {
 
       FinancialEntity? entity;
       if (c['financial_entity_id'] != null) {
-        entity = FinancialEntity(
-          id: c['financial_entity_id'] as int,
-          name: c['financial_entity_name'] as String? ?? '',
-          type: EntityType.PHYSICAL,
-        );
+        entity = FinancialEntity(id: c['financial_entity_id'] as int, name: c['financial_entity_name'] as String? ?? '', type: EntityType.PHYSICAL);
       }
 
-      return Category(
-        id: categoryId,
-        name: c['name'] as String,
-        type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
-        subcategories: subcategories,
-        financialEntity: entity,
-      );
+      return Category(id: categoryId, name: c['name'] as String, type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense, subcategories: subcategories, financialEntity: entity);
     }).toList();
   }
 
@@ -54,13 +44,7 @@ class SqliteCategoryRepository implements ICategoryRepository {
       entity = FinancialEntity(id: c['financial_entity_id'] as int, name: c['financial_entity_name'] as String? ?? '', type: EntityType.PHYSICAL);
     }
 
-    return Category(
-      id: c['id'] as int,
-      name: c['name'] as String,
-      type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
-      subcategories: subcategories,
-      financialEntity: entity,
-    );
+    return Category(id: c['id'] as int, name: c['name'] as String, type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense, subcategories: subcategories, financialEntity: entity);
   }
 
   @override
@@ -69,13 +53,7 @@ class SqliteCategoryRepository implements ICategoryRepository {
     final db = await _dbHelper.database;
     await db.transaction((txn) async {
       for (var cat in categories) {
-        await txn.insert('categories', {
-          'id': cat.id,
-          'name': cat.name,
-          'type': cat.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
-          'financial_entity_id': cat.financialEntity?.id,
-          'financial_entity_name': cat.financialEntity?.name,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('categories', {'id': cat.id, 'name': cat.name, 'type': cat.type == CategoryType.income ? 'INCOME' : 'EXPENSE', 'financial_entity_id': cat.financialEntity?.id, 'financial_entity_name': cat.financialEntity?.name}, conflictAlgorithm: ConflictAlgorithm.replace);
         for (var sub in cat.subcategories) {
           await txn.insert('subcategories', {'id': sub.id, 'name': sub.name, 'category_id': cat.id}, conflictAlgorithm: ConflictAlgorithm.replace);
         }
@@ -86,13 +64,13 @@ class SqliteCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     final db = await _dbHelper.database;
-    await db.insert('categories', {
-      'id': category.id,
-      'name': category.name,
-      'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
-      'financial_entity_id': category.financialEntity?.id,
-      'financial_entity_name': category.financialEntity?.name,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('categories', {'id': category.id, 'name': category.name, 'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE', 'financial_entity_id': category.financialEntity?.id, 'financial_entity_name': category.financialEntity?.name}, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  Future<void> saveSubcategory(int categoryId, Subcategory sub) async {
+    final db = await _dbHelper.database;
+    await db.insert('subcategories', {'id': sub.id == 0 ? null : sub.id, 'name': sub.name, 'category_id': categoryId}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   @override

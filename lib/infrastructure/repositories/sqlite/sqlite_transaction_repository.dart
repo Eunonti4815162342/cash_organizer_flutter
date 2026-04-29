@@ -4,6 +4,7 @@ import 'package:natave_flutter/domain/models/account_item.dart';
 import 'package:natave_flutter/domain/models/category.dart';
 import 'package:natave_flutter/domain/models/beneficiary.dart';
 import 'package:natave_flutter/domain/models/financial_entity.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
 import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
 import 'package:natave_flutter/service_locator.dart';
 import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper.dart';
@@ -11,28 +12,46 @@ import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper
 class SqliteTransactionRepository implements ITransactionRepository {
   final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
 
-  @override
-  Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
-    final db = await _dbHelper.database;
-    List<String> conditions = [];
+  /// Construye los argumentos de filtrado para SQLite (Lógica compartida)
+  static Map<String, dynamic> buildFilterConditions(TransactionFilters f, {String alias = 't'}) {
+    List<String> conditions = ['1=1'];
     List<dynamic> args = [];
-    if (startDate != null) { conditions.add('t.date >= ?'); args.add(startDate); }
-    if (endDate != null) { conditions.add('t.date <= ?'); args.add(endDate); }
-    if (accountId != null && accountId != "-1") {
-      final ids = accountId.split(',');
-      conditions.add('t.account_id IN (${ids.map((_) => '?').join(',')})');
-      args.addAll(ids.map((id) => int.parse(id)));
-    } else if (accountId == "-1") { return []; }
-    String whereClause = conditions.isNotEmpty ? 'WHERE ${conditions.join(' AND ')}' : '';
+
+    if (f.startDate != null) { conditions.add('$alias.date >= ?'); args.add(f.startDate); }
+    if (f.endDate != null) { conditions.add('$alias.date <= ?'); args.add(f.endDate); }
     
-    // Mejoramos la query para traer datos de la entidad de la cuenta
+    if (f.accountIds != null && f.accountIds!.isNotEmpty) {
+      conditions.add('$alias.account_id IN (${f.accountIds!.map((_) => '?').join(',')})');
+      args.addAll(f.accountIds!);
+    }
+    if (f.categoryIds != null && f.categoryIds!.isNotEmpty) {
+      conditions.add('$alias.category_id IN (${f.categoryIds!.map((_) => '?').join(',')})');
+      args.addAll(f.categoryIds!);
+    }
+    if (f.subcategoryIds != null && f.subcategoryIds!.isNotEmpty) {
+      conditions.add('$alias.subcategory_id IN (${f.subcategoryIds!.map((_) => '?').join(',')})');
+      args.addAll(f.subcategoryIds!);
+    }
+    if (f.beneficiaryIds != null && f.beneficiaryIds!.isNotEmpty) {
+      conditions.add('$alias.beneficiary_id IN (${f.beneficiaryIds!.map((_) => '?').join(',')})');
+      args.addAll(f.beneficiaryIds!);
+    }
+
+    return {'clause': conditions.join(' AND '), 'args': args};
+  }
+
+  @override
+  Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) async {
+    final db = await _dbHelper.database;
+    final f = buildFilterConditions(filters);
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT t.*, a.entity_id, a.entity_name as account_entity_name 
       FROM transactions t
       LEFT JOIN accounts a ON t.account_id = a.id
-      $whereClause 
+      WHERE ${f['clause']}
       ORDER BY t.date DESC
-    ''', args);
+    ''', f['args']);
     
     return _mapRows(maps);
   }
@@ -41,19 +60,28 @@ class SqliteTransactionRepository implements ITransactionRepository {
   Future<TransactionItem> saveTransaction(TransactionItem tx, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
     int? beneficiaryId = tx.beneficiary?.id;
-    if (tx.beneficiary != null && (beneficiaryId == null || beneficiaryId <= 0)) {
-      beneficiaryId = await db.insert('beneficiaries', {
-        'name': tx.beneficiary!.name,
-        'last_category_id': tx.category?.id,
-        'last_subcategory_id': tx.subcategory?.id,
-        'last_type': tx.type.name,
-      });
+
+    if (tx.beneficiary != null) {
+      if (beneficiaryId == null || beneficiaryId <= 0) {
+        beneficiaryId = await db.insert('beneficiaries', {
+          'name': tx.beneficiary!.name,
+          'last_category_id': tx.category?.id,
+          'last_subcategory_id': tx.subcategory?.id,
+          'last_type': tx.type.name,
+        });
+      } else {
+        await db.update('beneficiaries', {
+          'last_category_id': tx.category?.id,
+          'last_subcategory_id': tx.subcategory?.id,
+          'last_type': tx.type.name,
+        }, where: 'id = ?', whereArgs: [beneficiaryId]);
+      }
     }
+
     final int effectiveId = isSynced ? tx.id : -(DateTime.now().millisecondsSinceEpoch % 1000000000);
     final row = _toRow(tx, id: effectiveId, serverId: isSynced ? tx.id : null, pendingSync: isSynced ? 0 : 1, overrideBeneficiaryId: beneficiaryId);
     await db.insert('transactions', row, conflictAlgorithm: ConflictAlgorithm.replace);
     
-    // Para devolver el objeto completo, volvemos a consultar con el JOIN
     final List<Map<String, dynamic>> result = await db.rawQuery('''
       SELECT t.*, a.entity_id, a.entity_name as account_entity_name 
       FROM transactions t
@@ -68,14 +96,24 @@ class SqliteTransactionRepository implements ITransactionRepository {
   Future<void> updateTransaction(TransactionItem tx, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
     int? beneficiaryId = tx.beneficiary?.id;
-    if (tx.beneficiary != null && (beneficiaryId == null || beneficiaryId <= 0)) {
-      beneficiaryId = await db.insert('beneficiaries', {
-        'name': tx.beneficiary!.name,
-        'last_category_id': tx.category?.id,
-        'last_subcategory_id': tx.subcategory?.id,
-        'last_type': tx.type.name,
-      });
+
+    if (tx.beneficiary != null) {
+      if (beneficiaryId == null || beneficiaryId <= 0) {
+        beneficiaryId = await db.insert('beneficiaries', {
+          'name': tx.beneficiary!.name,
+          'last_category_id': tx.category?.id,
+          'last_subcategory_id': tx.subcategory?.id,
+          'last_type': tx.type.name,
+        });
+      } else {
+        await db.update('beneficiaries', {
+          'last_category_id': tx.category?.id,
+          'last_subcategory_id': tx.subcategory?.id,
+          'last_type': tx.type.name,
+        }, where: 'id = ?', whereArgs: [beneficiaryId]);
+      }
     }
+
     final row = _toRow(tx, id: tx.id, serverId: isSynced ? tx.id : null, pendingSync: isSynced ? 0 : 2, overrideBeneficiaryId: beneficiaryId);
     int updated = await db.update('transactions', row, where: 'server_id = ?', whereArgs: [tx.id]);
     if (updated == 0) {
@@ -172,12 +210,7 @@ class SqliteTransactionRepository implements ITransactionRepository {
     return maps.map((m) {
       Category? category;
       if (m['category_id'] != null || m['category_name'] != null) {
-        category = Category(
-          id: m['category_id'] as int? ?? 0,
-          name: m['category_name'] as String? ?? 'General',
-          type: m['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
-          subcategories: [],
-        );
+        category = Category(id: m['category_id'] as int? ?? 0, name: m['category_name'] as String? ?? 'General', type: m['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense, subcategories: []);
       }
       Subcategory? subcategory;
       if (m['subcategory_id'] != null) {
@@ -187,41 +220,26 @@ class SqliteTransactionRepository implements ITransactionRepository {
       if (m['beneficiary_id'] != null) {
         beneficiary = Beneficiary(id: m['beneficiary_id'] as int, name: m['beneficiary_name'] as String? ?? 'Desconocido');
       }
-      
       FinancialEntity? entity;
       if (m['entity_id'] != null) {
-        entity = FinancialEntity(
-          id: m['entity_id'] as int,
-          name: m['account_entity_name'] as String? ?? '',
-          type: EntityType.PHYSICAL, // Usamos el Enum correcto
-        );
+        entity = FinancialEntity(id: m['entity_id'] as int, name: m['account_entity_name'] as String? ?? '', type: EntityType.PHYSICAL);
       }
-
       AccountItem? toAccount;
       if (m['to_account_id'] != null) {
         toAccount = AccountItem(id: m['to_account_id'] as int, name: m['to_account_name'] as String? ?? '', amount: Amount(0, m['amount_currency'] as String, false), flags: 0);
       }
-
       return TransactionItem(
         id: (m['server_id'] ?? m['id']) as int,
         date: m['date'] as String,
         description: m['description'] as String? ?? '',
         amount: Amount(m['amount_value'] as int, m['amount_currency'] as String, m['is_negative'] == 1),
-        account: AccountItem(
-          id: m['account_id'] as int,
-          name: m['account_name'] as String? ?? '',
-          amount: Amount(0, m['amount_currency'] as String, false),
-          flags: 0,
-          entity: entity, // <--- AQUÍ está el fix: inyectamos la entidad recuperada con el JOIN
-        ),
+        account: AccountItem(id: m['account_id'] as int, name: m['account_name'] as String? ?? '', amount: Amount(0, m['amount_currency'] as String, false), flags: 0, entity: entity),
         category: category,
         subcategory: subcategory,
         beneficiary: beneficiary,
         toAccount: toAccount,
         type: TransactionType.values.firstWhere((e) => e.name == m['type'], orElse: () => TransactionType.EXPENSE),
-        isScheduled: false,
-        isHeader: false,
-        tags: [],
+        isScheduled: false, isHeader: false, tags: [],
       );
     }).toList();
   }

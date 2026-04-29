@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:natave_flutter/domain/models/category.dart';
+import 'package:natave_flutter/domain/models/financial_entity.dart';
 import 'package:natave_flutter/domain/repositories/category_repository.dart';
 import 'package:natave_flutter/service_locator.dart';
 import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper.dart';
@@ -19,7 +20,23 @@ class SqliteCategoryRepository implements ICategoryRepository {
           .where((s) => (s['category_id'] as int) == categoryId)
           .map((s) => Subcategory(id: s['id'] as int, name: s['name'] as String))
           .toList();
-      return Category(id: categoryId, name: c['name'] as String, type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense, subcategories: subcategories);
+
+      FinancialEntity? entity;
+      if (c['financial_entity_id'] != null) {
+        entity = FinancialEntity(
+          id: c['financial_entity_id'] as int,
+          name: c['financial_entity_name'] as String? ?? '',
+          type: EntityType.PHYSICAL,
+        );
+      }
+
+      return Category(
+        id: categoryId,
+        name: c['name'] as String,
+        type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
+        subcategories: subcategories,
+        financialEntity: entity,
+      );
     }).toList();
   }
 
@@ -31,7 +48,19 @@ class SqliteCategoryRepository implements ICategoryRepository {
     final c = maps.first;
     final subMaps = await db.query('subcategories', where: 'category_id = ?', whereArgs: [id]);
     final subcategories = subMaps.map((s) => Subcategory(id: s['id'] as int, name: s['name'] as String)).toList();
-    return Category(id: c['id'] as int, name: c['name'] as String, type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense, subcategories: subcategories);
+
+    FinancialEntity? entity;
+    if (c['financial_entity_id'] != null) {
+      entity = FinancialEntity(id: c['financial_entity_id'] as int, name: c['financial_entity_name'] as String? ?? '', type: EntityType.PHYSICAL);
+    }
+
+    return Category(
+      id: c['id'] as int,
+      name: c['name'] as String,
+      type: c['type'] == 'INCOME' ? CategoryType.income : CategoryType.expense,
+      subcategories: subcategories,
+      financialEntity: entity,
+    );
   }
 
   @override
@@ -40,7 +69,13 @@ class SqliteCategoryRepository implements ICategoryRepository {
     final db = await _dbHelper.database;
     await db.transaction((txn) async {
       for (var cat in categories) {
-        await txn.insert('categories', {'id': cat.id, 'name': cat.name, 'type': cat.type == CategoryType.income ? 'INCOME' : 'EXPENSE'}, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('categories', {
+          'id': cat.id,
+          'name': cat.name,
+          'type': cat.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
+          'financial_entity_id': cat.financialEntity?.id,
+          'financial_entity_name': cat.financialEntity?.name,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
         for (var sub in cat.subcategories) {
           await txn.insert('subcategories', {'id': sub.id, 'name': sub.name, 'category_id': cat.id}, conflictAlgorithm: ConflictAlgorithm.replace);
         }
@@ -51,7 +86,13 @@ class SqliteCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     final db = await _dbHelper.database;
-    await db.insert('categories', {'id': category.id, 'name': category.name, 'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE'}, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('categories', {
+      'id': category.id,
+      'name': category.name,
+      'type': category.type == CategoryType.income ? 'INCOME' : 'EXPENSE',
+      'financial_entity_id': category.financialEntity?.id,
+      'financial_entity_name': category.financialEntity?.name,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   @override

@@ -20,7 +20,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'natave_v1.db');
     return await openDatabase(
       path,
-      version: 8,
+      version: 9, // Subimos a la versión 9
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -56,7 +56,16 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)');
+    // Categorías con soporte para Entidades
+    await db.execute('''
+      CREATE TABLE categories (
+        id INTEGER PRIMARY KEY, 
+        name TEXT NOT NULL, 
+        type TEXT NOT NULL,
+        financial_entity_id INTEGER,
+        financial_entity_name TEXT
+      )
+    ''');
 
     await db.execute('''
       CREATE TABLE subcategories (
@@ -108,6 +117,11 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_category_id INTEGER'); } catch (_) {}
       try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_subcategory_id INTEGER'); } catch (_) {}
       try { await db.execute('ALTER TABLE beneficiaries ADD COLUMN last_type TEXT'); } catch (_) {}
+    }
+    // MIGRACIÓN VERSIÓN 9: Añadir soporte de entidades a categorías
+    if (oldVersion < 9) {
+      try { await db.execute('ALTER TABLE categories ADD COLUMN financial_entity_id INTEGER'); } catch (_) {}
+      try { await db.execute('ALTER TABLE categories ADD COLUMN financial_entity_name TEXT'); } catch (_) {}
     }
   }
 

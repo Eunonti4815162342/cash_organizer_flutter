@@ -56,7 +56,7 @@ class SqliteBeneficiaryRepository implements IBeneficiaryRepository {
     });
   }
 
-  @override
+  // Eliminamos el @override erróneo ya que este método no está en la interfaz IBeneficiaryRepository
   Future<void> updateBeneficiaryMemory(int id, int? catId, int? subId, String? type) async {
     final db = await _dbHelper.database;
     await db.update(

@@ -1,27 +1,31 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../domain/models/transaction_item.dart';
-import '../../domain/repositories/transaction_repository.dart';
-import '../../services/api_service.dart';
-import '../../service_locator.dart';
+import 'package:natave_flutter/domain/models/transaction_item.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
+import 'package:natave_flutter/services/api_service.dart';
+import 'package:natave_flutter/service_locator.dart';
 
 class CachedTransactionRepository implements ITransactionRepository {
   final ApiService _apiService = getIt<ApiService>();
   ITransactionRepository? get _localRepo => kIsWeb ? null : getIt<ITransactionRepository>(instanceName: 'local_transaction');
 
   @override
-  Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) async {
+  Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) async {
+    // 1. LOCAL FIRST (CON TODOS LOS FILTROS)
     if (!kIsWeb) {
-      final local = await _localRepo?.fetchTransactions(startDate: startDate, endDate: endDate, accountId: accountId) ?? [];
+      final local = await _localRepo?.fetchTransactions(filters) ?? [];
       if (local.isNotEmpty) {
-        _refreshInBackground(startDate, endDate, accountId);
+        _refreshInBackground(filters);
         return local;
       }
     }
 
+    // 2. NETWORK FALLBACK (Solo si local vacío o Web)
     try {
-      final remote = await _apiService.fetchTransactions(startDate: startDate, endDate: endDate, accountId: accountId);
+      final remote = await _apiService.fetchTransactions(filters).timeout(const Duration(seconds: 3));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
+        return await _localRepo!.fetchTransactions(filters);
       }
       return remote;
     } catch (e) {
@@ -29,9 +33,9 @@ class CachedTransactionRepository implements ITransactionRepository {
     }
   }
 
-  Future<void> _refreshInBackground(String? start, String? end, String? accId) async {
+  Future<void> _refreshInBackground(TransactionFilters filters) async {
     try {
-      final remote = await _apiService.fetchTransactions(startDate: start, endDate: end, accountId: accId);
+      final remote = await _apiService.fetchTransactions(filters).timeout(const Duration(seconds: 5));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
       }
@@ -44,14 +48,10 @@ class CachedTransactionRepository implements ITransactionRepository {
       final remote = await _apiService.createTransaction(transaction.toJson());
       return remote ?? transaction;
     }
-    
     final saved = await _localRepo!.saveTransaction(transaction, isSynced: false);
     _apiService.createTransaction(transaction.toJson()).then((remote) {
       if (remote != null) _localRepo?.markAsSynced(saved.id, remote.id);
-    }).catchError((_) {
-      return null; // Devolvemos null explícito para evitar error de tipo
-    });
-    
+    }).catchError((_) => null);
     return saved;
   }
 
@@ -62,17 +62,15 @@ class CachedTransactionRepository implements ITransactionRepository {
       return;
     }
     await _localRepo!.updateTransaction(transaction, isSynced: false);
-    _apiService.updateTransaction(transaction.id, transaction.toJson()).catchError((_) {
-      return null;
-    });
+    _apiService.updateTransaction(transaction.id, transaction.toJson()).catchError((_) => null);
   }
 
   @override
   Future<void> deleteTransaction(int id) async {
     if (!kIsWeb) await _localRepo?.deleteTransaction(id);
-    _apiService.deleteTransaction(id).catchError((_) {
-      return false; // deleteTransaction suele devolver Future<bool> en la API
-    });
+    if (id > 0) {
+      _apiService.deleteTransaction(id).catchError((_) => null);
+    }
   }
 
   @override
@@ -82,16 +80,14 @@ class CachedTransactionRepository implements ITransactionRepository {
 
   @override
   Future<TransactionItem?> getById(int id) async {
-    if (kIsWeb) return null;
-    return await _localRepo?.getById(id);
+    if (!kIsWeb) return await _localRepo?.getById(id);
+    return null;
   }
 
   @override
   Future<List<TransactionItem>> getPendingCreatesToSync() => _localRepo?.getPendingCreatesToSync() ?? Future.value([]);
-  
   @override
   Future<List<TransactionItem>> getPendingToSync() => _localRepo?.getPendingToSync() ?? Future.value([]);
-  
   @override
   Future<void> markAsSynced(int localId, int serverId) => _localRepo?.markAsSynced(localId, serverId) ?? Future.value();
 }

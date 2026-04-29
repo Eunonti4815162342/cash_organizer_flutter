@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import '../../../domain/models/account_item.dart';
-import '../../../domain/models/transaction_item.dart';
-import '../../../domain/models/financial_entity.dart';
-import '../../../domain/repositories/transaction_repository.dart';
-import '../styles/app_styles.dart';
-import '../widgets/transaction_list_item.dart';
-import '../widgets/skeleton_widgets.dart';
-import '../widgets/ui_helpers.dart';
-import 'transaction_form_screen.dart';
+import 'package:natave_flutter/domain/models/account_item.dart';
+import 'package:natave_flutter/domain/models/transaction_item.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/domain/models/financial_entity.dart';
+import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
+import 'package:natave_flutter/infrastructure/ui/styles/app_styles.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/transaction_list_item.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/skeleton_widgets.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/ui_helpers.dart';
+import 'package:natave_flutter/infrastructure/ui/screens/transaction_form_screen.dart';
 
 class AccountDetailsScreen extends StatefulWidget {
   final AccountItem? account;
@@ -41,9 +42,11 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
   void _refreshTransactions() {
     setState(() {
       _transactionsFuture = _transactionRepo.fetchTransactions(
-        accountId: widget.account?.id.toString(),
-        startDate: _startDate.toIso8601String(),
-        endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+        TransactionFilters(
+          accountIds: widget.account?.id != null ? [widget.account!.id] : null,
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+        )
       );
     });
   }

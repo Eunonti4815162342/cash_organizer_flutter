@@ -1,19 +1,31 @@
-import '../../domain/models/transaction_item.dart';
-import 'api_client.dart';
+import 'package:natave_flutter/domain/models/transaction_item.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/services/api/api_client.dart';
 
 class TransactionApi {
   final ApiClient _client;
 
   TransactionApi(this._client);
 
-  Future<List<TransactionItem>> fetch({String? startDate, String? endDate, String? accountId}) async {
+  Future<List<TransactionItem>> fetch(TransactionFilters filters) async {
     final params = <String, String>{};
-    if (startDate != null) params['startDate'] = startDate;
-    if (endDate != null) params['endDate'] = endDate;
-    if (accountId != null) params['accountId'] = accountId;
+    if (filters.startDate != null) params['startDate'] = filters.startDate!;
+    if (filters.endDate != null) params['endDate'] = filters.endDate!;
+    if (filters.accountIds != null && filters.accountIds!.isNotEmpty) {
+      params['accountId'] = filters.accountIds!.join(',');
+    }
+    if (filters.categoryIds != null && filters.categoryIds!.isNotEmpty) {
+      params['categoryIds'] = filters.categoryIds!.join(',');
+    }
+    if (filters.subcategoryIds != null && filters.subcategoryIds!.isNotEmpty) {
+      params['subcategoryIds'] = filters.subcategoryIds!.join(',');
+    }
+    if (filters.beneficiaryIds != null && filters.beneficiaryIds!.isNotEmpty) {
+      params['beneficiaryIds'] = filters.beneficiaryIds!.join(',');
+    }
     
     final body = await _client.get('transactions', queryParameters: params.isEmpty ? null : params);
-    final List<dynamic> list = body['content'] ?? [];
+    final List<dynamic> list = body?['content'] ?? [];
     return list.map((json) => TransactionItem.fromJson(json)).toList();
   }
 
@@ -28,8 +40,7 @@ class TransactionApi {
   }
 
   Future<bool> delete(int id) async {
-    // Para el delete, el cliente devuelve null si es 200/204
     await _client.delete('transactions/$id');
-    return true; // Si no lanzó excepción, es éxito
+    return true; 
   }
 }

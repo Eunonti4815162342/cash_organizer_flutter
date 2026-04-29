@@ -4,17 +4,15 @@ import '../domain/models/transaction_item.dart';
 import '../domain/models/category.dart';
 import '../domain/models/financial_entity.dart';
 import '../domain/models/beneficiary.dart';
-import 'api/api_client.dart';
-import 'api/auth_api.dart';
-import 'api/account_api.dart';
-import 'api/transaction_api.dart';
-import 'api/category_api.dart';
-import 'api/entity_api.dart';
-import 'api/report_api.dart';
-import 'api/beneficiary_api.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/services/api/api_client.dart';
+import 'package:natave_flutter/services/api/auth_api.dart';
+import 'package:natave_flutter/services/api/account_api.dart';
+import 'package:natave_flutter/services/api/transaction_api.dart';
+import 'package:natave_flutter/services/api/category_api.dart';
+import 'package:natave_flutter/services/api/entity_api.dart';
+import 'package:natave_flutter/services/api/beneficiary_api.dart';
 
-/// Thin facade over the split Api classes. Preserves the legacy API surface
-/// used by 13 callers while delegating each concern to its dedicated client.
 class ApiService {
   final ApiClient client = ApiClient();
 
@@ -25,7 +23,6 @@ class ApiService {
   late final TransactionApi _transactions = TransactionApi(client);
   late final CategoryApi _categories = CategoryApi(client);
   late final EntityApi _entities = EntityApi(client);
-  late final ReportApi _reports = ReportApi(client);
   late final BeneficiaryApi _beneficiaries = BeneficiaryApi(client);
 
   static String get baseUrl => ApiClient().baseUrl;
@@ -53,8 +50,7 @@ class ApiService {
   Future<bool> deleteEntity(int id) => _entities.delete(id);
 
   // --- TRANSACTIONS ---
-  Future<List<TransactionItem>> fetchTransactions({String? startDate, String? endDate, String? accountId}) =>
-      _transactions.fetch(startDate: startDate, endDate: endDate, accountId: accountId);
+  Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) => _transactions.fetch(filters);
   Future<TransactionItem?> createTransaction(Map<String, dynamic> data) => _transactions.create(data);
   Future<TransactionItem?> updateTransaction(int id, Map<String, dynamic> data) => _transactions.update(id, data);
   Future<bool> deleteTransaction(int id) => _transactions.delete(id);
@@ -77,63 +73,4 @@ class ApiService {
   Future<List<TransactionItem>> fetchTransactionsByCategory(int categoryId) =>
       _categories.fetchTransactionsByCategory(categoryId);
   Future<Map<String, dynamic>> deleteCategory(int id) => _categories.delete(id);
-
-  // --- REPORTS ---
-  Future<Map<String, double>> fetchCategoryStats({
-    String? startDate,
-    String? endDate,
-    List<int>? accountIds,
-    bool groupBySubcategory = false,
-  }) =>
-      _reports.fetchCategoryStats(
-        startDate: startDate,
-        endDate: endDate,
-        accountIds: accountIds,
-        groupBySubcategory: groupBySubcategory,
-      );
-
-  Future<Map<String, double>> fetchEntityStats({
-    String? startDate,
-    String? endDate,
-    List<int>? accountIds,
-  }) =>
-      _reports.fetchEntityStats(
-        startDate: startDate,
-        endDate: endDate,
-        accountIds: accountIds,
-      );
-
-  Future<Map<String, double>> fetchBeneficiaryStats({
-    String? startDate,
-    String? endDate,
-    List<int>? accountIds,
-  }) =>
-      _reports.fetchBeneficiaryStats(
-        startDate: startDate,
-        endDate: endDate,
-        accountIds: accountIds,
-      );
-
-  Future<Uint8List?> downloadPdfReport({
-    required String title,
-    required String chartType,
-    String? reportType,
-    String? startDate,
-    String? endDate,
-    List<int>? accountIds,
-    List<int>? categoryIds,
-    List<int>? beneficiaryIds,
-    String lang = 'en',
-  }) =>
-      _reports.downloadPdf(
-        title: title,
-        chartType: chartType,
-        reportType: reportType,
-        startDate: startDate,
-        endDate: endDate,
-        accountIds: accountIds,
-        categoryIds: categoryIds,
-        beneficiaryIds: beneficiaryIds,
-        lang: lang,
-      );
 }

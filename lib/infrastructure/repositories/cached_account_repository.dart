@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../domain/models/account_item.dart';
-import '../../domain/repositories/account_repository.dart';
-import '../../services/api_service.dart';
-import '../../service_locator.dart';
+import 'package:natave_flutter/domain/models/account_item.dart';
+import 'package:natave_flutter/domain/repositories/account_repository.dart';
+import 'package:natave_flutter/services/api_service.dart';
+import 'package:natave_flutter/service_locator.dart';
 
 class CachedAccountRepository implements IAccountRepository {
   final ApiService _apiService = getIt<ApiService>();
@@ -10,16 +10,18 @@ class CachedAccountRepository implements IAccountRepository {
 
   @override
   Future<List<AccountItem>> fetchAccounts() async {
+    // 1. SIEMPRE LOCAL PRIMERO (INSTANTÁNEO)
     if (!kIsWeb) {
       final local = await _localRepo?.fetchAccounts() ?? [];
       if (local.isNotEmpty) {
-        _refreshInBackground();
+        _refreshInBackground(); // Sincronización silenciosa
         return local;
       }
     }
 
+    // 2. SOLO SI NO HAY NADA O ES WEB
     try {
-      final remote = await _apiService.fetchAccounts();
+      final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 2));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
       }
@@ -31,7 +33,7 @@ class CachedAccountRepository implements IAccountRepository {
 
   Future<void> _refreshInBackground() async {
     try {
-      final remote = await _apiService.fetchAccounts();
+      final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 5));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
       }
@@ -45,9 +47,7 @@ class CachedAccountRepository implements IAccountRepository {
     final saved = await _localRepo!.saveAccount(account, isSynced: false);
     _apiService.createAccount(account.toJson()).then((remote) {
       if (remote != null) _localRepo?.markAsSynced(saved.id, remote.id);
-    }).catchError((_) {
-      return null;
-    });
+    }).catchError((_) => null);
 
     return saved;
   }
@@ -59,9 +59,7 @@ class CachedAccountRepository implements IAccountRepository {
       return;
     }
     await _localRepo!.updateAccount(account, isSynced: false);
-    _apiService.updateAccount(account.id, account.toJson()).catchError((_) {
-      return null;
-    });
+    _apiService.updateAccount(account.id, account.toJson()).catchError((_) => null);
   }
 
   @override
@@ -71,8 +69,8 @@ class CachedAccountRepository implements IAccountRepository {
 
   @override
   Future<AccountItem?> getById(int id) async {
-    if (kIsWeb) return null;
-    return await _localRepo?.getById(id);
+    if (!kIsWeb) return await _localRepo?.getById(id);
+    return null;
   }
 
   @override

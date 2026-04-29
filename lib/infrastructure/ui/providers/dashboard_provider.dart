@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../../../domain/models/account_item.dart';
-import '../../../domain/models/transaction_item.dart';
-import '../../../domain/repositories/transaction_repository.dart';
-import '../../../domain/repositories/account_repository.dart';
-import '../../../service_locator.dart';
+import 'package:natave_flutter/domain/models/account_item.dart';
+import 'package:natave_flutter/domain/models/transaction_item.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
+import 'package:natave_flutter/domain/repositories/account_repository.dart';
+import 'package:natave_flutter/service_locator.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final ITransactionRepository _transactionRepo;
@@ -52,8 +53,10 @@ class DashboardProvider extends ChangeNotifier {
           
           // Carga inicial de transacciones locales para pintar el dashboard YA
           _cachedTransactions = await getIt<ITransactionRepository>(instanceName: 'local_transaction').fetchTransactions(
-            startDate: _startDate.toIso8601String(),
-            endDate: _endDate.toIso8601String(),
+            TransactionFilters(
+              startDate: _startDate.toIso8601String(),
+              endDate: _endDate.toIso8601String(),
+            )
           );
           _recomputeCategories();
           
@@ -92,8 +95,10 @@ class DashboardProvider extends ChangeNotifier {
 
       // Intentamos obtener transacciones de red (vía CachedRepository que gestiona el fallback)
       _cachedTransactions = await _transactionRepo.fetchTransactions(
-        startDate: _startDate.toIso8601String(),
-        endDate: _endDate.toIso8601String(),
+        TransactionFilters(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.toIso8601String(),
+        )
       );
       
       _recomputeCategories();

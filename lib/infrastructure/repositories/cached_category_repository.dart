@@ -10,7 +10,6 @@ class CachedCategoryRepository implements ICategoryRepository {
 
   @override
   Future<List<Category>> fetchCategories() async {
-    // 1. LOCAL FIRST
     if (!kIsWeb) {
       final local = await _localRepo?.fetchCategories() ?? [];
       if (local.isNotEmpty) {
@@ -18,10 +17,8 @@ class CachedCategoryRepository implements ICategoryRepository {
         return local;
       }
     }
-
-    // 2. NETWORK FALLBACK
     try {
-      final remote = await _apiService.fetchCategories();
+      final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 2));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
       }
@@ -33,7 +30,7 @@ class CachedCategoryRepository implements ICategoryRepository {
 
   Future<void> _refreshInBackground() async {
     try {
-      final remote = await _apiService.fetchCategories();
+      final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 5));
       if (remote.isNotEmpty && !kIsWeb) {
         await _localRepo?.saveAll(remote);
       }
@@ -42,8 +39,8 @@ class CachedCategoryRepository implements ICategoryRepository {
 
   @override
   Future<Category?> getById(int id) async {
-    if (kIsWeb) return null;
-    return await _localRepo?.getById(id);
+    if (!kIsWeb) return await _localRepo?.getById(id);
+    return null;
   }
 
   @override
@@ -54,27 +51,26 @@ class CachedCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     if (!kIsWeb) await _localRepo?.saveCategory(category);
+    if (!kIsWeb) {
+      try {
+        await _apiService.createCategory(category);
+      } catch (_) {}
+    }
   }
 
   @override
   Future<void> deleteCategory(int id) async {
-    // 1. Delete on Server
-    await _apiService.deleteCategory(id);
-    
-    // 2. Delete on Local
-    if (!kIsWeb) {
-      await _localRepo?.deleteCategory(id);
-    }
+    if (!kIsWeb) await _localRepo?.deleteCategory(id);
+    try {
+      await _apiService.deleteCategory(id);
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteSubcategory(int id) async {
-    // 1. Delete on Server
-    await _apiService.deleteSubcategory(id);
-    
-    // 2. Delete on Local
-    if (!kIsWeb) {
-      await _localRepo?.deleteSubcategory(id);
-    }
+    if (!kIsWeb) await _localRepo?.deleteSubcategory(id);
+    try {
+      await _apiService.deleteSubcategory(id);
+    } catch (_) {}
   }
 }

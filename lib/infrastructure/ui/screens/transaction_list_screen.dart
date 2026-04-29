@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import '../../../domain/models/transaction_item.dart';
-import '../../../domain/models/financial_entity.dart';
-import '../../../domain/repositories/transaction_repository.dart';
-import '../../../services/api_service.dart';
-import '../../../l10n/app_localizations.dart';
-import '../styles/app_styles.dart';
-import 'transaction_form_screen.dart';
-import '../widgets/transaction_list_item.dart';
-import '../widgets/skeleton_widgets.dart';
-import '../widgets/ui_helpers.dart';
+import 'package:natave_flutter/domain/models/transaction_item.dart';
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
+import 'package:natave_flutter/domain/models/financial_entity.dart';
+import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
+import 'package:natave_flutter/domain/repositories/entity_repository.dart';
+import 'package:natave_flutter/l10n/app_localizations.dart';
+import 'package:natave_flutter/infrastructure/ui/styles/app_styles.dart';
+import 'package:natave_flutter/infrastructure/ui/screens/transaction_form_screen.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/transaction_list_item.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/skeleton_widgets.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/ui_helpers.dart';
 
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
@@ -20,14 +21,13 @@ class TransactionListScreen extends StatefulWidget {
 
 class _TransactionListScreenState extends State<TransactionListScreen> {
   final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
-  final ApiService _apiService = GetIt.instance.get<ApiService>();
+  final IEntityRepository _entityRepo = GetIt.instance.get<IEntityRepository>();
 
   late Future<List<TransactionItem>> _transactionsFuture;
   List<FinancialEntity> _entities = [];
   FinancialEntity? _selectedEntity;
   String _searchQuery = '';
   
-  // Filtro de fecha: por defecto el mes actual
   late DateTime _startDate;
   late DateTime _endDate;
 
@@ -44,7 +44,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Future<void> _loadEntities() async {
     try {
-      final ents = await _apiService.fetchEntities();
+      final ents = await _entityRepo.fetchEntities();
       if (mounted) setState(() => _entities = ents);
     } catch (_) {}
   }
@@ -52,9 +52,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   void _refreshTransactions() {
     setState(() {
       _transactionsFuture = _transactionRepo.fetchTransactions(
-        startDate: _startDate.toIso8601String(),
-        // Añadimos un día al final para incluir las transacciones de hoy si es necesario
-        endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+        TransactionFilters(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+        )
       );
     });
   }
@@ -65,25 +66,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryBlue,
-              onPrimary: Colors.white,
-              onSurface: AppColors.primaryText,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: AppColors.primaryBlue, onPrimary: Colors.white, onSurface: AppColors.primaryText),
+        ),
+        child: child!,
+      ),
     );
-
     if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
+      setState(() { _startDate = picked.start; _endDate = picked.end; });
       _refreshTransactions();
     }
   }
@@ -91,7 +82,6 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       backgroundColor: AppColors.windowBackground,
       body: Column(
@@ -102,49 +92,23 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             child: FutureBuilder<List<TransactionItem>>(
               future: _transactionsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SkeletonTransactionList(itemCount: 8);
-                }
-                if (snapshot.hasError) {
-                  return ErrorStateWidget(message: 'Error al cargar transacciones', onRetry: _refreshTransactions);
-                }
+                if (snapshot.connectionState == ConnectionState.waiting) return const SkeletonTransactionList(itemCount: 8);
+                if (snapshot.hasError) return ErrorStateWidget(message: 'Error al cargar transacciones', onRetry: _refreshTransactions);
 
                 final allTransactions = snapshot.data ?? [];
-                
-                // FILTRADO COMBINADO: Empresa + Búsqueda
                 final filteredTransactions = allTransactions.where((tx) {
-                  // Filtro por Empresa
-                  if (_selectedEntity != null) {
-                    if (tx.account.entity?.id != _selectedEntity!.id) return false;
-                  }
-
-                  // Filtro por Texto
+                  if (_selectedEntity != null && tx.account.entity?.id != _selectedEntity!.id) return false;
                   final query = _searchQuery.toLowerCase();
                   if (query.isEmpty) return true;
-
-                  final desc = tx.description.toLowerCase();
-                  final cat = (tx.category?.name ?? '').toLowerCase();
-                  final ben = (tx.beneficiary?.name ?? '').toLowerCase();
-                  final acc = tx.account.name.toLowerCase();
-
-                  return desc.contains(query) || cat.contains(query) || ben.contains(query) || acc.contains(query);
+                  return tx.description.toLowerCase().contains(query) || (tx.category?.name ?? '').toLowerCase().contains(query) || (tx.beneficiary?.name ?? '').toLowerCase().contains(query) || tx.account.name.toLowerCase().contains(query);
                 }).toList();
 
-                if (filteredTransactions.isEmpty) {
-                  return EmptyStateWidget(
-                    icon: Icons.receipt_long_outlined,
-                    title: l10n.noData,
-                    subtitle: 'No se encontraron resultados para los filtros aplicados',
-                  );
-                }
+                if (filteredTransactions.isEmpty) return EmptyStateWidget(icon: Icons.receipt_long_outlined, title: l10n.noData, subtitle: 'No se encontraron resultados');
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 8, bottom: 80),
                   itemCount: filteredTransactions.length,
-                  itemBuilder: (context, index) => TransactionListItem(
-                    transaction: filteredTransactions[index],
-                    onRefresh: _refreshTransactions,
-                  ),
+                  itemBuilder: (context, index) => TransactionListItem(transaction: filteredTransactions[index], onRefresh: _refreshTransactions),
                 );
               },
             ),
@@ -153,13 +117,8 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const TransactionFormScreen()),
-          );
-          if (result == true) {
-            _refreshTransactions();
-          }
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const TransactionFormScreen()));
+          if (result == true) _refreshTransactions();
         },
         backgroundColor: AppColors.primaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
@@ -181,18 +140,14 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   decoration: InputDecoration(
                     hintText: l10n.search,
                     prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
+                    filled: true, fillColor: Colors.grey.shade100,
                     contentPadding: EdgeInsets.zero,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.primaryBlue),
-                onPressed: _refreshTransactions,
-              ),
+              IconButton(icon: const Icon(Icons.refresh, color: AppColors.primaryBlue), onPressed: _refreshTransactions),
             ],
           ),
           const SizedBox(height: 8),
@@ -208,20 +163,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.primaryBlue.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
-        ),
+        decoration: BoxDecoration(color: AppColors.primaryBlue.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2))),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.primaryBlue),
             const SizedBox(width: 8),
-            Text(
-              '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryBlue),
-            ),
+            Text('${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryBlue)),
             const SizedBox(width: 4),
             const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.primaryBlue),
           ],
@@ -232,28 +180,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Widget _buildFilters() {
     return Container(
-      height: 50,
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 50, width: double.infinity, color: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          // Opción "TODAS"
-          _buildFilterChip(
-            label: 'TODAS',
-            isSelected: _selectedEntity == null,
-            onSelected: (_) => setState(() => _selectedEntity = null),
-          ),
+          _buildFilterChip(label: 'TODAS', isSelected: _selectedEntity == null, onSelected: (_) => setState(() => _selectedEntity = null)),
           const SizedBox(width: 8),
-          // Lista de Empresas
           ..._entities.map((entity) => Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: _buildFilterChip(
-              label: entity.name.toUpperCase(),
-              isSelected: _selectedEntity?.id == entity.id,
-              onSelected: (_) => setState(() => _selectedEntity = entity),
-            ),
+            child: _buildFilterChip(label: entity.name.toUpperCase(), isSelected: _selectedEntity?.id == entity.id, onSelected: (_) => setState(() => _selectedEntity = entity)),
           )),
         ],
       ),
@@ -263,11 +198,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Widget _buildFilterChip({required String label, required bool isSelected, required Function(bool) onSelected}) {
     return FilterChip(
       label: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.secondaryText)),
-      selected: isSelected,
-      onSelected: onSelected,
-      selectedColor: AppColors.primaryBlue,
-      checkmarkColor: Colors.white,
-      backgroundColor: Colors.grey.shade100,
+      selected: isSelected, onSelected: onSelected, selectedColor: AppColors.primaryBlue, checkmarkColor: Colors.white, backgroundColor: Colors.grey.shade100,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? AppColors.primaryBlue : Colors.transparent)),
       visualDensity: VisualDensity.compact,
     );

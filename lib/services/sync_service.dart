@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:natave_flutter/domain/models/transaction_filters.dart';
 import '../domain/repositories/transaction_repository.dart';
 import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/category_repository.dart';
@@ -27,8 +28,6 @@ class SyncService {
       final bool online = await _apiService.isOnline();
       if (!online) return;
 
-      print('[SyncService] INICIANDO CARGA TOTAL DE DATOS (Offline-First Warm-up)...');
-
       // 1. DESCARGA DE METADATOS Y ENTIDADES CORE
       await _syncEntities();
       await _syncCategories();
@@ -44,9 +43,8 @@ class SyncService {
       await _syncPendingTransactionUpdates();
       await _syncPendingAccountUpdates();
 
-      print('[SyncService] CARGA TOTAL COMPLETADA. Teléfono sincronizado.');
     } catch (e) {
-      print('[SyncService] Error durante la sincronización masiva: $e');
+      // Fallo silencioso en background
     }
   }
 
@@ -79,9 +77,8 @@ class SyncService {
 
   Future<void> _syncAllTransactions() async {
     try {
-      // Descargamos las transacciones del periodo actual (o un rango amplio)
-      // En una versión futura podríamos implementar paginación aquí
-      final txs = await _apiService.fetchTransactions();
+      // Descargamos las transacciones usando el nuevo objeto de filtros vacío (todas)
+      final txs = await _apiService.fetchTransactions(const TransactionFilters());
       if (txs.isNotEmpty) await _transactionRepo.saveAll(txs);
     } catch (_) {}
   }

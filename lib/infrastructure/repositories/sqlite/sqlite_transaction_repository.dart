@@ -193,7 +193,7 @@ class SqliteTransactionRepository implements ITransactionRepository {
         entity = FinancialEntity(
           id: m['entity_id'] as int,
           name: m['account_entity_name'] as String? ?? '',
-          type: 'PHYSICAL', // Default
+          type: EntityType.PHYSICAL, // Usamos el Enum correcto
         );
       }
 

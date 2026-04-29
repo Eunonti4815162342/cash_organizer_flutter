@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../domain/models/category.dart';
-import '../../domain/repositories/category_repository.dart';
-import '../../services/api_service.dart';
-import '../../service_locator.dart';
+import 'package:natave_flutter/domain/models/category.dart';
+import 'package:natave_flutter/domain/repositories/category_repository.dart';
+import 'package:natave_flutter/services/api_service.dart';
+import 'package:natave_flutter/service_locator.dart';
 
 class CachedCategoryRepository implements ICategoryRepository {
   final ApiService _apiService = getIt<ApiService>();
@@ -54,5 +54,27 @@ class CachedCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     if (!kIsWeb) await _localRepo?.saveCategory(category);
+  }
+
+  @override
+  Future<void> deleteCategory(int id) async {
+    // 1. Delete on Server
+    await _apiService.deleteCategory(id);
+    
+    // 2. Delete on Local
+    if (!kIsWeb) {
+      await _localRepo?.deleteCategory(id);
+    }
+  }
+
+  @override
+  Future<void> deleteSubcategory(int id) async {
+    // 1. Delete on Server
+    await _apiService.deleteSubcategory(id);
+    
+    // 2. Delete on Local
+    if (!kIsWeb) {
+      await _localRepo?.deleteSubcategory(id);
+    }
   }
 }

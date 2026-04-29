@@ -5,4 +5,6 @@ abstract class ICategoryRepository {
   Future<void> saveCategory(Category category);
   Future<void> saveAll(List<Category> categories);
   Future<Category?> getById(int id);
+  Future<void> deleteCategory(int id);
+  Future<void> deleteSubcategory(int id);
 }

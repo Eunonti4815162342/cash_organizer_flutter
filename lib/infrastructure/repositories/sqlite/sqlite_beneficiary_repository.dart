@@ -1,8 +1,8 @@
 import 'package:sqflite/sqflite.dart';
-import '../../../../domain/models/beneficiary.dart';
-import '../../../../domain/repositories/beneficiary_repository.dart';
-import '../../../../service_locator.dart';
-import '../../persistence/sqlite/database_helper.dart';
+import 'package:natave_flutter/domain/models/beneficiary.dart';
+import 'package:natave_flutter/domain/repositories/beneficiary_repository.dart';
+import 'package:natave_flutter/service_locator.dart';
+import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper.dart';
 
 class SqliteBeneficiaryRepository implements IBeneficiaryRepository {
   final DatabaseHelper _dbHelper = getIt<DatabaseHelper>();
@@ -43,7 +43,6 @@ class SqliteBeneficiaryRepository implements IBeneficiaryRepository {
     
     await db.transaction((txn) async {
       for (var b in beneficiaries) {
-        // MERGE INTELIGENTE: Si el registro existe, actualiza el nombre pero PRESERVA la memoria local (last_category) si el server manda null
         await txn.rawInsert('''
           INSERT INTO beneficiaries (id, name, last_category_id, last_subcategory_id, last_type)
           VALUES (?, ?, ?, ?, ?)
@@ -52,13 +51,7 @@ class SqliteBeneficiaryRepository implements IBeneficiaryRepository {
             last_category_id = COALESCE(excluded.last_category_id, last_category_id),
             last_subcategory_id = COALESCE(excluded.last_subcategory_id, last_subcategory_id),
             last_type = COALESCE(excluded.last_type, last_type)
-        ''', [
-          b.id, 
-          b.name, 
-          b.lastCategoryId, 
-          b.lastSubcategoryId, 
-          b.lastTransactionType
-        ]);
+        ''', [b.id, b.name, b.lastCategoryId, b.lastSubcategoryId, b.lastTransactionType]);
       }
     });
   }

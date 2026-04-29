@@ -16,14 +16,17 @@ import 'api/beneficiary_api.dart';
 /// Thin facade over the split Api classes. Preserves the legacy API surface
 /// used by 13 callers while delegating each concern to its dedicated client.
 class ApiService {
-  final ApiClient _client = ApiClient();
-  late final AuthApi _auth = AuthApi(_client);
-  late final AccountApi _accounts = AccountApi(_client);
-  late final TransactionApi _transactions = TransactionApi(_client);
-  late final CategoryApi _categories = CategoryApi(_client);
-  late final EntityApi _entities = EntityApi(_client);
-  late final ReportApi _reports = ReportApi(_client);
-  late final BeneficiaryApi _beneficiaries = BeneficiaryApi(_client);
+  final ApiClient client = ApiClient();
+
+  ApiClient get apiClient => client;
+
+  late final AuthApi _auth = AuthApi(client);
+  late final AccountApi _accounts = AccountApi(client);
+  late final TransactionApi _transactions = TransactionApi(client);
+  late final CategoryApi _categories = CategoryApi(client);
+  late final EntityApi _entities = EntityApi(client);
+  late final ReportApi _reports = ReportApi(client);
+  late final BeneficiaryApi _beneficiaries = BeneficiaryApi(client);
 
   static String get baseUrl => ApiClient().baseUrl;
 

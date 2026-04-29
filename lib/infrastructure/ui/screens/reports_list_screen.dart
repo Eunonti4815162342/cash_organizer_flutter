@@ -16,6 +16,7 @@ import '../../../domain/repositories/account_repository.dart';
 import '../../../domain/repositories/category_repository.dart';
 import '../../../domain/repositories/entity_repository.dart';
 import '../../../domain/repositories/beneficiary_repository.dart';
+import '../../../domain/repositories/report_repository.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ReportsListScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class ReportsListScreen extends StatefulWidget {
 
 class _ReportsListScreenState extends State<ReportsListScreen> {
   final ApiService _apiService = GetIt.instance.get<ApiService>();
+  final IReportRepository _reportRepo = GetIt.instance.get<IReportRepository>();
   final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
   final IAccountRepository _accountRepo = GetIt.instance.get<IAccountRepository>();
   final ICategoryRepository _categoryRepo = GetIt.instance.get<ICategoryRepository>();
@@ -63,7 +65,6 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     
-    // Ejecutamos en paralelo pero capturando errores individuales para no bloquear el resto
     try {
       final results = await Future.wait([
         _entityRepo.fetchEntities().catchError((_) => <FinancialEntity>[]),
@@ -79,7 +80,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _allCategories = results[2] as List<Category>;
           _allBeneficiaries = results[3] as List<Beneficiary>;
         });
-        await _refreshDataFromApi();
+        await _refreshData();
       }
     } catch (e) {
       debugPrint('Error loading initial report data: $e');
@@ -88,24 +89,55 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     }
   }
 
-  Future<void> _refreshDataFromApi() async {
+  Future<void> _refreshData() async {
     if (!mounted) return;
-    // Si ya tenemos transacciones, no mostramos el loader principal para evitar parpadeos
-    if (_allPeriodTransactions.isEmpty) setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     
+    try {
+      final accIds = _selectedAccounts.isNotEmpty 
+          ? _selectedAccounts.map((a) => a.id).toList() 
+          : (_selectedEntities.isNotEmpty 
+              ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).map((a) => a.id).toList() 
+              : null);
+
+      // Paso 1: Obtener estadísticas (Prioritario, instantáneo en móvil via SQLite)
+      final stats = await _reportRepo.fetchCategoryStats(
+        startDate: _startDate.toIso8601String(),
+        endDate: _endDate.toIso8601String(),
+        accountIds: accIds,
+        groupBySubcategory: _selectedCategories.length == 1,
+      );
+
+      if (mounted) {
+        setState(() {
+          _chartStats = stats;
+          _isLoading = false;
+        });
+        
+        // Paso 2: Cargar transacciones de fondo para el preview (Opcional, puede fallar si no hay red)
+        _loadPreviewTransactions();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing report data: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadPreviewTransactions() async {
     try {
       final txs = await _transactionRepo.fetchTransactions(
         startDate: _startDate.toIso8601String(),
         endDate: _endDate.toIso8601String(),
       );
+      
       if (mounted) {
-        setState(() => _allPeriodTransactions = txs);
-        _applyLocalFilters();
+        setState(() {
+          _allPeriodTransactions = txs;
+          _applyLocalFilters();
+        });
       }
-    } catch (e) {
-      debugPrint('Error refreshing report transactions: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (_) {
+      // Si falla por red, no pasa nada, ya tenemos el gráfico
     }
   }
 
@@ -119,17 +151,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       return true;
     }).toList();
 
-    final Map<String, double> stats = {};
-    for (var tx in filtered) {
-      String key = _selectedCategories.length == 1 
-          ? (tx.subcategory?.name ?? 'General') 
-          : (tx.category?.name ?? 'Otros');
-      stats[key] = (stats[key] ?? 0) + (tx.amount.value / 100).abs();
-    }
-
     setState(() {
       _filteredTransactions = filtered;
-      _chartStats = stats;
     });
   }
 
@@ -143,7 +166,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       appBar: AppBar(
         title: Text(l10n.financialAudit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDataFromApi),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
         ],
       ),
       endDrawer: isMobile ? Drawer(child: _buildSidebarContent(l10n)) : null,
@@ -223,19 +246,19 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           _buildDateSelector(),
           const SizedBox(height: 24),
           _buildLabel('${l10n.entity.toUpperCase()}S'),
-          _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: l10n.selectCompanies, items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _applyLocalFilters(); }),
+          _buildMultiSelector<FinancialEntity>(selectedItems: _selectedEntities, hint: l10n.selectCompanies, items: _entities, label: (e) => e.name, onChanged: () { _selectedAccounts.clear(); _refreshData(); }),
           const SizedBox(height: 12),
           _buildLabel(l10n.accounts.toUpperCase()),
-          _buildMultiSelector<AccountItem>(selectedItems: _selectedAccounts, hint: l10n.selectAccounts, items: _selectedEntities.isNotEmpty ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).toList() : _allAccounts, label: (a) => a.name, onChanged: _applyLocalFilters),
+          _buildMultiSelector<AccountItem>(selectedItems: _selectedAccounts, hint: l10n.selectAccounts, items: _selectedEntities.isNotEmpty ? _allAccounts.where((a) => _selectedEntities.any((e) => e.id == a.entity?.id)).toList() : _allAccounts, label: (a) => a.name, onChanged: _refreshData),
           const SizedBox(height: 24),
           _buildLabel(l10n.categories.toUpperCase()),
-          _buildMultiSelector<Category>(selectedItems: _selectedCategories, hint: l10n.selectCategories, items: _allCategories, label: (c) => c.name, onChanged: () { _selectedSubcategories.clear(); _applyLocalFilters(); }),
+          _buildMultiSelector<Category>(selectedItems: _selectedCategories, hint: l10n.selectCategories, items: _allCategories, label: (c) => c.name, onChanged: () { _selectedSubcategories.clear(); _refreshData(); }),
           const SizedBox(height: 12),
           _buildLabel(l10n.subcategoryOf.toUpperCase()),
-          _buildMultiSelector<Subcategory>(selectedItems: _selectedSubcategories, hint: l10n.selectSubcategories, items: _selectedCategories.isNotEmpty ? _selectedCategories.expand((c) => c.subcategories).toList() : [], label: (s) => s.name, onChanged: _applyLocalFilters, isEnabled: _selectedCategories.isNotEmpty),
+          _buildMultiSelector<Subcategory>(selectedItems: _selectedSubcategories, hint: l10n.selectSubcategories, items: _selectedCategories.isNotEmpty ? _selectedCategories.expand((c) => c.subcategories).toList() : [], label: (s) => s.name, onChanged: _refreshData, isEnabled: _selectedCategories.isNotEmpty),
           const SizedBox(height: 24),
           _buildLabel('BENEFICIARIOS'),
-          _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: l10n.selectBeneficiaries, items: _allBeneficiaries, label: (b) => b.name, onChanged: _applyLocalFilters),
+          _buildMultiSelector<Beneficiary>(selectedItems: _selectedBeneficiaries, hint: l10n.selectBeneficiaries, items: _allBeneficiaries, label: (b) => b.name, onChanged: _refreshData),
           
           const SizedBox(height: 40),
           ElevatedButton.icon(
@@ -368,12 +391,12 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Widget _buildDateSelector() => InkWell(
     onTap: () async {
       final picked = await showDateRangePicker(context: context, initialDateRange: DateTimeRange(start: _startDate, end: _endDate), firstDate: DateTime(2000), lastDate: DateTime(2101));
-      if (picked != null) { setState(() { _startDate = picked.start; _endDate = picked.end; }); _refreshDataFromApi(); }
+      if (picked != null) { setState(() { _startDate = picked.start; _endDate = picked.end; }); _refreshData(); }
     },
     child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [const Icon(Icons.date_range, size: 14, color: AppColors.primaryBlue), const SizedBox(width: 8), Text('${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}', style: const TextStyle(fontSize: 11))])),
   );
 
-  void _clearFilters() { setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _applyLocalFilters(); }
+  void _clearFilters() { setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _refreshData(); }
 
   Future<void> _generatePdf() async {
     final l10n = AppLocalizations.of(context)!;
@@ -402,7 +425,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
       final String languageCode = Localizations.localeOf(context).languageCode;
 
-      final pdf = await _apiService.downloadPdfReport(
+      final pdf = await _reportRepo.downloadPdf(
         title: l10n.auditReportTitle,
         chartType: _isPieChart ? 'PIE' : 'BAR',
         reportType: 'ENTITY', 

@@ -1,25 +1,28 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
-import 'services/api_service.dart';
-import 'infrastructure/repositories/cached_transaction_repository.dart';
-import 'infrastructure/repositories/cached_account_repository.dart';
-import 'infrastructure/repositories/cached_category_repository.dart';
-import 'infrastructure/repositories/cached_entity_repository.dart';
-import 'infrastructure/repositories/cached_beneficiary_repository.dart';
-import 'infrastructure/repositories/sqlite/sqlite_transaction_repository.dart';
-import 'infrastructure/repositories/sqlite/sqlite_account_repository.dart';
-import 'infrastructure/repositories/sqlite/sqlite_category_repository.dart';
-import 'infrastructure/repositories/sqlite/sqlite_entity_repository.dart';
-import 'infrastructure/repositories/sqlite/sqlite_beneficiary_repository.dart';
-import 'domain/repositories/transaction_repository.dart';
-import 'domain/repositories/account_repository.dart';
-import 'domain/repositories/category_repository.dart';
-import 'domain/repositories/entity_repository.dart';
-import 'domain/repositories/beneficiary_repository.dart';
-import 'services/biometric_service.dart';
-import 'services/session_service.dart';
-import 'infrastructure/persistence/sqlite/database_helper.dart';
+import 'package:natave_flutter/services/api_service.dart';
+import 'package:natave_flutter/infrastructure/repositories/cached_transaction_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/cached_account_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/cached_category_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/cached_entity_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/cached_beneficiary_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/api_report_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_transaction_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_account_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_category_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_entity_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_beneficiary_repository.dart';
+import 'package:natave_flutter/infrastructure/repositories/sqlite/sqlite_report_repository.dart';
+import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
+import 'package:natave_flutter/domain/repositories/account_repository.dart';
+import 'package:natave_flutter/domain/repositories/category_repository.dart';
+import 'package:natave_flutter/domain/repositories/entity_repository.dart';
+import 'package:natave_flutter/domain/repositories/beneficiary_repository.dart';
+import 'package:natave_flutter/domain/repositories/report_repository.dart';
+import 'package:natave_flutter/services/biometric_service.dart';
+import 'package:natave_flutter/services/session_service.dart';
+import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper.dart';
 
 final getIt = GetIt.instance;
 
@@ -27,7 +30,7 @@ void setupServiceLocator() {
   // Logger
   getIt.registerSingleton<Logger>(Logger());
 
-  // API Service (Facade for all network operations)
+  // API Service
   getIt.registerLazySingleton<ApiService>(() => ApiService());
 
   // Other Services
@@ -56,22 +59,19 @@ void setupServiceLocator() {
       SqliteBeneficiaryRepository(), 
       instanceName: 'local_beneficiary'
     );
+    getIt.registerSingleton<IReportRepository>(
+      SqliteReportRepository(),
+    );
+  } else {
+    getIt.registerLazySingleton<IReportRepository>(
+      () => ApiReportRepository(getIt<ApiService>().apiClient),
+    );
   }
 
-  // Repositories - Domain Interfaces
-  getIt.registerSingleton<ITransactionRepository>(
-    CachedTransactionRepository(),
-  );
-  getIt.registerSingleton<IAccountRepository>(
-    CachedAccountRepository(),
-  );
-  getIt.registerSingleton<ICategoryRepository>(
-    CachedCategoryRepository(),
-  );
-  getIt.registerSingleton<IEntityRepository>(
-    CachedEntityRepository(),
-  );
-  getIt.registerSingleton<IBeneficiaryRepository>(
-    CachedBeneficiaryRepository(),
-  );
+  // Repositories
+  getIt.registerSingleton<ITransactionRepository>(CachedTransactionRepository());
+  getIt.registerSingleton<IAccountRepository>(CachedAccountRepository());
+  getIt.registerSingleton<ICategoryRepository>(CachedCategoryRepository());
+  getIt.registerSingleton<IEntityRepository>(CachedEntityRepository());
+  getIt.registerSingleton<IBeneficiaryRepository>(CachedBeneficiaryRepository());
 }

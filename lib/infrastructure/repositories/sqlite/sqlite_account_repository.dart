@@ -74,6 +74,21 @@ class SqliteAccountRepository implements IAccountRepository {
   }
 
   @override
+  Future<void> saveAll(List<AccountItem> accounts) async {
+    if (accounts.isEmpty) return;
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      for (final account in accounts) {
+        await txn.insert(
+          'accounts',
+          _toRow(account, id: account.id, serverId: account.id, pendingSync: 0),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
+  @override
   Future<AccountItem?> getById(int id) async {
     final db = await _dbHelper.database;
     var maps = await db.query('accounts', where: 'server_id = ?', whereArgs: [id]);

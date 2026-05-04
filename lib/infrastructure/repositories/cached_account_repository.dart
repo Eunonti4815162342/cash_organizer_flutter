@@ -63,6 +63,11 @@ class CachedAccountRepository implements IAccountRepository {
   }
 
   @override
+  Future<void> reconcile(List<AccountItem> serverAccounts) async {
+    if (!kIsWeb) await _localRepo?.reconcile(serverAccounts);
+  }
+
+  @override
   Future<AccountItem?> getById(int id) async {
     if (!kIsWeb) return await _localRepo?.getById(id);
     return null;

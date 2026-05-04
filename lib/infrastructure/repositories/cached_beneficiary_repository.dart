@@ -36,6 +36,11 @@ class CachedBeneficiaryRepository implements IBeneficiaryRepository {
   }
 
   @override
+  Future<void> reconcile(List<Beneficiary> serverBeneficiaries) async {
+    if (!kIsWeb) await _localRepo?.reconcile(serverBeneficiaries);
+  }
+
+  @override
   Future<Map<String, dynamic>?> getTransactionSuggestion(int beneficiaryId) async {
     // 1. LEY DEL LOCAL-FIRST: Si tenemos memoria en el teléfono, la usamos YA.
     Map<String, dynamic>? localSuggestion;

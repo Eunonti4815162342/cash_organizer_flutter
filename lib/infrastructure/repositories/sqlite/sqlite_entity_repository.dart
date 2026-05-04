@@ -40,4 +40,23 @@ class SqliteEntityRepository implements IEntityRepository {
       }
     });
   }
+
+  @override
+  Future<void> saveAll(List<FinancialEntity> entities) async {
+    if (entities.isEmpty) return;
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      for (final entity in entities) {
+        await txn.insert(
+          'entities',
+          {
+            'id': entity.id,
+            'name': entity.name,
+            'type': entity.type.name,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
 }

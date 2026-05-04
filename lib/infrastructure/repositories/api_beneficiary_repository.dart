@@ -16,10 +16,13 @@ class ApiBeneficiaryRepository implements IBeneficiaryRepository {
   @override
   Future<Map<String, dynamic>?> getTransactionSuggestion(int beneficiaryId) async {
     final suggestion = await _apiService.getTransactionSuggestion(beneficiaryId);
-    // El ApiService ya devuelve Map<String, dynamic> a través del pipeline
-    // pero necesitamos asegurar la consistencia del tipo de retorno
     if (suggestion == null) return null;
     return suggestion as Map<String, dynamic>;
+  }
+
+  @override
+  Future<void> reconcile(List<Beneficiary> serverBeneficiaries) async {
+    // No local storage to reconcile in API-only implementation
   }
 
   @override

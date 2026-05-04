@@ -244,7 +244,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
                     Row(
                       children: [
                         _buildDateRangeButton(isNegative),
-                        _buildQuickFilterButton(isNegative),
                         IconButton(icon: const Icon(Icons.refresh, size: 18, color: Colors.grey), onPressed: _refreshTransactions),
                       ],
                     ),
@@ -303,14 +302,30 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
 
   Widget _buildDateRangeButton(bool isNegative) {
     final activeColor = isNegative ? AppColors.expenseRed : AppColors.primaryBlue;
-    return InkWell(
-      onTap: _selectDateRange,
-      borderRadius: BorderRadius.circular(20),
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'CUSTOM') {
+          _selectDateRange();
+        } else {
+          _applyQuickFilter(value);
+        }
+      },
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'THIS_MONTH', child: _buildPopupItem(Icons.calendar_view_month, 'Este mes', activeColor)),
+        PopupMenuItem(value: 'LAST_MONTH', child: _buildPopupItem(Icons.keyboard_arrow_left, 'Mes pasado', activeColor)),
+        PopupMenuItem(value: 'LAST_3_MONTHS', child: _buildPopupItem(Icons.more_time, 'Últimos 3 meses', activeColor)),
+        PopupMenuItem(value: 'LAST_6_MONTHS', child: _buildPopupItem(Icons.update, 'Últimos 6 meses', activeColor)),
+        PopupMenuItem(value: 'THIS_YEAR', child: _buildPopupItem(Icons.calendar_today, 'Este año', activeColor)),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'CUSTOM', child: _buildPopupItem(Icons.calendar_month, 'Personalizado...', activeColor)),
+      ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: activeColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: activeColor.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -321,33 +336,17 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
               '${_startDate.day}/${_startDate.month} - ${_endDate.day}/${_endDate.month}',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: activeColor),
             ),
+            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildQuickFilterButton(bool isNegative) {
-    final activeColor = isNegative ? AppColors.expenseRed : AppColors.primaryBlue;
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.history, size: 18, color: Colors.grey.shade400),
-      tooltip: 'Selección rápida',
-      onSelected: _applyQuickFilter,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      itemBuilder: (context) => [
-        PopupMenuItem(value: 'THIS_MONTH', child: _buildPopupItem(Icons.calendar_view_month, 'Este mes')),
-        PopupMenuItem(value: 'LAST_MONTH', child: _buildPopupItem(Icons.keyboard_arrow_left, 'Mes pasado')),
-        PopupMenuItem(value: 'LAST_3_MONTHS', child: _buildPopupItem(Icons.more_time, 'Últimos 3 meses')),
-        PopupMenuItem(value: 'LAST_6_MONTHS', child: _buildPopupItem(Icons.update, 'Últimos 6 meses')),
-        PopupMenuItem(value: 'THIS_YEAR', child: _buildPopupItem(Icons.calendar_today, 'Este año')),
-      ],
-    );
-  }
-
-  Widget _buildPopupItem(IconData icon, String label) {
+  Widget _buildPopupItem(IconData icon, String label, Color color) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.primaryBlue),
+        Icon(icon, size: 18, color: color),
         const SizedBox(width: 12),
         Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
       ],

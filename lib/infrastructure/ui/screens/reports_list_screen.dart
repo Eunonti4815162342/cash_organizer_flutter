@@ -60,10 +60,22 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   }
 
   Future<void> _loadAllMetadata() async {
-    _entityRepo.fetchEntities().then((res) { if (mounted) setState(() => _entities = res); });
-    _accountRepo.fetchAccounts().then((res) { if (mounted) setState(() => _allAccounts = res); });
-    _categoryRepo.fetchCategories().then((res) { if (mounted) setState(() => _allCategories = res); });
-    _beneficiaryRepo.getAllBeneficiaries().then((res) { if (mounted) setState(() => _allBeneficiaries = res); });
+    _entityRepo.fetchEntities().then((res) { 
+      res.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) setState(() => _entities = res); 
+    });
+    _accountRepo.fetchAccounts().then((res) { 
+      res.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) setState(() => _allAccounts = res); 
+    });
+    _categoryRepo.fetchCategories().then((res) { 
+      res.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) setState(() => _allCategories = res); 
+    });
+    _beneficiaryRepo.getAllBeneficiaries().then((res) { 
+      res.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) setState(() => _allBeneficiaries = res); 
+    });
     await _refreshData();
   }
 
@@ -78,9 +90,12 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     final subIds = _selectedSubcategories.isNotEmpty ? _selectedSubcategories.map((s) => s.id).toList() : null;
     final benIds = _selectedBeneficiaries.isNotEmpty ? _selectedBeneficiaries.map((b) => b.id).toList() : null;
 
+    // Usamos formato YYYY-MM-DD para compatibilidad con el backend
+    String formatDate(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
     return TransactionFilters(
-      startDate: _startDate.toIso8601String(),
-      endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+      startDate: formatDate(_startDate),
+      endDate: formatDate(_endDate),
       accountIds: accIds,
       categoryIds: catIds,
       subcategoryIds: subIds,
@@ -97,10 +112,15 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       final filters = _buildCurrentFilters();
 
       final stats = await _reportRepo.fetchCategoryStats(filters);
+      
+      // Ordenar estadísticas alfabéticamente por el nombre de la categoría (la clave del mapa)
+      final sortedStats = Map.fromEntries(
+        stats.entries.toList()..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()))
+      );
 
       if (mounted) {
         setState(() {
-          _chartStats = stats;
+          _chartStats = sortedStats;
           _isLoading = false;
         });
         _loadPreviewTransactions(filters);
@@ -383,8 +403,76 @@ class _MultiSearchModalState<T> extends State<_MultiSearchModal<T>> {
   late List<T> _filteredItems; final List<T> _tempSelection = []; final TextEditingController _searchController = TextEditingController();
   @override void initState() { super.initState(); _filteredItems = widget.items; _tempSelection.addAll(widget.initialSelection); }
   void _filter(String q) { setState(() { _filteredItems = widget.items.where((i) => widget.label(i).toLowerCase().contains(q.toLowerCase())).toList(); }); }
-  @override Widget build(BuildContext context) {
+  Widget _buildMultiSearchList() {
+    final query = _searchController.text.toLowerCase();
+    
+    // 1. Filtrar y ordenar los elementos
+    final itemsToShow = widget.items.where((i) {
+      return widget.label(i).toLowerCase().contains(query);
+    }).toList()
+      ..sort((a, b) => widget.label(a).toLowerCase().compareTo(widget.label(b).toLowerCase()));
+
+    return Expanded(
+        child: ListView.builder(
+            itemCount: itemsToShow.length,
+            itemBuilder: (context, i) {
+              final item = itemsToShow[i];
+              final isSelected = _tempSelection.contains(item);
+              return CheckboxListTile(
+                  value: isSelected,
+                  title: Text(widget.label(item), style: const TextStyle(fontSize: 14)),
+                  activeColor: AppColors.primaryBlue,
+                  onChanged: (val) {
+                    setState(() {
+                      val == true ? _tempSelection.add(item) : _tempSelection.remove(item);
+                    });
+                  });
+            }));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(height: MediaQuery.of(context).size.height * 0.85, decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))), padding: const EdgeInsets.all(24), child: Column(children: [Row(children: [Expanded(child: Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), TextButton(onPressed: () { setState(() { if (_tempSelection.length == widget.items.length) { _tempSelection.clear(); } else { _tempSelection.clear(); _tempSelection.addAll(widget.items); } }); }, child: Text(_tempSelection.length == widget.items.length ? l10n.deselectAll : l10n.selectAll, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))), const SizedBox(width: 8), ElevatedButton(onPressed: () { widget.onDone(_tempSelection); Navigator.pop(context); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 0), child: Text(l10n.accept))]), const SizedBox(height: 16), TextField(controller: _searchController, decoration: InputDecoration(hintText: l10n.searchHint, prefixIcon: const Icon(Icons.search), filled: true, fillColor: Colors.grey.shade100, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), onChanged: _filter), const SizedBox(height: 16), Expanded(child: ListView.builder(itemCount: _filteredItems.length, itemBuilder: (context, i) { final item = _filteredItems[i]; final isSelected = _tempSelection.contains(item); return CheckboxListTile(value: isSelected, title: Text(widget.label(item), style: const TextStyle(fontSize: 14)), activeColor: AppColors.primaryBlue, onChanged: (val) { setState(() { val == true ? _tempSelection.add(item) : _tempSelection.remove(item); }); }); }))]));
+    return Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          Row(children: [
+            Expanded(child: Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+            TextButton(
+                onPressed: () {
+                  setState(() {
+                    if (_tempSelection.length == widget.items.length) {
+                      _tempSelection.clear();
+                    } else {
+                      _tempSelection.clear();
+                      _tempSelection.addAll(widget.items);
+                    }
+                  });
+                },
+                child: Text(_tempSelection.length == widget.items.length ? l10n.deselectAll : l10n.selectAll, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+            const SizedBox(width: 8),
+            ElevatedButton(
+                onPressed: () {
+                  widget.onDone(_tempSelection);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 0),
+                child: Text(l10n.accept))
+          ]),
+          const SizedBox(height: 16),
+          TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                  hintText: l10n.searchHint,
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+              onChanged: (v) => setState(() {})),
+          const SizedBox(height: 16),
+          _buildMultiSearchList()
+        ]));
   }
 }

@@ -89,10 +89,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Future<void> _fetchPage(int page) async {
     try {
+      // Usamos formato YYYY-MM-DD para compatibilidad con el backend
+      String formatDate(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
       final newTransactions = await _transactionRepo.fetchTransactions(
         TransactionFilters(
-          startDate: _startDate.toIso8601String(),
-          endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+          startDate: formatDate(_startDate),
+          endDate: formatDate(_endDate),
           page: page,
           size: _pageSize,
         )

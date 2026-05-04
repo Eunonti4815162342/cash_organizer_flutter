@@ -19,9 +19,7 @@ class CachedCategoryRepository implements ICategoryRepository {
     }
     try {
       final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 2));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
       return remote;
     } catch (_) { return []; }
   }
@@ -29,10 +27,13 @@ class CachedCategoryRepository implements ICategoryRepository {
   Future<void> _refreshInBackground() async {
     try {
       final remote = await _apiService.fetchCategories().timeout(const Duration(seconds: 5));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
     } catch (_) {}
+  }
+
+  @override
+  Future<void> reconcile(List<Category> serverCategories) async {
+    if (!kIsWeb) await _localRepo?.reconcile(serverCategories);
   }
 
   @override

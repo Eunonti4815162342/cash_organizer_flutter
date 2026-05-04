@@ -44,16 +44,31 @@ class SqliteAccountRepository implements IAccountRepository {
   }
 
   @override
-  Future<void> saveAll(List<AccountItem> accounts) async {
-    if (accounts.isEmpty) return;
+  Future<void> reconcile(List<AccountItem> serverAccounts) async {
     final db = await _dbHelper.database;
+    final serverIds = serverAccounts.map((a) => a.id).toList();
+    
     await db.transaction((txn) async {
-      for (final account in accounts) {
+      // 1. Guardar/Actualizar todas las del servidor
+      for (final account in serverAccounts) {
         await txn.insert(
           'accounts',
           _toRow(account, id: account.id, serverId: account.id, pendingSync: 0),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+      }
+      
+      // 2. Borrar las que están en local con server_id pero NO en la lista del servidor
+      // Ignoramos las que tienen pending_sync > 0 porque son cambios locales aún no subidos
+      if (serverIds.isNotEmpty) {
+        final placeholders = List.filled(serverIds.length, '?').join(',');
+        await txn.delete(
+          'accounts',
+          where: 'server_id IS NOT NULL AND pending_sync = 0 AND server_id NOT IN ($placeholders)',
+          whereArgs: serverIds,
+        );
+      } else {
+        await txn.delete('accounts', where: 'server_id IS NOT NULL AND pending_sync = 0');
       }
     });
   }

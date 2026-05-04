@@ -19,20 +19,24 @@ class SqliteEntityRepository implements IEntityRepository {
   }
 
   @override
-  Future<void> saveAll(List<FinancialEntity> entities) async {
-    if (entities.isEmpty) return;
+  Future<void> reconcile(List<FinancialEntity> serverEntities) async {
     final db = await _dbHelper.database;
+    final serverIds = serverEntities.map((e) => e.id).toList();
+    
     await db.transaction((txn) async {
-      for (final entity in entities) {
+      for (final entity in serverEntities) {
         await txn.insert(
           'entities',
-          {
-            'id': entity.id,
-            'name': entity.name,
-            'type': entity.type.name,
-          },
+          {'id': entity.id, 'name': entity.name, 'type': entity.type.name},
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+      }
+      
+      if (serverIds.isNotEmpty) {
+        final placeholders = List.filled(serverIds.length, '?').join(',');
+        await txn.delete('entities', where: 'id NOT IN ($placeholders)', whereArgs: serverIds);
+      } else {
+        await txn.delete('entities');
       }
     });
   }

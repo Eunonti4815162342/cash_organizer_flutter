@@ -46,7 +46,13 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     if (!silent) setState(() => _isLoading = true);
     try {
       final res = await _categoryRepo.fetchCategories();
+      
+      // Ordenar categorías y sus subcategorías alfabéticamente
       res.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      for (var cat in res) {
+        cat.subcategories.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      }
+
       if (mounted) {
         setState(() {
           _categories = res;

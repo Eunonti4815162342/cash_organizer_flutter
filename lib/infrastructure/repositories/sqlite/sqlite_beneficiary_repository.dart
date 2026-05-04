@@ -37,6 +37,34 @@ class SqliteBeneficiaryRepository implements IBeneficiaryRepository {
   }
 
   @override
+  Future<void> reconcile(List<Beneficiary> serverBeneficiaries) async {
+    final db = await _dbHelper.database;
+    final serverIds = serverBeneficiaries.map((b) => b.id).toList();
+
+    await db.transaction((txn) async {
+      // 1. Sincronizar beneficiarios
+      for (var b in serverBeneficiaries) {
+        await txn.rawInsert('''
+          INSERT INTO beneficiaries (id, name, last_category_id, last_subcategory_id, last_type)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            last_category_id = COALESCE(excluded.last_category_id, last_category_id),
+            last_subcategory_id = COALESCE(excluded.last_subcategory_id, last_subcategory_id),
+            last_type = COALESCE(excluded.last_type, last_type)
+        ''', [b.id, b.name, b.lastCategoryId, b.lastSubcategoryId, b.lastTransactionType]);
+      }
+      
+      // 2. Borrar beneficiarios locales que no existen en el servidor
+      if (serverIds.isNotEmpty) {
+        final placeholders = List.filled(serverIds.length, '?').join(',');
+        await txn.delete('beneficiaries', where: 'id NOT IN ($placeholders)', whereArgs: serverIds);
+      } else {
+        await txn.delete('beneficiaries');
+      }
+    });
+  }
+
   Future<void> saveAll(List<Beneficiary> beneficiaries) async {
     if (beneficiaries.isEmpty) return;
     final db = await _dbHelper.database;

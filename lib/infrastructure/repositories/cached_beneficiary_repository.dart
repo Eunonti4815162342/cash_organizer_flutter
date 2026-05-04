@@ -21,7 +21,7 @@ class CachedBeneficiaryRepository implements IBeneficiaryRepository {
     }
     try {
       final remote = await _apiService.fetchBeneficiaries();
-      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
       return remote;
     } catch (e) {
       return [];
@@ -31,7 +31,7 @@ class CachedBeneficiaryRepository implements IBeneficiaryRepository {
   Future<void> _refreshInBackground() async {
     try {
       final remote = await _apiService.fetchBeneficiaries();
-      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
     } catch (_) {}
   }
 

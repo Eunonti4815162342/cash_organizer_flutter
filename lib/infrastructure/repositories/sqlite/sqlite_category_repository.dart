@@ -48,6 +48,39 @@ class SqliteCategoryRepository implements ICategoryRepository {
   }
 
   @override
+  Future<void> reconcile(List<Category> serverCategories) async {
+    final db = await _dbHelper.database;
+    final serverCatIds = serverCategories.map((c) => c.id).toList();
+    final serverSubIds = serverCategories.expand((c) => c.subcategories.map((s) => s.id)).toList();
+
+    await db.transaction((txn) async {
+      // 1. Sincronizar categorías y sus subcategorías
+      for (var cat in serverCategories) {
+        await txn.insert('categories', {'id': cat.id, 'name': cat.name, 'type': cat.type == CategoryType.income ? 'INCOME' : 'EXPENSE', 'financial_entity_id': cat.financialEntity?.id, 'financial_entity_name': cat.financialEntity?.name}, conflictAlgorithm: ConflictAlgorithm.replace);
+        for (var sub in cat.subcategories) {
+          await txn.insert('subcategories', {'id': sub.id, 'name': sub.name, 'category_id': cat.id}, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      }
+      
+      // 2. Borrar categorías locales que no existen en el servidor
+      if (serverCatIds.isNotEmpty) {
+        final placeholders = List.filled(serverCatIds.length, '?').join(',');
+        await txn.delete('categories', where: 'id NOT IN ($placeholders)', whereArgs: serverCatIds);
+      } else {
+        await txn.delete('categories');
+      }
+
+      // 3. Borrar subcategorías locales que no existen en el servidor
+      if (serverSubIds.isNotEmpty) {
+        final placeholders = List.filled(serverSubIds.length, '?').join(',');
+        await txn.delete('subcategories', where: 'id NOT IN ($placeholders)', whereArgs: serverSubIds);
+      } else {
+        await txn.delete('subcategories');
+      }
+    });
+  }
+
+  @override
   Future<void> saveAll(List<Category> categories) async {
     if (categories.isEmpty) return;
     final db = await _dbHelper.database;

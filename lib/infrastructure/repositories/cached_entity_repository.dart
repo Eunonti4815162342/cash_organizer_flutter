@@ -22,9 +22,7 @@ class CachedEntityRepository implements IEntityRepository {
     // 2. NETWORK FALLBACK (Si local está vacío o es Web)
     try {
       final remote = await _apiService.fetchEntities();
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
       return remote;
     } catch (e) {
       return [];
@@ -34,16 +32,17 @@ class CachedEntityRepository implements IEntityRepository {
   Future<void> _refreshInBackground() async {
     try {
       final remote = await _apiService.fetchEntities();
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (!kIsWeb) await _localRepo?.reconcile(remote);
     } catch (_) {}
   }
 
   @override
   Future<void> saveAll(List<FinancialEntity> entities) async {
-    if (!kIsWeb) {
-      await _localRepo?.saveAll(entities);
-    }
+    if (!kIsWeb) await _localRepo?.saveAll(entities);
+  }
+
+  @override
+  Future<void> reconcile(List<FinancialEntity> serverEntities) async {
+    if (!kIsWeb) await _localRepo?.reconcile(serverEntities);
   }
 }

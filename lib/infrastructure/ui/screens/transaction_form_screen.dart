@@ -129,18 +129,170 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   void _showCategoryPicker(List<cat_model.Category> categories, AppLocalizations l10n, TransactionFormProvider provider) {
-    String search = '';
-    showModalBottomSheet(context: context, isScrollControlled: true, builder: (context) => StatefulBuilder(builder: (context, setPickerState) => Container(height: MediaQuery.of(context).size.height * 0.7, child: Column(children: [Padding(padding: const EdgeInsets.all(16.0), child: TextField(onChanged: (v) => setPickerState(() => search = v.toLowerCase()), decoration: InputDecoration(hintText: l10n.search, prefixIcon: const Icon(Icons.search)))), Expanded(child: ListView.builder(itemCount: categories.length, itemBuilder: (context, index) { final category = categories[index]; final filteredSubs = category.subcategories.where((s) => s.name.toLowerCase().contains(search)).toList(); if (search.isNotEmpty && !category.name.toLowerCase().contains(search) && filteredSubs.isEmpty) return const SizedBox(); return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [ListTile(title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF009FFB))), onTap: () { provider.setSelectedCategory(category); Navigator.pop(context); }), ...filteredSubs.map((sub) => ListTile(contentPadding: const EdgeInsets.only(left: 32), title: Text(sub.name), leading: const Icon(Icons.subdirectory_arrow_right, size: 16), onTap: () { provider.setSelectedCategory(category); provider.setSelectedSubcategory(sub); Navigator.pop(context); })), const Divider()]); }))]))));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) {
+          String search = '';
+          return StatefulBuilder(
+            builder: (context, setState) {
+              // 1. Filtrar y ordenar categorías
+              final filteredCategories = categories.where((c) {
+                final matchesCategory = c.name.toLowerCase().contains(search.toLowerCase());
+                final matchesSubcategory = c.subcategories.any((s) => s.name.toLowerCase().contains(search.toLowerCase()));
+                return matchesCategory || matchesSubcategory;
+              }).toList()
+                ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        onChanged: (v) => setState(() => search = v),
+                        decoration: InputDecoration(
+                          hintText: l10n.search,
+                          prefixIcon: const Icon(Icons.search),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: filteredCategories.length,
+                        itemBuilder: (context, index) {
+                          final category = filteredCategories[index];
+                          
+                          // 2. Filtrar y ordenar subcategorías de esta categoría
+                          final filteredSubs = category.subcategories.where((s) => 
+                            s.name.toLowerCase().contains(search.toLowerCase())
+                          ).toList()
+                            ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ListTile(
+                                title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF009FFB))),
+                                onTap: () {
+                                  provider.setSelectedCategory(category);
+                                  Navigator.pop(context);
+                                },
+                              ),
+                              ...filteredSubs.map((sub) => ListTile(
+                                contentPadding: const EdgeInsets.only(left: 32),
+                                title: Text(sub.name),
+                                leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
+                                onTap: () {
+                                  provider.setSelectedCategory(category);
+                                  provider.setSelectedSubcategory(sub);
+                                  Navigator.pop(context);
+                                },
+                              )),
+                              const Divider(),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   void _showNewBeneficiaryDialog(TransactionFormProvider provider) {
     final controller = TextEditingController();
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('New Beneficiary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'Enter name')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue), onPressed: () async { if (controller.text.isEmpty) return; final newBeneficiary = Beneficiary(id: 0, name: controller.text); provider.setSelectedBeneficiary(newBeneficiary); if (mounted) Navigator.pop(context); }, child: const Text('SAVE', style: TextStyle(color: Colors.white)))]));
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Beneficiary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'Enter name')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+            onPressed: () async {
+              if (controller.text.isEmpty) return;
+              final newBeneficiary = Beneficiary(id: 0, name: controller.text);
+              provider.setSelectedBeneficiary(newBeneficiary);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('SAVE', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showBeneficiaryPicker(List<Beneficiary> beneficiaries, AppLocalizations l10n, TransactionFormProvider provider) {
-    String search = '';
-    showModalBottomSheet(context: context, isScrollControlled: true, builder: (context) => StatefulBuilder(builder: (context, setPickerState) => Container(height: MediaQuery.of(context).size.height * 0.7, child: Column(children: [Padding(padding: const EdgeInsets.all(16.0), child: TextField(onChanged: (v) => setPickerState(() => search = v.toLowerCase()), decoration: InputDecoration(hintText: l10n.search, prefixIcon: const Icon(Icons.search)))), Expanded(child: ListView.builder(itemCount: beneficiaries.length + 1, itemBuilder: (context, index) { if (index == 0) return ListTile(leading: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue), title: const Text('ADD NEW BENEFICIARY', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)), onTap: () { Navigator.pop(context); _showNewBeneficiaryDialog(provider); }); final beneficiary = beneficiaries[index - 1]; if (search.isNotEmpty && !beneficiary.name.toLowerCase().contains(search)) return const SizedBox(); return ListTile(title: Text(beneficiary.name), onTap: () { provider.setSelectedBeneficiary(beneficiary); Navigator.pop(context); }); }))]))));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) {
+          String search = '';
+          return StatefulBuilder(
+            builder: (context, setState) {
+              // Filtrar y ordenar beneficiarios
+              final filteredBeneficiaries = beneficiaries.where((b) => 
+                b.name.toLowerCase().contains(search.toLowerCase())
+              ).toList()
+                ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        onChanged: (v) => setState(() => search = v),
+                        decoration: InputDecoration(
+                          hintText: l10n.search,
+                          prefixIcon: const Icon(Icons.search),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: filteredBeneficiaries.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return ListTile(
+                              leading: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
+                              title: const Text('ADD NEW BENEFICIARY', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showNewBeneficiaryDialog(provider);
+                              },
+                            );
+                          }
+                          final beneficiary = filteredBeneficiaries[index - 1];
+                          return ListTile(
+                            title: Text(beneficiary.name),
+                            onTap: () {
+                              provider.setSelectedBeneficiary(beneficiary);
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _showDatePicker(TransactionFormProvider provider) async { final picked = await showDatePicker(context: context, initialDate: provider.selectedDate, firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) provider.setSelectedDate(picked); }

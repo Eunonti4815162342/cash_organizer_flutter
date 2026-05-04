@@ -3,6 +3,7 @@ import '../models/transaction_filters.dart';
 
 abstract class ITransactionRepository {
   Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters);
+  Future<int> countTransactions(TransactionFilters filters);
   
   Future<TransactionItem> saveTransaction(TransactionItem transaction, {bool isSynced = true});
   Future<void> updateTransaction(TransactionItem transaction, {bool isSynced = true});

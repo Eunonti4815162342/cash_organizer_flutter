@@ -89,6 +89,10 @@
   "selectItems": "{count} selected",
   "searchHint": "Search...",
   "selectAll": "ALL",
-  "deselectAll": "DESELECT",
-  "accept": "OK"
-}
+  "deselectAll": "NONE",
+  "accept": "OK",
+  "moInc": "Income",
+  "moExp": "Expenses",
+  "moNet": "Net"
+  }
+

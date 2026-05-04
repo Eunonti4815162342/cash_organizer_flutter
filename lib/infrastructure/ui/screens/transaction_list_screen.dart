@@ -25,6 +25,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   final ScrollController _scrollController = ScrollController();
 
   List<TransactionItem> _transactions = [];
+  int _totalTransactions = 0;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _isLastPage = false;
@@ -92,18 +93,25 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       // Usamos formato YYYY-MM-DD para compatibilidad con el backend
       String formatDate(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
-      final newTransactions = await _transactionRepo.fetchTransactions(
-        TransactionFilters(
-          startDate: formatDate(_startDate),
-          endDate: formatDate(_endDate),
-          page: page,
-          size: _pageSize,
-        )
+      final filters = TransactionFilters(
+        startDate: formatDate(_startDate),
+        endDate: formatDate(_endDate),
+        page: page,
+        size: _pageSize,
       );
+
+      final results = await Future.wait([
+        _transactionRepo.fetchTransactions(filters),
+        _transactionRepo.countTransactions(filters),
+      ]);
+
+      final newTransactions = results[0] as List<TransactionItem>;
+      final total = results[1] as int;
 
       if (mounted) {
         setState(() {
           _currentPage = page;
+          _totalTransactions = total;
           if (newTransactions.length < _pageSize) {
             _isLastPage = true;
           }
@@ -247,7 +255,28 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildDateRangeButton(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildDateRangeButton(),
+              if (!_isLoading) 
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$_totalTransactions',
+                    style: TextStyle(
+                      fontSize: 11, 
+                      fontWeight: FontWeight.bold, 
+                      color: Colors.grey.shade700
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

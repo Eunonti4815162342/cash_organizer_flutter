@@ -12,7 +12,7 @@ class TransactionApi {
     if (filters.startDate != null) params['startDate'] = filters.startDate!;
     if (filters.endDate != null) params['endDate'] = filters.endDate!;
     if (filters.accountIds != null && filters.accountIds!.isNotEmpty) {
-      params['accountId'] = filters.accountIds!.join(',');
+      params['accountIds'] = filters.accountIds!.join(',');
     }
     if (filters.categoryIds != null && filters.categoryIds!.isNotEmpty) {
       params['categoryIds'] = filters.categoryIds!.join(',');

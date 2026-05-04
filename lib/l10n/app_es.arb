@@ -90,5 +90,8 @@
   "searchHint": "Buscar...",
   "selectAll": "TODOS",
   "deselectAll": "DESMARCAR",
-  "accept": "OK"
+  "accept": "OK",
+  "moInc": "Ingresos",
+  "moExp": "Gastos",
+  "moNet": "Neto"
 }

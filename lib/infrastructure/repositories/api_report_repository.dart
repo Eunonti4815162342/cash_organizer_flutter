@@ -28,7 +28,7 @@ class ApiReportRepository implements IReportRepository {
     }
 
     final response = await _client.get('/reports/category-stats', queryParameters: params);
-    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble() / 100.0));
   }
 
   @override
@@ -41,7 +41,7 @@ class ApiReportRepository implements IReportRepository {
     }
 
     final response = await _client.get('/reports/entity-stats', queryParameters: params);
-    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble() / 100.0));
   }
 
   @override
@@ -54,7 +54,7 @@ class ApiReportRepository implements IReportRepository {
     }
 
     final response = await _client.get('/reports/beneficiary-stats', queryParameters: params);
-    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble()));
+    return (response as Map<String, dynamic>).map((k, v) => MapEntry(k, (v as num).toDouble() / 100.0));
   }
 
   @override

@@ -637,7 +637,7 @@ abstract class AppLocalizations {
   /// No description provided for @deselectAll.
   ///
   /// In en, this message translates to:
-  /// **'DESELECT'**
+  /// **'NONE'**
   String get deselectAll;
 
   /// No description provided for @accept.
@@ -645,6 +645,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OK'**
   String get accept;
+
+  /// No description provided for @moInc.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get moInc;
+
+  /// No description provided for @moExp.
+  ///
+  /// In en, this message translates to:
+  /// **'Expenses'**
+  String get moExp;
+
+  /// No description provided for @moNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net'**
+  String get moNet;
 }
 
 class _AppLocalizationsDelegate

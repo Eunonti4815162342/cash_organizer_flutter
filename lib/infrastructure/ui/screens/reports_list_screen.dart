@@ -50,6 +50,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   List<TransactionItem> _allPeriodTransactions = [];
   List<TransactionItem> _filteredTransactions = [];
   Map<String, double> _chartStats = {};
+  double _totalIncomes = 0;
+  double _totalExpenses = 0;
   bool _isLoading = true;
   bool _isPieChart = true;
 
@@ -90,7 +92,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     final subIds = _selectedSubcategories.isNotEmpty ? _selectedSubcategories.map((s) => s.id).toList() : null;
     final benIds = _selectedBeneficiaries.isNotEmpty ? _selectedBeneficiaries.map((b) => b.id).toList() : null;
 
-    // Usamos formato YYYY-MM-DD para compatibilidad con el backend
+    // Usamos formato YYYY-MM-DD para compatibilidad con el backend y SQLite local
     String formatDate(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
     return TransactionFilters(
@@ -101,6 +103,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       subcategoryIds: subIds,
       beneficiaryIds: benIds,
       groupBySubcategory: _selectedCategories.length == 1,
+      size: 1000,
     );
   }
 
@@ -111,9 +114,27 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     try {
       final filters = _buildCurrentFilters();
 
-      final stats = await _reportRepo.fetchCategoryStats(filters);
+      // Lanzamos todas las peticiones en paralelo para que coincidan los filtros
+      final results = await Future.wait([
+        _reportRepo.fetchCategoryStats(filters),
+        _transactionRepo.fetchTransactions(filters),
+      ]);
+
+      final stats = results[0] as Map<String, double>;
+      final txs = results[1] as List<TransactionItem>;
       
-      // Ordenar estadísticas alfabéticamente por el nombre de la categoría (la clave del mapa)
+      // Calcular totales del balance basados en la lista filtrada
+      double incomes = 0;
+      double expenses = 0;
+      for (var tx in txs) {
+        if (tx.amount.isNegative) {
+          expenses += tx.amount.value.abs() / 100.0;
+        } else {
+          incomes += tx.amount.value / 100.0;
+        }
+      }
+
+      // Ordenar estadísticas alfabéticamente
       final sortedStats = Map.fromEntries(
         stats.entries.toList()..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()))
       );
@@ -121,25 +142,16 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       if (mounted) {
         setState(() {
           _chartStats = sortedStats;
+          _allPeriodTransactions = txs;
+          _filteredTransactions = txs;
+          _totalIncomes = incomes;
+          _totalExpenses = expenses;
           _isLoading = false;
         });
-        _loadPreviewTransactions(filters);
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _loadPreviewTransactions(TransactionFilters filters) async {
-    try {
-      final txs = await _transactionRepo.fetchTransactions(filters);
-      if (mounted) {
-        setState(() {
-          _allPeriodTransactions = txs;
-          _filteredTransactions = txs; // El repositorio ya filtra todo en SQL
-        });
-      }
-    } catch (_) {}
   }
 
   @override
@@ -225,6 +237,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       padding: padding,
       child: Column(
         children: [
+          // Tarjeta de Resumen de Saldo
+          _buildBalanceSummaryCard(l10n, isMobile),
+          const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20)]),
@@ -246,6 +261,49 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     );
   }
 
+  Widget _buildBalanceSummaryCard(AppLocalizations l10n, bool isMobile) {
+    final net = _totalIncomes - _totalExpenses;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: AppColors.primaryBlue.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildSummaryItem(l10n.moInc, _totalIncomes, Colors.white),
+          Container(width: 1, height: 40, color: Colors.white24),
+          _buildSummaryItem(l10n.moExp, _totalExpenses, Colors.white),
+          Container(width: 1, height: 40, color: Colors.white24),
+          _buildSummaryItem(l10n.moNet, net, net >= 0 ? Colors.greenAccent : Colors.orangeAccent, isBold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String label, double value, Color color, {bool isBold = false}) {
+    return Column(
+      children: [
+        Text(label.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        const SizedBox(height: 4),
+        Text(
+          '€${value.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: color,
+            fontSize: isBold ? 16 : 14,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMovementPreview(AppLocalizations l10n, {bool isMobile = false}) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 24),
@@ -253,7 +311,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${l10n.movementsPreview} (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
         const Divider(),
-        ..._filteredTransactions.take(isMobile ? 10 : 20).map((tx) => ListTile(contentPadding: EdgeInsets.zero, dense: true, title: Text(tx.description, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis), subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 10)), trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold, fontSize: 12)))),
+        ..._filteredTransactions.map((tx) => ListTile(contentPadding: EdgeInsets.zero, dense: true, title: Text(tx.description, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis), subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 10)), trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold, fontSize: 12)))),
       ]),
     );
   }
@@ -266,7 +324,28 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildMultiSelector<T>({required Set<T> selectedItems, required String hint, required List<T> items, required String Function(T) label, required VoidCallback onChanged, bool isEnabled = true}) {
     final l10n = AppLocalizations.of(context)!;
-    return InkWell(onTap: !isEnabled ? null : () => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => _MultiSearchModal<T>(title: hint, items: items, label: label, initialSelection: selectedItems.toList(), onDone: (res) { setState(() { selectedItems.clear(); selectedItems.addAll(res); }); onChanged(); })), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: !isEnabled ? Colors.grey.shade100 : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [Expanded(child: Text(selectedItems.isEmpty ? hint : selectedItems.length == 1 ? label(selectedItems.first) : l10n.selectItems(selectedItems.length), style: TextStyle(fontSize: 12, color: selectedItems.isEmpty ? Colors.grey.shade400 : AppColors.primaryText, fontWeight: selectedItems.isEmpty ? FontWeight.normal : FontWeight.w600), overflow: TextOverflow.ellipsis)), Icon(Icons.keyboard_arrow_down, size: 16, color: !isEnabled ? Colors.grey.shade300 : AppColors.primaryBlue)])));
+    return InkWell(
+      onTap: !isEnabled ? null : () => showModalBottomSheet(
+        context: context, 
+        isScrollControlled: true, 
+        backgroundColor: Colors.transparent, 
+        builder: (context) => _MultiSearchModal<T>(
+          title: hint, 
+          items: items, 
+          label: label, 
+          initialSelection: selectedItems.toList(), 
+          onDone: (res) { 
+            setState(() { 
+              selectedItems.clear(); 
+              selectedItems.addAll(res); 
+            }); 
+            // Forzamos un pequeño delay para asegurar que el modal se ha cerrado y el estado está limpio
+            Future.delayed(Duration.zero, onChanged);
+          }
+        )
+      ), 
+      child: Container(
+padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: !isEnabled ? Colors.grey.shade100 : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [Expanded(child: Text(selectedItems.isEmpty ? hint : selectedItems.length == 1 ? label(selectedItems.first) : l10n.selectItems(selectedItems.length), style: TextStyle(fontSize: 12, color: selectedItems.isEmpty ? Colors.grey.shade400 : AppColors.primaryText, fontWeight: selectedItems.isEmpty ? FontWeight.normal : FontWeight.w600), overflow: TextOverflow.ellipsis)), Icon(Icons.keyboard_arrow_down, size: 16, color: !isEnabled ? Colors.grey.shade300 : AppColors.primaryBlue)])));
   }
 
   Widget _buildLabel(String t) => Padding(padding: const EdgeInsets.only(bottom: 6, left: 4), child: Text(t, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)));

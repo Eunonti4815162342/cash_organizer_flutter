@@ -19,11 +19,18 @@ class SqliteReportRepository implements IReportRepository {
     final labelColumn = filters.groupBySubcategory ? 't.subcategory_name' : 't.category_name';
     final f = SqliteTransactionRepository.buildFilterConditions(filters);
     
+    // Filtro base: Solo gastos por defecto para el gráfico de distribución, 
+    // a menos que se quiera ver ingresos (esto se puede mejorar luego)
+    String clause = f['clause'];
+    if (!clause.contains('is_negative')) {
+      clause += ' AND t.is_negative = 1';
+    }
+
     final List<Map<String, dynamic>> results = await db.rawQuery(
-      'SELECT $labelColumn as label, SUM(t.amount_value) as total FROM transactions t WHERE ${f['clause']} GROUP BY $labelColumn',
+      'SELECT $labelColumn as label, SUM(t.amount_value) as total FROM transactions t WHERE $clause GROUP BY $labelColumn',
       f['args']
     );
-    return { for (var row in results) (row['label']?.toString() ?? 'Otros'): (row['total'] as num).toDouble() / 100.0 };
+    return { for (var row in results) (row['label']?.toString() ?? 'Otros'): (row['total'] as num).toDouble().abs() / 100.0 };
   }
 
   @override

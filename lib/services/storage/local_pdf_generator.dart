@@ -31,16 +31,86 @@ class LocalPdfReportGenerator {
     final fontRegular = pw.Font.helvetica();
     final fontBold = pw.Font.helveticaBold();
 
+    // Calcular totales reales
+    double totalIncome = 0;
+    double totalExpense = 0;
+    for (var entity in segregatedData.values) {
+      for (var acc in entity.values) {
+        for (var tx in acc) {
+          if (tx.amount.isNegative) {
+            totalExpense += (tx.amount.value.abs() / 100.0);
+          } else {
+            totalIncome += (tx.amount.value / 100.0);
+          }
+        }
+      }
+    }
+    double balance = totalIncome - totalExpense;
+
     // 1. PÁGINA DE RESUMEN
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.all(60), // Margen aumentado para que no pegue abajo
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.center,
+          margin: const pw.EdgeInsets.only(top: 10),
+          child: pw.Text('NATAVE - Página ${context.pageNumber}', style: pw.TextStyle(color: _textLight, fontSize: 8)),
+        ),
         build: (context) => [
           pw.Text('NATAVE', style: pw.TextStyle(font: fontBold, fontSize: 24, color: _primaryBlue)),
           pw.Text(title.toUpperCase(), style: pw.TextStyle(font: fontBold, fontSize: 12, color: _textMain)),
           pw.SizedBox(height: 4),
           pw.Text('PERIODO: $period', style: pw.TextStyle(font: fontRegular, fontSize: 8, color: _textLight)),
+          pw.SizedBox(height: 20),
+
+          // RESUMEN DE SALDO (INGRESOS, GASTOS, NETO)
+          pw.Table(
+            columnWidths: {
+              0: const pw.FlexColumnWidth(),
+              1: const pw.FlexColumnWidth(),
+              2: const pw.FlexColumnWidth(),
+            },
+            children: [
+              pw.TableRow(
+                children: [
+                  pw.Container(
+                    color: const PdfColor.fromInt(0xffe8f5e9), // Verde suave
+                    padding: const pw.EdgeInsets.all(10),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('INGRESOS', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
+                        pw.Text('€ ${totalIncome.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: _textMain)),
+                      ]
+                    )
+                  ),
+                  pw.Container(
+                    color: const PdfColor.fromInt(0xffffebee), // Rojo suave
+                    padding: const pw.EdgeInsets.all(10),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('GASTOS', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
+                        pw.Text('€ ${totalExpense.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: _textMain)),
+                      ]
+                    )
+                  ),
+                  pw.Container(
+                    color: const PdfColor.fromInt(0xfff5f7fa), // Gris suave
+                    padding: const pw.EdgeInsets.all(10),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('NETO', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
+                        pw.Text('€ ${balance.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: balance >= 0 ? const PdfColor.fromInt(0xff2e7d32) : const PdfColor.fromInt(0xffc62828))),
+                      ]
+                    )
+                  ),
+                ]
+              )
+            ]
+          ),
           pw.SizedBox(height: 20),
 
           if (summary.isNotEmpty) ...[

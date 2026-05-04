@@ -51,6 +51,18 @@ class SqliteTransactionRepository implements ITransactionRepository {
   }
 
   @override
+  Future<int> countTransactions(TransactionFilters filters) async {
+    final db = await _dbHelper.database;
+    final f = buildFilterConditions(filters);
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+      SELECT COUNT(*) as total 
+      FROM transactions t
+      WHERE ${f['clause']}
+    ''', f['args']);
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  @override
   Future<TransactionItem> saveTransaction(TransactionItem tx, {bool isSynced = true}) async {
     final db = await _dbHelper.database;
     int? beneficiaryId = tx.beneficiary?.id;

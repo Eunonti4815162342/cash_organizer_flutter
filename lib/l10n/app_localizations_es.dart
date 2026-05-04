@@ -286,4 +286,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get accept => 'OK';
+
+  @override
+  String get moInc => 'Ingresos';
+
+  @override
+  String get moExp => 'Gastos';
+
+  @override
+  String get moNet => 'Neto';
 }

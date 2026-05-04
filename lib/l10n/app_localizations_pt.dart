@@ -282,8 +282,17 @@ class AppLocalizationsPt extends AppLocalizations {
   String get selectAll => 'ALL';
 
   @override
-  String get deselectAll => 'DESELECT';
+  String get deselectAll => 'NONE';
 
   @override
   String get accept => 'OK';
+
+  @override
+  String get moInc => 'Income';
+
+  @override
+  String get moExp => 'Expenses';
+
+  @override
+  String get moNet => 'Net';
 }

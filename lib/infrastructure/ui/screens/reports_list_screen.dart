@@ -251,9 +251,107 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildLabel(String t) => Padding(padding: const EdgeInsets.only(bottom: 6, left: 4), child: Text(t, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)));
 
-  Widget _buildDateSelector() => InkWell(onTap: () async { final picked = await showDateRangePicker(context: context, initialDateRange: DateTimeRange(start: _startDate, end: _endDate), firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) { setState(() { _startDate = picked.start; _endDate = picked.end; }); _refreshData(); } }, child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)), child: Row(children: [const Icon(Icons.date_range, size: 14, color: AppColors.primaryBlue), const SizedBox(width: 8), Text('${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}', style: const TextStyle(fontSize: 11))])));
+  void _applyQuickFilter(String filter) {
+    final now = DateTime.now();
+    setState(() {
+      switch (filter) {
+        case 'THIS_MONTH':
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = now;
+          break;
+        case 'LAST_MONTH':
+          _startDate = DateTime(now.year, now.month - 1, 1);
+          _endDate = DateTime(now.year, now.month, 0);
+          break;
+        case 'LAST_3_MONTHS':
+          _startDate = DateTime(now.year, now.month - 2, 1);
+          _endDate = now;
+          break;
+        case 'LAST_6_MONTHS':
+          _startDate = DateTime(now.year, now.month - 5, 1);
+          _endDate = now;
+          break;
+        case 'THIS_YEAR':
+          _startDate = DateTime(now.year, 1, 1);
+          _endDate = now;
+          break;
+      }
+    });
+    _refreshData();
+  }
 
-  void _clearFilters() { setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _refreshData(); }
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _refreshData();
+    }
+  }
+
+  Widget _buildDateSelector() {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'CUSTOM') {
+          _selectDateRange();
+        } else {
+          _applyQuickFilter(value);
+        }
+      },
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'THIS_MONTH', child: _buildPopupItem(Icons.calendar_view_month, 'Este mes')),
+        PopupMenuItem(value: 'LAST_MONTH', child: _buildPopupItem(Icons.keyboard_arrow_left, 'Mes pasado')),
+        PopupMenuItem(value: 'LAST_3_MONTHS', child: _buildPopupItem(Icons.more_time, 'Últimos 3 meses')),
+        PopupMenuItem(value: 'LAST_6_MONTHS', child: _buildPopupItem(Icons.update, 'Últimos 6 meses')),
+        PopupMenuItem(value: 'THIS_YEAR', child: _buildPopupItem(Icons.calendar_today, 'Este año')),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'CUSTOM', child: _buildPopupItem(Icons.calendar_month, 'Seleccionar fechas...')),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.date_range, size: 14, color: AppColors.primaryBlue),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_endDate.day}/${_endDate.month}/${_endDate.year}',
+                style: const TextStyle(fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupItem(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primaryBlue),
+        const SizedBox(width: 12),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  void _clearFilters() {
+ setState(() { _selectedEntities.clear(); _selectedAccounts.clear(); _selectedCategories.clear(); _selectedSubcategories.clear(); _selectedBeneficiaries.clear(); }); _refreshData(); }
 
   Future<void> _generatePdf() async {
     final l10n = AppLocalizations.of(context)!;

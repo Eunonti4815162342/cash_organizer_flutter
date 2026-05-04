@@ -10,45 +10,38 @@ class CachedAccountRepository implements IAccountRepository {
 
   @override
   Future<List<AccountItem>> fetchAccounts() async {
-    // 1. SIEMPRE LOCAL PRIMERO (INSTANTÁNEO)
     if (!kIsWeb) {
       final local = await _localRepo?.fetchAccounts() ?? [];
       if (local.isNotEmpty) {
-        _refreshInBackground(); // Sincronización silenciosa
+        _refreshInBackground();
         return local;
       }
     }
-
-    // 2. SOLO SI NO HAY NADA O ES WEB
     try {
       final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 2));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
       return remote;
-    } catch (e) {
-      return [];
-    }
+    } catch (_) { return []; }
   }
 
   Future<void> _refreshInBackground() async {
     try {
       final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 5));
-      if (remote.isNotEmpty && !kIsWeb) {
-        await _localRepo?.saveAll(remote);
-      }
+      if (remote.isNotEmpty && !kIsWeb) await _localRepo?.saveAll(remote);
     } catch (_) {}
   }
 
   @override
   Future<AccountItem> saveAccount(AccountItem account, {bool isSynced = true}) async {
-    if (kIsWeb) return await _apiService.createAccount(account.toJson()) ?? account;
-    
+    if (kIsWeb) {
+      final remote = await _apiService.createAccount(account.toJson());
+      return remote ?? account;
+    }
     final saved = await _localRepo!.saveAccount(account, isSynced: false);
-    _apiService.createAccount(account.toJson()).then((remote) {
-      if (remote != null) _localRepo?.markAsSynced(saved.id, remote.id);
-    }).catchError((_) => null);
-
+    try {
+      final remote = await _apiService.createAccount(account.toJson());
+      if (remote != null) await _localRepo?.markAsSynced(saved.id, remote.id);
+    } catch (_) {}
     return saved;
   }
 
@@ -59,7 +52,9 @@ class CachedAccountRepository implements IAccountRepository {
       return;
     }
     await _localRepo!.updateAccount(account, isSynced: false);
-    _apiService.updateAccount(account.id, account.toJson()).catchError((_) => null);
+    try {
+      await _apiService.updateAccount(account.id, account.toJson());
+    } catch (_) {}
   }
 
   @override

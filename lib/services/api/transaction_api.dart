@@ -24,6 +24,9 @@ class TransactionApi {
       params['beneficiaryIds'] = filters.beneficiaryIds!.join(',');
     }
     
+    params['page'] = filters.page.toString();
+    params['size'] = filters.size.toString();
+    
     final body = await _client.get('transactions', queryParameters: params.isEmpty ? null : params);
     final List<dynamic> list = body?['content'] ?? [];
     return list.map((json) => TransactionItem.fromJson(json)).toList();

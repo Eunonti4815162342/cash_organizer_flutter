@@ -6,6 +6,8 @@ class TransactionFilters {
   final List<int>? subcategoryIds;
   final List<int>? beneficiaryIds;
   final bool groupBySubcategory;
+  final int page;
+  final int size;
 
   const TransactionFilters({
     this.startDate,
@@ -15,6 +17,8 @@ class TransactionFilters {
     this.subcategoryIds,
     this.beneficiaryIds,
     this.groupBySubcategory = false,
+    this.page = 0,
+    this.size = 20,
   });
 
   /// Permite crear una copia modificada (Patrón Inmutable)
@@ -26,6 +30,8 @@ class TransactionFilters {
     List<int>? subcategoryIds,
     List<int>? beneficiaryIds,
     bool? groupBySubcategory,
+    int? page,
+    int? size,
   }) {
     return TransactionFilters(
       startDate: startDate ?? this.startDate,
@@ -35,6 +41,8 @@ class TransactionFilters {
       subcategoryIds: subcategoryIds ?? this.subcategoryIds,
       beneficiaryIds: beneficiaryIds ?? this.beneficiaryIds,
       groupBySubcategory: groupBySubcategory ?? this.groupBySubcategory,
+      page: page ?? this.page,
+      size: size ?? this.size,
     );
   }
 

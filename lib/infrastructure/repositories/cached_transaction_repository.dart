@@ -11,7 +11,6 @@ class CachedTransactionRepository implements ITransactionRepository {
 
   @override
   Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) async {
-    // 1. LOCAL FIRST (CON TODOS LOS FILTROS)
     if (!kIsWeb) {
       final local = await _localRepo?.fetchTransactions(filters) ?? [];
       if (local.isNotEmpty) {
@@ -19,8 +18,6 @@ class CachedTransactionRepository implements ITransactionRepository {
         return local;
       }
     }
-
-    // 2. NETWORK FALLBACK (Solo si local vacío o Web)
     try {
       final remote = await _apiService.fetchTransactions(filters).timeout(const Duration(seconds: 3));
       if (remote.isNotEmpty && !kIsWeb) {
@@ -28,7 +25,7 @@ class CachedTransactionRepository implements ITransactionRepository {
         return await _localRepo!.fetchTransactions(filters);
       }
       return remote;
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -49,9 +46,12 @@ class CachedTransactionRepository implements ITransactionRepository {
       return remote ?? transaction;
     }
     final saved = await _localRepo!.saveTransaction(transaction, isSynced: false);
-    _apiService.createTransaction(transaction.toJson()).then((remote) {
-      if (remote != null) _localRepo?.markAsSynced(saved.id, remote.id);
-    }).catchError((_) => null);
+    try {
+      final remote = await _apiService.createTransaction(transaction.toJson());
+      if (remote != null) {
+        await _localRepo?.markAsSynced(saved.id, remote.id);
+      }
+    } catch (_) {}
     return saved;
   }
 
@@ -62,15 +62,19 @@ class CachedTransactionRepository implements ITransactionRepository {
       return;
     }
     await _localRepo!.updateTransaction(transaction, isSynced: false);
-    _apiService.updateTransaction(transaction.id, transaction.toJson()).catchError((_) => null);
+    try {
+      await _apiService.updateTransaction(transaction.id, transaction.toJson());
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteTransaction(int id) async {
     if (!kIsWeb) await _localRepo?.deleteTransaction(id);
-    if (id > 0) {
-      _apiService.deleteTransaction(id).catchError((_) => null);
-    }
+    try {
+      if (id > 0) {
+        await _apiService.deleteTransaction(id);
+      }
+    } catch (_) {}
   }
 
   @override

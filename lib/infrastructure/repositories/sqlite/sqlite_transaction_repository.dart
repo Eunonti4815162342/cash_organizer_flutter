@@ -110,8 +110,6 @@ class SqliteTransactionRepository implements ITransactionRepository {
   @override
   Future<void> deleteTransaction(int id) async {
     final db = await _dbHelper.database;
-    // BLINDAJE DE BORRADO: Borramos por ambos campos para asegurar que desaparece
-    // tanto si es el ID local como si es el server_id
     await db.delete('transactions', where: 'id = ? OR server_id = ?', whereArgs: [id, id]);
   }
 
@@ -169,10 +167,10 @@ class SqliteTransactionRepository implements ITransactionRepository {
     await db.update('transactions', {'pending_sync': 0, 'server_id': serverId}, where: 'id = ?', whereArgs: [localId]);
   }
 
-  Map<String, dynamic> _toRow(TransactionItem tx, {required int id, int? server_id, required int pendingSync, int? overrideBeneficiaryId}) {
+  Map<String, dynamic> _toRow(TransactionItem tx, {required int id, int? serverId, required int pendingSync, int? overrideBeneficiaryId}) {
     return {
       'id': id,
-      'server_id': server_id,
+      'server_id': serverId,
       'amount_value': tx.amount.value,
       'amount_currency': tx.amount.currency,
       'is_negative': tx.amount.isNegative ? 1 : 0,

@@ -38,7 +38,6 @@ class DashboardProvider extends ChangeNotifier {
   int get touchedIndex => _touchedIndex;
 
   Future<void> loadInitialData() async {
-    // 1. CARGA LOCAL INSTANTÁNEA (Solo mostramos loader si no hay nada en memoria)
     if (_accounts.isEmpty) {
       _isLoading = true;
       notifyListeners();
@@ -51,7 +50,6 @@ class DashboardProvider extends ChangeNotifier {
           _accounts = localAccounts;
           _selectedAccountIds = _accounts.map((a) => a.id).toList();
           
-          // Carga inicial de transacciones locales para pintar el dashboard YA
           _cachedTransactions = await getIt<ITransactionRepository>(instanceName: 'local_transaction').fetchTransactions(
             TransactionFilters(
               startDate: _startDate.toIso8601String(),
@@ -61,11 +59,9 @@ class DashboardProvider extends ChangeNotifier {
           _recomputeCategories();
           
           _isLoading = false;
-          notifyListeners(); // ¡La UI ya tiene datos locales!
+          notifyListeners();
         }
       }
-
-      // 2. REFRESCO REMOTO (En paralelo/segundo plano)
       await refreshDashboard();
     } catch (e) {
       _isLoading = false;
@@ -74,8 +70,31 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  /// Refresco rápido de saldos (Útil tras añadir una transacción)
+  Future<void> refreshBalances() async {
+    try {
+      // 1. Cargamos cuentas de SQLite (Rápido)
+      if (!kIsWeb) {
+        final localAccounts = await getIt<IAccountRepository>(instanceName: 'local_account').fetchAccounts();
+        if (localAccounts.isNotEmpty) {
+          _accounts = localAccounts;
+        }
+      }
+      
+      // 2. Refrescamos transacciones del periodo para el gráfico
+      _cachedTransactions = await _transactionRepo.fetchTransactions(
+        TransactionFilters(
+          startDate: _startDate.toIso8601String(),
+          endDate: _endDate.toIso8601String(),
+        )
+      );
+      
+      _recomputeCategories();
+      notifyListeners(); // Notificamos a la UI del Dashboard
+    } catch (_) {}
+  }
+
   Future<void> refreshDashboard() async {
-    // Si ya tenemos datos, no mostramos el loader principal (evita el parpadeo blanco)
     if (_accounts.isEmpty) {
       _isLoading = true;
     } else {
@@ -84,7 +103,6 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Intentamos obtener cuentas de red
       final remoteAccounts = await _accountRepo.fetchAccounts();
       if (remoteAccounts.isNotEmpty) {
         _accounts = remoteAccounts;
@@ -93,7 +111,6 @@ class DashboardProvider extends ChangeNotifier {
         }
       }
 
-      // Intentamos obtener transacciones de red (vía CachedRepository que gestiona el fallback)
       _cachedTransactions = await _transactionRepo.fetchTransactions(
         TransactionFilters(
           startDate: _startDate.toIso8601String(),

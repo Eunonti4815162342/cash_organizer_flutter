@@ -22,8 +22,15 @@ class AccountDetailsScreen extends StatefulWidget {
 }
 
 class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
-  late Future<List<TransactionItem>> _transactionsFuture;
   final ITransactionRepository _transactionRepo = GetIt.instance.get<ITransactionRepository>();
+  final ScrollController _scrollController = ScrollController();
+
+  List<TransactionItem> _transactions = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _isLastPage = false;
+  int _currentPage = 0;
+  final int _pageSize = 20;
 
   // Filtro de fecha: por defecto el mes actual
   late DateTime _startDate;
@@ -36,19 +43,105 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
     _startDate = DateTime(now.year, now.month, 1);
     _endDate = now;
     
+    _scrollController.addListener(_onScroll);
     _refreshTransactions();
   }
 
-  void _refreshTransactions() {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && !_isLastPage) {
+        _loadMoreTransactions();
+      }
+    }
+  }
+
+  Future<void> _refreshTransactions() async {
     setState(() {
-      _transactionsFuture = _transactionRepo.fetchTransactions(
+      _isLoading = true;
+      _currentPage = 0;
+      _isLastPage = false;
+      _transactions = [];
+    });
+    await _fetchPage(0);
+  }
+
+  Future<void> _loadMoreTransactions() async {
+    setState(() => _isLoadingMore = true);
+    await _fetchPage(_currentPage + 1);
+  }
+
+  Future<void> _fetchPage(int page) async {
+    try {
+      final results = await _transactionRepo.fetchTransactions(
         TransactionFilters(
           accountIds: widget.account?.id != null ? [widget.account!.id] : null,
           startDate: _startDate.toIso8601String(),
           endDate: _endDate.add(const Duration(days: 1)).toIso8601String(),
+          page: page,
+          size: _pageSize,
         )
       );
+      
+      if (mounted) {
+        setState(() {
+          _currentPage = page;
+          if (results.length < _pageSize) {
+            _isLastPage = true;
+          }
+          
+          List<TransactionItem> newTransactions = results;
+          if (widget.entity != null && widget.account == null) {
+            newTransactions = results.where((tx) => tx.account.entity?.id == widget.entity!.id).toList();
+          }
+          
+          _transactions.addAll(newTransactions);
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _applyQuickFilter(String filter) {
+    final now = DateTime.now();
+    setState(() {
+      switch (filter) {
+        case 'THIS_MONTH':
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = now;
+          break;
+        case 'LAST_MONTH':
+          _startDate = DateTime(now.year, now.month - 1, 1);
+          _endDate = DateTime(now.year, now.month, 0);
+          break;
+        case 'LAST_3_MONTHS':
+          _startDate = DateTime(now.year, now.month - 2, 1);
+          _endDate = now;
+          break;
+        case 'LAST_6_MONTHS':
+          _startDate = DateTime(now.year, now.month - 5, 1);
+          _endDate = now;
+          break;
+        case 'THIS_YEAR':
+          _startDate = DateTime(now.year, 1, 1);
+          _endDate = now;
+          break;
+      }
     });
+    _refreshTransactions();
   }
 
   Future<void> _selectDateRange() async {
@@ -148,6 +241,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
                     Row(
                       children: [
                         _buildDateRangeButton(isNegative),
+                        _buildQuickFilterButton(isNegative),
                         IconButton(icon: const Icon(Icons.refresh, size: 18, color: Colors.grey), onPressed: _refreshTransactions),
                       ],
                     ),
@@ -159,39 +253,32 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
 
           // Listado de transacciones
           Expanded(
-            child: FutureBuilder<List<TransactionItem>>(
-              future: _transactionsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SkeletonTransactionList(itemCount: 5);
-                }
-                if (snapshot.hasError) {
-                  return ErrorStateWidget(message: 'Error al cargar movimientos', onRetry: _refreshTransactions);
-                }
-                final allTxs = snapshot.data ?? [];
-                
-                List<TransactionItem> filteredTxs = allTxs;
-                if (widget.entity != null && widget.account == null) {
-                  filteredTxs = allTxs.where((tx) => tx.account.entity?.id == widget.entity!.id).toList();
-                }
-
-                if (filteredTxs.isEmpty) {
-                  return const EmptyStateWidget(
+            child: _isLoading 
+              ? const SkeletonTransactionList(itemCount: 5)
+              : _transactions.isEmpty && !_isLoadingMore
+                ? const EmptyStateWidget(
                     icon: Icons.receipt_long_outlined,
                     title: 'Sin movimientos',
                     subtitle: 'No hay transacciones registradas en este periodo',
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 24),
-                  itemCount: filteredTxs.length,
-                  itemBuilder: (context, index) => TransactionListItem(
-                    transaction: filteredTxs[index],
-                    onRefresh: _refreshTransactions,
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    itemCount: _transactions.length + (_isLastPage ? 0 : 1),
+                    itemBuilder: (context, index) {
+                      if (index < _transactions.length) {
+                        return TransactionListItem(
+                          transaction: _transactions[index],
+                          onRefresh: _refreshTransactions,
+                        );
+                      } else {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -234,6 +321,33 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildQuickFilterButton(bool isNegative) {
+    final activeColor = isNegative ? AppColors.expenseRed : AppColors.primaryBlue;
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.history, size: 18, color: Colors.grey.shade400),
+      tooltip: 'Selección rápida',
+      onSelected: _applyQuickFilter,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'THIS_MONTH', child: _buildPopupItem(Icons.calendar_view_month, 'Este mes')),
+        PopupMenuItem(value: 'LAST_MONTH', child: _buildPopupItem(Icons.keyboard_arrow_left, 'Mes pasado')),
+        PopupMenuItem(value: 'LAST_3_MONTHS', child: _buildPopupItem(Icons.more_time, 'Últimos 3 meses')),
+        PopupMenuItem(value: 'LAST_6_MONTHS', child: _buildPopupItem(Icons.update, 'Últimos 6 meses')),
+        PopupMenuItem(value: 'THIS_YEAR', child: _buildPopupItem(Icons.calendar_today, 'Este año')),
+      ],
+    );
+  }
+
+  Widget _buildPopupItem(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primaryBlue),
+        const SizedBox(width: 12),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }

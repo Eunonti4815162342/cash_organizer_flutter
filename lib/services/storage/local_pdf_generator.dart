@@ -1,22 +1,26 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:intl/intl.dart';
 import 'package:natave_flutter/domain/models/transaction_item.dart';
 
 class LocalPdfReportGenerator {
-  static const _primaryBlue = PdfColor.fromInt(0xff009ffb);
-  static const _textMain = PdfColor.fromInt(0xff2d3748);
-  static const _textLight = PdfColor.fromInt(0xff718096);
-  static const _border = PdfColor.fromInt(0xffe2e8f0);
-  static const _tableHeaderBg = PdfColor.fromInt(0xfff5f8fa);
+  // Paleta (en sync con el backend Java)
+  static const _blue      = PdfColor.fromInt(0xff009ffb);
+  static const _greenInc  = PdfColor.fromInt(0xff00a86b);
+  static const _redExp    = PdfColor.fromInt(0xffdc3545);
+  static const _textMain  = PdfColor.fromInt(0xff1e2837);
+  static const _textLight = PdfColor.fromInt(0xff6e8191);
+  static const _border    = PdfColor.fromInt(0xffe6e8f0);
+  static const _rowAlt    = PdfColor.fromInt(0xfffafcfe);
+  static const _headerBg  = PdfColor.fromInt(0xfff2f6fa);
 
-  static String _getCurrencySymbol(String currency) {
+  static String _sym(String currency) {
     switch (currency.toUpperCase()) {
-      case 'BRL': return 'R\$';
+      case 'EUR': return '€';
       case 'USD': return '\$';
-      case 'EUR': return 'EU'; // Usamos EU por petición del usuario para evitar errores de fuente
-      default: return currency;
+      case 'BRL': return 'R\$';
+      default:    return currency;
     }
   }
 
@@ -27,198 +31,294 @@ class LocalPdfReportGenerator {
     required Map<String, Map<String, List<TransactionItem>>> segregatedData,
     String lang = 'es',
   }) async {
-    final pdf = pw.Document();
-    final fontRegular = pw.Font.helvetica();
-    final fontBold = pw.Font.helveticaBold();
+    final pdf     = pw.Document();
+    final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Arial-Regular.ttf'));
+    final bold    = pw.Font.ttf(await rootBundle.load('assets/fonts/Arial-Bold.ttf'));
 
-    // Calcular totales reales
-    double totalIncome = 0;
-    double totalExpense = 0;
+    double totalIncome = 0, totalExpense = 0;
+    int txCount = 0;
     for (var entity in segregatedData.values) {
       for (var acc in entity.values) {
+        txCount += acc.length;
         for (var tx in acc) {
           if (tx.amount.isNegative) {
-            totalExpense += (tx.amount.value.abs() / 100.0);
+            totalExpense += tx.amount.value.abs() / 100.0;
           } else {
-            totalIncome += (tx.amount.value / 100.0);
+            totalIncome += tx.amount.value / 100.0;
           }
         }
       }
     }
-    double balance = totalIncome - totalExpense;
+    final balance = totalIncome - totalExpense;
 
-    // 1. PÁGINA DE RESUMEN
-    pdf.addPage(
-      pw.MultiPage(
+    // ── Página de resumen ─────────────────────────────────────────────────
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 40, 40, 50),
+      footer: (ctx) => _footer(ctx, regular),
+      build: (ctx) => [
+        _headerBand(title, period, txCount, bold, regular),
+        pw.SizedBox(height: 20),
+        _kpiRow(totalIncome, totalExpense, balance, bold, regular),
+        pw.SizedBox(height: 24),
+        if (summary.isNotEmpty) _summaryTable(summary, bold, regular),
+      ],
+    ));
+
+    // ── Una página por entidad ────────────────────────────────────────────
+    for (final entityEntry in segregatedData.entries) {
+      pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(60), // Margen aumentado para que no pegue abajo
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.center,
-          margin: const pw.EdgeInsets.only(top: 10),
-          child: pw.Text('NATAVE - Página ${context.pageNumber}', style: pw.TextStyle(color: _textLight, fontSize: 8)),
-        ),
-        build: (context) => [
-          pw.Text('NATAVE', style: pw.TextStyle(font: fontBold, fontSize: 24, color: _primaryBlue)),
-          pw.Text(title.toUpperCase(), style: pw.TextStyle(font: fontBold, fontSize: 12, color: _textMain)),
-          pw.SizedBox(height: 4),
-          pw.Text('PERIODO: $period', style: pw.TextStyle(font: fontRegular, fontSize: 8, color: _textLight)),
-          pw.SizedBox(height: 20),
-
-          // RESUMEN DE SALDO (INGRESOS, GASTOS, NETO)
-          pw.Table(
-            columnWidths: {
-              0: const pw.FlexColumnWidth(),
-              1: const pw.FlexColumnWidth(),
-              2: const pw.FlexColumnWidth(),
-            },
-            children: [
-              pw.TableRow(
-                children: [
-                  pw.Container(
-                    color: const PdfColor.fromInt(0xffe8f5e9), // Verde suave
-                    padding: const pw.EdgeInsets.all(10),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('INGRESOS', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
-                        pw.Text('€ ${totalIncome.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: _textMain)),
-                      ]
-                    )
-                  ),
-                  pw.Container(
-                    color: const PdfColor.fromInt(0xffffebee), // Rojo suave
-                    padding: const pw.EdgeInsets.all(10),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('GASTOS', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
-                        pw.Text('€ ${totalExpense.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: _textMain)),
-                      ]
-                    )
-                  ),
-                  pw.Container(
-                    color: const PdfColor.fromInt(0xfff5f7fa), // Gris suave
-                    padding: const pw.EdgeInsets.all(10),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('NETO', style: pw.TextStyle(font: fontBold, fontSize: 8, color: _textLight)),
-                        pw.Text('€ ${balance.toStringAsFixed(2)}', style: pw.TextStyle(font: fontBold, fontSize: 14, color: balance >= 0 ? const PdfColor.fromInt(0xff2e7d32) : const PdfColor.fromInt(0xffc62828))),
-                      ]
-                    )
-                  ),
-                ]
-              )
-            ]
-          ),
-          pw.SizedBox(height: 20),
-
-          if (summary.isNotEmpty) ...[
-            pw.Text('RESUMEN GENERAL', style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain)),
+        margin: const pw.EdgeInsets.fromLTRB(40, 40, 40, 50),
+        footer: (ctx) => _footer(ctx, regular),
+        build: (ctx) => [
+          _entityBand(entityEntry.key, bold, regular),
+          pw.SizedBox(height: 16),
+          for (final accEntry in entityEntry.value.entries) ...[
+            _accountHeader(accEntry.key, bold),
             pw.SizedBox(height: 10),
-            pw.Table(
-              columnWidths: {0: const pw.FlexColumnWidth(3), 1: const pw.FlexColumnWidth(1)},
-              children: summary.entries.map((e) => pw.TableRow(
-                decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _border, width: 0.5))),
-                children: [
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(e.key, style: pw.TextStyle(font: fontRegular, fontSize: 9, color: _textMain)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: e.value.entries.map((curr) => 
-                        pw.Text('${curr.value.toStringAsFixed(2)} ${_getCurrencySymbol(curr.key)}', 
-                          style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain))
-                      ).toList(),
-                    ),
-                  ),
-                ],
-              )).toList(),
-            ),
+            _txTable(accEntry.value, bold, regular),
+            pw.SizedBox(height: 24),
           ],
         ],
-      ),
-    );
-
-    // 2. UNA PÁGINA NUEVA POR CADA ENTIDAD
-    for (var entityEntry in segregatedData.entries) {
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(40),
-          build: (context) => [
-            // Badge de Entidad (Cabecera de página)
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
-              decoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xfff0f7ff),
-                border: pw.Border(left: pw.BorderSide(color: _primaryBlue, width: 4)),
-              ),
-              child: pw.Text('ENTIDAD: ${entityEntry.key.toUpperCase()}', 
-                style: pw.TextStyle(font: fontBold, fontSize: 12, color: _textMain)),
-            ),
-            pw.SizedBox(height: 20),
-
-            for (var accEntry in entityEntry.value.entries) ...[
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(top: 8, bottom: 8),
-                child: pw.Text('CUENTA: ${accEntry.key.toUpperCase()}', 
-                  style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain)),
-              ),
-
-              pw.Table(
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(70),
-                  1: const pw.FlexColumnWidth(2),
-                  2: const pw.FlexColumnWidth(3),
-                  3: const pw.FixedColumnWidth(85),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: _tableHeaderBg, border: pw.Border(bottom: pw.BorderSide(color: _border))),
-                    children: ['FECHA', 'CATEGORÍA', 'DESCRIPCIÓN', 'IMPORTE'].map((h) => pw.Padding(
-                      padding: const pw.EdgeInsets.all(10),
-                      child: pw.Text(h, style: pw.TextStyle(font: fontBold, fontSize: 10, color: _textMain)),
-                    )).toList(),
-                  ),
-                  ...accEntry.value.map((tx) {
-                    final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.parse(tx.date));
-                    final catStr = (tx.category?.name ?? 'Otros') + (tx.subcategory != null ? ' > ${tx.subcategory!.name}' : '');
-                    final symbol = _getCurrencySymbol(tx.amount.currency);
-                    final amountStr = '${tx.amount.isNegative ? '-' : '+'} ${(tx.amount.value / 100).abs().toStringAsFixed(2)} $symbol';
-                    
-                    return pw.TableRow(
-                      decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _border, width: 0.5))),
-                      children: [
-                        _buildCell(dateStr, fontRegular),
-                        _buildCell(catStr, fontRegular),
-                        _buildCell(tx.description, fontRegular),
-                        _buildCell(amountStr, fontRegular, alignRight: true),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-              pw.SizedBox(height: 30),
-            ],
-          ],
-        ),
-      );
+      ));
     }
 
     return pdf.save();
   }
 
-  static pw.Widget _buildCell(String text, pw.Font font, {bool alignRight = false}) {
+  // ── Secciones ─────────────────────────────────────────────────────────────
+
+  static pw.Widget _headerBand(String title, String period, int count,
+      pw.Font bold, pw.Font regular) {
+    return pw.Container(
+      width: double.infinity,
+      color: _blue,
+      padding: const pw.EdgeInsets.fromLTRB(24, 24, 24, 20),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('NATAVE',
+            style: pw.TextStyle(font: bold, fontSize: 28, color: PdfColors.white)),
+        pw.SizedBox(height: 4),
+        pw.Text(title.toUpperCase(),
+            style: pw.TextStyle(font: regular, fontSize: 10,
+                color: const PdfColor.fromInt(0xffbee3ff))),
+        pw.SizedBox(height: 12),
+        pw.Text('PERIODO: $period   ·   $count movimientos',
+            style: pw.TextStyle(font: regular, fontSize: 8,
+                color: const PdfColor.fromInt(0xffaad4ff))),
+      ]),
+    );
+  }
+
+  static pw.Widget _entityBand(String name, pw.Font bold, pw.Font regular) {
+    return pw.Container(
+      width: double.infinity,
+      color: _blue,
+      padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text(name.toUpperCase(),
+            style: pw.TextStyle(font: bold, fontSize: 12, color: PdfColors.white)),
+        pw.SizedBox(height: 2),
+        pw.Text('ENTIDAD',
+            style: pw.TextStyle(font: regular, fontSize: 8,
+                color: const PdfColor.fromInt(0xffbee3ff))),
+      ]),
+    );
+  }
+
+  static pw.Widget _kpiRow(double income, double expense, double balance,
+      pw.Font bold, pw.Font regular) {
+    final netColor = balance >= 0 ? _blue : const PdfColor.fromInt(0xffe67e22);
+    return pw.Row(children: [
+      pw.Expanded(child: _kpiCard('INGRESOS', income, _greenInc, bold, regular)),
+      pw.SizedBox(width: 10),
+      pw.Expanded(child: _kpiCard('GASTOS', expense, _redExp, bold, regular)),
+      pw.SizedBox(width: 10),
+      pw.Expanded(child: _kpiCard('NETO', balance, netColor, bold, regular)),
+    ]);
+  }
+
+  static pw.Widget _kpiCard(String label, double value, PdfColor accent,
+      pw.Font bold, pw.Font regular) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        color: PdfColors.white,
+        border: pw.Border(top: pw.BorderSide(color: accent, width: 3)),
+      ),
+      padding: const pw.EdgeInsets.fromLTRB(14, 12, 14, 16),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text(label,
+            style: pw.TextStyle(font: regular, fontSize: 8, color: _textLight)),
+        pw.SizedBox(height: 6),
+        pw.Text('€${value.toStringAsFixed(2)}',
+            style: pw.TextStyle(font: bold, fontSize: 16, color: accent)),
+      ]),
+    );
+  }
+
+  static pw.Widget _summaryTable(Map<String, Map<String, double>> summary,
+      pw.Font bold, pw.Font regular) {
+    final total = summary.values
+        .expand((m) => m.values)
+        .fold(0.0, (s, v) => s + v.abs());
+
+    final rows = summary.entries.toList();
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pw.Text('RESUMEN GENERAL',
+          style: pw.TextStyle(font: bold, fontSize: 8, color: _textLight)),
+      pw.SizedBox(height: 8),
+      pw.Table(
+        columnWidths: {
+          0: const pw.FlexColumnWidth(3),
+          1: const pw.FlexColumnWidth(1.5),
+        },
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _headerBg),
+            children: [
+              _headerCell('CATEGORÍA', bold),
+              _headerCell('IMPORTE', bold, alignRight: true),
+            ],
+          ),
+          ...rows.asMap().entries.map((e) {
+            final idx   = e.key;
+            final entry = e.value;
+            final rowTotal = entry.value.values.fold(0.0, (s, v) => s + v.abs());
+            final pct = total > 0 ? rowTotal / total * 100 : 0.0;
+            final bg  = idx % 2 == 0 ? PdfColors.white : _rowAlt;
+            final amtStr = entry.value.entries
+                .map((c) => '${c.value.abs().toStringAsFixed(2)} ${_sym(c.key)}')
+                .join('  ');
+            return pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: bg,
+                border: const pw.Border(
+                    bottom: pw.BorderSide(color: _border, width: 0.5)),
+              ),
+              children: [
+                _dataCell('${entry.key}  (${pct.toStringAsFixed(0)}%)', regular),
+                _dataCell(amtStr, bold, alignRight: true),
+              ],
+            );
+          }),
+        ],
+      ),
+    ]);
+  }
+
+  static pw.Widget _accountHeader(String name, pw.Font bold) {
+    return pw.Container(
+      width: double.infinity,
+      decoration: const pw.BoxDecoration(
+        color: PdfColor.fromInt(0xfff0f6fd),
+        border: pw.Border(left: pw.BorderSide(color: _blue, width: 3)),
+      ),
+      padding: const pw.EdgeInsets.fromLTRB(14, 10, 14, 10),
+      child: pw.Text(name,
+          style: pw.TextStyle(font: bold, fontSize: 10, color: _textMain)),
+    );
+  }
+
+  static pw.Widget _txTable(List<TransactionItem> txs,
+      pw.Font bold, pw.Font regular) {
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FixedColumnWidth(70),
+        1: const pw.FlexColumnWidth(2),
+        2: const pw.FlexColumnWidth(3),
+        3: const pw.FixedColumnWidth(90),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: _headerBg),
+          children: ['FECHA', 'CATEGORÍA', 'DESCRIPCIÓN', 'IMPORTE']
+              .map((h) => _headerCell(h, bold))
+              .toList(),
+        ),
+        ...txs.asMap().entries.map((e) {
+          final i  = e.key;
+          final tx = e.value;
+          final bg = i % 2 == 0 ? PdfColors.white : _rowAlt;
+          final cat = (tx.category?.name ?? 'Otros') +
+              (tx.subcategory != null ? ' › ${tx.subcategory!.name}' : '');
+          final date  = tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date;
+          final isNeg = tx.amount.isNegative;
+          final sign  = isNeg ? '-' : '+';
+          final val   = (tx.amount.value / 100).abs().toStringAsFixed(2);
+          final sym   = _sym(tx.amount.currency);
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: bg,
+              border: const pw.Border(
+                  bottom: pw.BorderSide(color: _border, width: 0.5)),
+            ),
+            children: [
+              _dataCell(date, regular),
+              _dataCell(cat, regular),
+              _dataCell(tx.description, regular),
+              _amountCell('$sign $val $sym', bold,
+                  isNeg ? _redExp : _greenInc),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _footer(pw.Context ctx, pw.Font regular) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 8),
+      decoration: const pw.BoxDecoration(
+          border: pw.Border(top: pw.BorderSide(color: _border, width: 0.5))),
+      padding: const pw.EdgeInsets.only(top: 6),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text('NATAVE',
+              style: pw.TextStyle(font: regular, fontSize: 7, color: _textLight)),
+          pw.Text('Página ${ctx.pageNumber}',
+              style: pw.TextStyle(font: regular, fontSize: 7, color: _textLight)),
+        ],
+      ),
+    );
+  }
+
+  // ── Helpers de celda ─────────────────────────────────────────────────────
+
+  static pw.Widget _headerCell(String text, pw.Font bold,
+      {bool alignRight = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: pw.Align(
+        alignment:
+            alignRight ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        child: pw.Text(text,
+            style: pw.TextStyle(font: bold, fontSize: 9, color: _textMain)),
+      ),
+    );
+  }
+
+  static pw.Widget _dataCell(String text, pw.Font font,
+      {bool alignRight = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(8),
       child: pw.Align(
-        alignment: alignRight ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
-        child: pw.Text(text, style: pw.TextStyle(font: font, fontSize: 9, color: _textMain)),
+        alignment:
+            alignRight ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        child: pw.Text(text,
+            style: pw.TextStyle(font: font, fontSize: 9, color: _textMain)),
+      ),
+    );
+  }
+
+  static pw.Widget _amountCell(String text, pw.Font bold, PdfColor color) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text(text,
+            style: pw.TextStyle(font: bold, fontSize: 9, color: color)),
       ),
     );
   }

@@ -232,29 +232,42 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildMainDashboard(AppLocalizations l10n, {bool isMobile = false}) {
     if (_chartStats.isEmpty) return EmptyStateWidget(icon: Icons.filter_alt_outlined, title: l10n.noData, subtitle: l10n.adjustFilters);
-    final padding = isMobile ? const EdgeInsets.all(12) : const EdgeInsets.all(32);
+    final padding = isMobile ? const EdgeInsets.fromLTRB(16, 20, 16, 32) : const EdgeInsets.all(32);
     return SingleChildScrollView(
       padding: padding,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tarjeta de Resumen de Saldo
           _buildBalanceSummaryCard(l10n, isMobile),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20)]),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Expanded(child: Text(_selectedCategories.length == 1 ? '${l10n.categoriesAnalysis}: ${_selectedCategories.first.name}' : l10n.expenseDistribution, style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 4))],
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(
+                      _selectedCategories.length == 1 ? l10n.categoriesAnalysis : l10n.expenseDistribution,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    if (_selectedCategories.length == 1)
+                      Text(_selectedCategories.first.name, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  ]),
+                ),
                 _buildChartToggle(),
               ]),
-              const SizedBox(height: 24),
-              SizedBox(height: isMobile ? 220 : 300, child: _isPieChart ? DonutChart(data: _chartStats, colors: AppColors.chartPalette) : CustomBarChart(data: _chartStats, colors: AppColors.chartPalette)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              SizedBox(height: isMobile ? 220 : 280, child: _isPieChart ? DonutChart(data: _chartStats, colors: AppColors.chartPalette) : CustomBarChart(data: _chartStats, colors: AppColors.chartPalette)),
+              const SizedBox(height: 20),
               _buildLegend(isMobile: isMobile),
             ]),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _buildMovementPreview(l10n, isMobile: isMobile),
         ],
       ),
@@ -263,64 +276,166 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
 
   Widget _buildBalanceSummaryCard(AppLocalizations l10n, bool isMobile) {
     final net = _totalIncomes - _totalExpenses;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: AppColors.primaryBlue.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSummaryItem(l10n.moInc, _totalIncomes, Colors.white),
-          Container(width: 1, height: 40, color: Colors.white24),
-          _buildSummaryItem(l10n.moExp, _totalExpenses, Colors.white),
-          Container(width: 1, height: 40, color: Colors.white24),
-          _buildSummaryItem(l10n.moNet, net, net >= 0 ? Colors.greenAccent : Colors.orangeAccent, isBold: true),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(child: _buildMetricCard(l10n.moInc, _totalIncomes, const Color(0xFF00C896), Icons.south_rounded)),
+        const SizedBox(width: 10),
+        Expanded(child: _buildMetricCard(l10n.moExp, _totalExpenses, const Color(0xFFFF5A5F), Icons.north_rounded)),
+        const SizedBox(width: 10),
+        Expanded(child: _buildMetricCard(l10n.moNet, net, net >= 0 ? const Color(0xFF009FFB) : const Color(0xFFFF9500), Icons.account_balance_wallet_outlined, isNet: true)),
+      ],
     );
   }
 
-  Widget _buildSummaryItem(String label, double value, Color color, {bool isBold = false}) {
-    return Column(
-      children: [
-        Text(label.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
-        const SizedBox(height: 4),
-        Text(
-          '€${value.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: color,
-            fontSize: isBold ? 16 : 14,
-            fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+  Widget _buildMetricCard(String label, double value, Color color, IconData icon, {bool isNet = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 14, color: color),
+              ),
+              const SizedBox(width: 6),
+              Expanded(child: Text(label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 0.8), overflow: TextOverflow.ellipsis)),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Text(
+            '€${value.toStringAsFixed(2)}',
+            style: TextStyle(fontSize: isNet ? 15 : 14, fontWeight: FontWeight.w800, color: isNet ? color : Colors.black87),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildMovementPreview(AppLocalizations l10n, {bool isMobile = false}) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 4))],
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${l10n.movementsPreview} (${_filteredTransactions.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-        const Divider(),
-        ..._filteredTransactions.map((tx) => ListTile(contentPadding: EdgeInsets.zero, dense: true, title: Text(tx.description, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis), subtitle: Text('${tx.account.entity?.name ?? ''} > ${tx.account.name}', style: const TextStyle(fontSize: 10)), trailing: Text('€${(tx.amount.value / 100).toStringAsFixed(2)}', style: TextStyle(color: tx.amount.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold, fontSize: 12)))),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(l10n.movementsPreview, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: AppColors.primaryBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+              child: Text('${_filteredTransactions.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ..._filteredTransactions.map((tx) => _buildMovementTile(tx)),
       ]),
     );
   }
 
-  Widget _buildLegend({bool isMobile = false}) {
-    return Wrap(spacing: isMobile ? 12 : 24, runSpacing: 8, children: _chartStats.entries.map((e) => Row(mainAxisSize: MainAxisSize.min, children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: AppColors.chartPalette[_chartStats.keys.toList().indexOf(e.key) % AppColors.chartPalette.length], borderRadius: BorderRadius.circular(2))), const SizedBox(width: 6), Text('${e.key}: €${e.value.toStringAsFixed(0)}', style: TextStyle(fontSize: isMobile ? 10 : 12))])).toList());
+  Widget _buildMovementTile(TransactionItem tx) {
+    final isExpense = tx.amount.isNegative;
+    final color = isExpense ? const Color(0xFFFF5A5F) : const Color(0xFF00C896);
+    final amount = (tx.amount.value / 100).abs();
+    final sign = isExpense ? '-' : '+';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(isExpense ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tx.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87), overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Row(children: [
+                  if (tx.category != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                      child: Text(tx.category!.name, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(tx.date, style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('$sign€${amount.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
   }
 
-  Widget _buildChartToggle() => Row(children: [IconButton(icon: Icon(Icons.pie_chart_outline, color: _isPieChart ? AppColors.primaryBlue : Colors.grey, size: 20), onPressed: () => setState(() => _isPieChart = true)), IconButton(icon: Icon(Icons.bar_chart_outlined, color: !_isPieChart ? AppColors.primaryBlue : Colors.grey, size: 20), onPressed: () => setState(() => _isPieChart = false))]);
+  Widget _buildLegend({bool isMobile = false}) {
+    final keys = _chartStats.keys.toList();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: keys.map((key) {
+        final color = AppColors.chartPalette[keys.indexOf(key) % AppColors.chartPalette.length];
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 6),
+            Text('$key  €${_chartStats[key]!.toStringAsFixed(0)}', style: TextStyle(fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.w600, color: color)),
+          ]),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildChartToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        _buildToggleButton(Icons.pie_chart_outline_rounded, _isPieChart, () => setState(() => _isPieChart = true)),
+        _buildToggleButton(Icons.bar_chart_rounded, !_isPieChart, () => setState(() => _isPieChart = false)),
+      ]),
+    );
+  }
+
+  Widget _buildToggleButton(IconData icon, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isActive ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 2))] : [],
+        ),
+        child: Icon(icon, size: 18, color: isActive ? AppColors.primaryBlue : Colors.grey.shade400),
+      ),
+    );
+  }
 
   Widget _buildMultiSelector<T>({required Set<T> selectedItems, required String hint, required List<T> items, required String Function(T) label, required VoidCallback onChanged, bool isEnabled = true}) {
     final l10n = AppLocalizations.of(context)!;

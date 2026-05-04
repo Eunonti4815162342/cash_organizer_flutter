@@ -8,6 +8,7 @@ abstract class ITransactionRepository {
   Future<void> updateTransaction(TransactionItem transaction, {bool isSynced = true});
   Future<void> deleteTransaction(int id);
   Future<void> saveAll(List<TransactionItem> transactions);
+  Future<void> reconcile(List<TransactionItem> serverTransactions, TransactionFilters filters);
   Future<TransactionItem?> getById(int id);
   
   // Sync methods

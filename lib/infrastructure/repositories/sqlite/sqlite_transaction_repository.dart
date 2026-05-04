@@ -114,6 +114,35 @@ class SqliteTransactionRepository implements ITransactionRepository {
   }
 
   @override
+  Future<void> reconcile(List<TransactionItem> serverTransactions, TransactionFilters filters) async {
+    final db = await _dbHelper.database;
+    final serverIds = serverTransactions.map((tx) => tx.id).toList();
+    
+    await db.transaction((txn) async {
+      // 1. Guardar/Actualizar todas las del servidor
+      for (var tx in serverTransactions) {
+        await txn.insert('transactions', _toRow(tx, id: tx.id, serverId: tx.id, pendingSync: 0), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      
+      // 2. Identificar y borrar las huérfanas en este rango de fechas
+      if (filters.startDate != null && filters.endDate != null) {
+        String whereClause = 'date >= ? AND date <= ? AND pending_sync = 0';
+        List<dynamic> whereArgs = [filters.startDate, filters.endDate];
+        
+        if (serverIds.isNotEmpty) {
+          final placeholders = List.filled(serverIds.length, '?').join(',');
+          whereClause += ' AND id NOT IN ($placeholders)';
+          whereArgs.addAll(serverIds);
+        }
+        
+        // Si el servidor devolvió 0 transacciones para este rango, el serverIds estará vacío
+        // y el "NOT IN" no se añade, borrando TODO lo que haya en ese rango que esté sincronizado.
+        await txn.delete('transactions', where: whereClause, whereArgs: whereArgs);
+      }
+    });
+  }
+
+  @override
   Future<void> saveAll(List<TransactionItem> transactions) async {
     if (transactions.isEmpty) return;
     final db = await _dbHelper.database;

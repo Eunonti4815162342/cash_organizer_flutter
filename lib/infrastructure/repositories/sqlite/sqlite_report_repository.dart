@@ -16,7 +16,9 @@ class SqliteReportRepository implements IReportRepository {
   @override
   Future<Map<String, double>> fetchCategoryStats(TransactionFilters filters) async {
     final db = await _dbHelper.database;
-    final labelColumn = filters.groupBySubcategory ? 't.subcategory_name' : 't.category_name';
+    final labelColumn = filters.groupBySubcategory
+        ? 'COALESCE(t.subcategory_name, t.category_name)'
+        : 't.category_name';
     final f = SqliteTransactionRepository.buildFilterConditions(filters);
     
     // Filtro base: Solo gastos por defecto para el gráfico de distribución, 

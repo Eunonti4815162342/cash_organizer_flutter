@@ -51,6 +51,7 @@ class ApiService {
 
   // --- TRANSACTIONS ---
   Future<List<TransactionItem>> fetchTransactions(TransactionFilters filters) => _transactions.fetch(filters);
+  Future<int> fetchTotalTransactions(TransactionFilters filters) => _transactions.fetchTotal(filters);
   Future<TransactionItem?> createTransaction(Map<String, dynamic> data) => _transactions.create(data);
   Future<TransactionItem?> updateTransaction(int id, Map<String, dynamic> data) => _transactions.update(id, data);
   Future<bool> deleteTransaction(int id) => _transactions.delete(id);

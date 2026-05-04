@@ -7,7 +7,7 @@ class TransactionApi {
 
   TransactionApi(this._client);
 
-  Future<List<TransactionItem>> fetch(TransactionFilters filters) async {
+  Map<String, String> _buildParams(TransactionFilters filters) {
     final params = <String, String>{};
     if (filters.startDate != null) params['startDate'] = filters.startDate!;
     if (filters.endDate != null) params['endDate'] = filters.endDate!;
@@ -23,13 +23,25 @@ class TransactionApi {
     if (filters.beneficiaryIds != null && filters.beneficiaryIds!.isNotEmpty) {
       params['beneficiaryIds'] = filters.beneficiaryIds!.join(',');
     }
-    
+    return params;
+  }
+
+  Future<List<TransactionItem>> fetch(TransactionFilters filters) async {
+    final params = _buildParams(filters);
     params['page'] = filters.page.toString();
     params['size'] = filters.size.toString();
-    
-    final body = await _client.get('transactions', queryParameters: params.isEmpty ? null : params);
+
+    final body = await _client.get('transactions', queryParameters: params);
     final List<dynamic> list = body?['content'] ?? [];
     return list.map((json) => TransactionItem.fromJson(json)).toList();
+  }
+
+  Future<int> fetchTotal(TransactionFilters filters) async {
+    final params = _buildParams(filters);
+    params['page'] = '0';
+    params['size'] = '1';
+    final body = await _client.get('transactions', queryParameters: params);
+    return (body?['totalElements'] as num?)?.toInt() ?? 0;
   }
 
   Future<TransactionItem?> create(Map<String, dynamic> data) async {

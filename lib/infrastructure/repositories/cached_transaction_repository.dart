@@ -35,10 +35,11 @@ class CachedTransactionRepository implements ITransactionRepository {
     if (!kIsWeb) {
       return await _localRepo?.countTransactions(filters) ?? 0;
     }
-    // En Web, como no tenemos total del server aún en el API, 
-    // devolvemos la longitud de lo que traiga el fetch (simplificado)
-    final txs = await fetchTransactions(filters);
-    return txs.length;
+    try {
+      return await _apiService.fetchTotalTransactions(filters);
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> _refreshInBackground(TransactionFilters filters) async {

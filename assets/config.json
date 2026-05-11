@@ -1,6 +1,6 @@
 {
-  "apiBaseUrl": "http://192.168.1.145:8085/api",
-  "apiTimeout": 3,
+  "apiBaseUrl": "http://100.86.24.70:8085/api",
+  "apiTimeout": 10,
   "enableLogging": true,
   "isProduction": false,
   "environmentName": "Development",

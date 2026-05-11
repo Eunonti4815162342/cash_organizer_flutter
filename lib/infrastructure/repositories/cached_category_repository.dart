@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:natave_flutter/core/logger/app_logger.dart';
 import 'package:natave_flutter/domain/models/category.dart';
 import 'package:natave_flutter/domain/repositories/category_repository.dart';
 import 'package:natave_flutter/services/api_service.dart';
@@ -50,23 +51,43 @@ class CachedCategoryRepository implements ICategoryRepository {
   @override
   Future<void> saveCategory(Category category) async {
     if (!kIsWeb) await _localRepo?.saveCategory(category);
-    if (!kIsWeb) {
-      try {
-        await _apiService.createCategory(category);
-      } catch (_) {}
+    try {
+      if (category.id > 0) {
+        await _apiService.updateCategory(category.id, category);
+      } else {
+        final created = await _apiService.createCategory(category);
+        if (!kIsWeb && created != null) await _localRepo?.saveCategory(created);
+      }
+    } catch (e, st) {
+      AppLogger.error('saveCategory API error', e, st);
     }
   }
 
   @override
   Future<void> saveSubcategory(int categoryId, Subcategory sub) async {
-    if (!kIsWeb) await _localRepo?.saveSubcategory(categoryId, sub);
-    try {
-      if (sub.id > 0) {
+    if (sub.id > 0) {
+      // Update: save locally first for immediate feedback, then sync to API.
+      if (!kIsWeb) await _localRepo?.saveSubcategory(categoryId, sub);
+      try {
         await _apiService.updateSubcategory(sub.id, sub);
-      } else {
-        await _apiService.createSubcategory(categoryId, sub);
+      } catch (e, st) {
+        AppLogger.error('saveSubcategory update API error', e, st);
       }
-    } catch (_) {}
+    } else {
+      // Create: API first so we get the server-assigned id; then save locally
+      // with that id. This prevents reconcile from deleting the orphan local id.
+      try {
+        final created = await _apiService.createSubcategory(categoryId, sub);
+        if (!kIsWeb && created != null) {
+          await _localRepo?.saveSubcategory(categoryId, created);
+        }
+      } catch (e, st) {
+        AppLogger.error('saveSubcategory create API error', e, st);
+        // API failed: save locally as fallback so the user sees the entry;
+        // the next background sync will either reconcile or remove it.
+        if (!kIsWeb) await _localRepo?.saveSubcategory(categoryId, sub);
+      }
+    }
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:natave_flutter/core/logger/app_logger.dart';
 import 'package:natave_flutter/domain/models/transaction_filters.dart';
 import '../domain/repositories/transaction_repository.dart';
 import '../domain/repositories/account_repository.dart';
@@ -43,8 +44,8 @@ class SyncService {
       await _syncPendingTransactionUpdates();
       await _syncPendingAccountUpdates();
 
-    } catch (e) {
-      // Fallo silencioso en background
+    } catch (e, st) {
+      AppLogger.error('Background sync failed', e, st);
     }
   }
 
@@ -52,35 +53,44 @@ class SyncService {
     try {
       final entities = await _apiService.fetchEntities();
       if (entities.isNotEmpty) await _entityRepo.saveAll(entities);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Sync entities failed', e, st);
+    }
   }
 
   Future<void> _syncCategories() async {
     try {
       final categories = await _apiService.fetchCategories();
       if (categories.isNotEmpty) await _categoryRepo.saveAll(categories);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Sync categories failed', e, st);
+    }
   }
 
   Future<void> _syncBeneficiaries() async {
     try {
       await _beneficiaryRepo.getAllBeneficiaries();
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Sync beneficiaries failed', e, st);
+    }
   }
 
   Future<void> _syncAccounts() async {
     try {
       final accounts = await _apiService.fetchAccounts();
       if (accounts.isNotEmpty) await _accountRepo.saveAll(accounts);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Sync accounts failed', e, st);
+    }
   }
 
   Future<void> _syncAllTransactions() async {
     try {
-      // Descargamos las transacciones usando el nuevo objeto de filtros vacío (todas)
       final txs = await _apiService.fetchTransactions(const TransactionFilters());
       if (txs.isNotEmpty) await _transactionRepo.saveAll(txs);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Sync transactions failed', e, st);
+    }
   }
 
   Future<void> _syncPendingTransactionCreates() async {
@@ -89,7 +99,9 @@ class SyncService {
       try {
         final result = await _apiService.createTransaction(tx.toJson());
         if (result != null) await _transactionRepo.markAsSynced(tx.id, result.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.error('Failed to upload pending transaction ${tx.id}', e, st);
+      }
     }
   }
 
@@ -99,7 +111,9 @@ class SyncService {
       try {
         await _apiService.updateTransaction(tx.id, tx.toJson());
         await _transactionRepo.markAsSynced(tx.id, tx.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.error('Failed to sync transaction update ${tx.id}', e, st);
+      }
     }
   }
 
@@ -109,7 +123,9 @@ class SyncService {
       try {
         final result = await _apiService.createAccount(account.toJson());
         if (result != null) await _accountRepo.markAsSynced(account.id, result.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.error('Failed to upload pending account ${account.id}', e, st);
+      }
     }
   }
 
@@ -119,7 +135,9 @@ class SyncService {
       try {
         await _apiService.updateAccount(account.id, account.toJson());
         await _accountRepo.markAsSynced(account.id, account.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.error('Failed to sync account update ${account.id}', e, st);
+      }
     }
   }
 }

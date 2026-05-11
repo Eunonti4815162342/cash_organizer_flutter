@@ -136,20 +136,17 @@ class SqliteTransactionRepository implements ITransactionRepository {
         await txn.insert('transactions', _toRow(tx, id: tx.id, serverId: tx.id, pendingSync: 0), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       
-      // 2. Identificar y borrar las huérfanas en este rango de fechas
-      if (filters.startDate != null && filters.endDate != null) {
-        String whereClause = 'date >= ? AND date <= ? AND pending_sync = 0';
-        List<dynamic> whereArgs = [filters.startDate, filters.endDate];
-        
-        if (serverIds.isNotEmpty) {
-          final placeholders = List.filled(serverIds.length, '?').join(',');
-          whereClause += ' AND id NOT IN ($placeholders)';
-          whereArgs.addAll(serverIds);
-        }
-        
-        // Si el servidor devolvió 0 transacciones para este rango, el serverIds estará vacío
-        // y el "NOT IN" no se añade, borrando TODO lo que haya en ese rango que esté sincronizado.
-        await txn.delete('transactions', where: whereClause, whereArgs: whereArgs);
+      // 2. Borrar huérfanas del rango — solo si el servidor devolvió al menos una transacción.
+      // Si serverIds está vacío no actuamos: puede ser un fallo de red silenciado upstream,
+      // y borrar todo el rango con respuesta vacía provocaría pérdida de datos.
+      if (filters.startDate != null && filters.endDate != null && serverIds.isNotEmpty) {
+        final placeholders = List.filled(serverIds.length, '?').join(',');
+        final whereArgs = [filters.startDate, filters.endDate, ...serverIds];
+        await txn.delete(
+          'transactions',
+          where: 'date >= ? AND date <= ? AND pending_sync = 0 AND id NOT IN ($placeholders)',
+          whereArgs: whereArgs,
+        );
       }
     });
   }

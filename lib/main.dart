@@ -1,9 +1,12 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path/path.dart' show join;
+import 'package:share_plus/share_plus.dart';
+import 'package:sqflite/sqflite.dart' show getDatabasesPath;
+import 'core/logger/app_logger.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:get_it/get_it.dart';
 import 'l10n/app_localizations.dart';
 import 'infrastructure/ui/styles/app_styles.dart';
 import 'infrastructure/ui/screens/dashboard_screen.dart';
@@ -12,9 +15,6 @@ import 'infrastructure/ui/screens/account_transactions_screen.dart';
 import 'infrastructure/ui/screens/reports_list_screen.dart';
 import 'infrastructure/ui/screens/category_list_screen.dart';
 import 'infrastructure/ui/screens/login_screen.dart';
-import 'domain/models/account_item.dart';
-import 'domain/repositories/account_repository.dart';
-import 'domain/repositories/transaction_repository.dart';
 import 'services/api_service.dart';
 import 'services/config_service.dart';
 import 'services/connectivity_service.dart';
@@ -308,62 +308,74 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
     );
   }
 
-  void _showBackupDialog(AppLocalizations l10n) async {
-    final getIt = GetIt.instance;
-    final accountRepo = getIt<IAccountRepository>(instanceName: 'local_account');
-    final accounts = await accountRepo.fetchAccounts();
-    
-    if (!mounted) return;
-
+  void _showBackupDialog(AppLocalizations l10n) {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El backup local no está disponible en la versión web')),
+      );
+      return;
+    }
     showDialog(
       context: context,
-      builder: (context) => SimpleDialog(
+      builder: (context) => AlertDialog(
         title: Text(l10n.backup),
-        children: accounts.isEmpty 
-          ? [const Padding(padding: EdgeInsets.all(16), child: Text('No hay cuentas disponibles'))]
-          : accounts.map((account) => SimpleDialogOption(
+        content: const Text(
+          'Se exportará la base de datos local como archivo .db. '
+          'Podrás guardarlo en Google Drive, iCloud, enviarlo por email, etc.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _performCloudBackup(account);
+              _performBackup();
             },
-            child: Text(account.name),
-          )).toList(),
+            child: const Text('Exportar'),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _performCloudBackup(AccountItem account) async {
-    final getIt = GetIt.instance;
-    final txRepo = getIt<ITransactionRepository>(instanceName: 'local_transaction');
-    
-    // 1. Obtener datos locales
-    // final txs = await txRepo.fetchTransactions(accountId: account.id.toString());
-    
-    // 2. Determinar servicio según plataforma
-    String cloudService = 'Cloud';
-    if (!kIsWeb) {
-      if (Platform.isIOS) cloudService = 'iCloud';
-      if (Platform.isAndroid) cloudService = 'Google Drive';
+  Future<void> _performBackup() async {
+    final dbDir = await getDatabasesPath();
+    final sourcePath = join(dbDir, 'natave_v1.db');
+    final sourceFile = File(sourcePath);
+
+    if (!await sourceFile.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró la base de datos local')),
+        );
+      }
+      return;
     }
 
-    // 3. Simular/Ejecutar envío
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Iniciando backup de "${account.name}" en $cloudService...')),
-    );
+    final now = DateTime.now();
+    final stamp =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final backupPath = join(dbDir, 'natave_backup_$stamp.db');
 
-    // TODO: Integración real:
-    // iOS: Use icloud_storage package
-    // Android: Use google_sign_in + googleapis (Drive API)
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await sourceFile.copy(backupPath);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Backup completado con éxito en $cloudService (Simulado)'),
-          backgroundColor: Colors.green,
-        ),
+      await Share.shareXFiles(
+        [XFile(backupPath, mimeType: 'application/octet-stream')],
+        subject: 'Natave backup $stamp',
       );
+    } catch (e, st) {
+      AppLogger.error('Backup failed', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al crear el backup: $e')),
+        );
+      }
+    } finally {
+      final backupFile = File(backupPath);
+      if (await backupFile.exists()) await backupFile.delete();
     }
   }
 

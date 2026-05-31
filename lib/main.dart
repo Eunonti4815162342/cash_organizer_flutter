@@ -129,6 +129,7 @@ class _NataveAppState extends State<NataveApp> {
             fontSize: 18,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
+            color: Colors.white,
           ),
         ),
         cardTheme: CardThemeData(

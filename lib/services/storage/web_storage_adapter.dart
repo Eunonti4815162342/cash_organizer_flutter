@@ -1,36 +1,33 @@
-import 'package:shared_preferences/shared_preferences.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import '../../core/ports/storage_port.dart';
 
-/// Fallback adapter for Web in non-secure contexts (HTTP) or where secure storage fails.
+/// Web storage adapter using window.localStorage directly.
+/// Avoids shared_preferences plugin which is unreliable on web release builds.
 class WebStorageAdapter implements StoragePort {
   @override
   Future<void> write({required String key, required String value}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, value);
+    html.window.localStorage[key] = value;
   }
 
   @override
   Future<String?> read({required String key}) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(key);
+    return html.window.localStorage[key];
   }
 
   @override
   Future<bool> containsKey({required String key}) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(key);
+    return html.window.localStorage.containsKey(key);
   }
 
   @override
   Future<void> delete({required String key}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(key);
+    html.window.localStorage.remove(key);
   }
 
   @override
   Future<void> deleteAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    html.window.localStorage.clear();
   }
 }
 

@@ -6,6 +6,7 @@ import '../../../core/ports/storage_port.dart';
 import '../../../services/storage/storage_factory.dart';
 import '../../persistence/sqlite/database_helper.dart';
 import '../styles/app_styles.dart';
+import '../widgets/app_components.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -130,100 +131,91 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 5)),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.account_balance_wallet, size: 64, color: AppColors.primaryBlue),
-              const SizedBox(height: 16),
-              const Text(
-                'NATAVE',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                title: const Text('Recordar en este dispositivo', style: TextStyle(fontSize: 13)),
-                value: _rememberMe,
-                fillColor: WidgetStateProperty.resolveWith<Color>((states) =>
-                  states.contains(WidgetState.selected) ? AppColors.primaryBlue : Colors.grey),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (val) => setState(() => _rememberMe = val ?? false),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _isLoading 
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
-                    : const Text('INGRESAR'),
-                ),
-              ),
-              if (_canUseBiometrics) ...[
-                const SizedBox(height: 16),
-                IconButton(
-                  icon: const Icon(Icons.fingerprint, size: 48, color: AppColors.primaryBlue),
-                  onPressed: _handleBiometricLogin,
-                ),
-                const Text('Usar Biometría', style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
               ],
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => setState(() => _showForgotPassword = true),
-                child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-              ),
-              TextButton(
-                onPressed: () => setState(() => _showRegister = true),
-                child: const Text('¿No tienes cuenta? Regístrate aquí'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () async {
-                  await DatabaseHelper().clearDatabase();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Base de datos local eliminada'), backgroundColor: Colors.orange),
-                    );
-                  }
-                },
-                child: const Text('⚠️ Borrar Base de Datos Local', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
-              ),
-            ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.account_balance_wallet, size: 72, color: AppColors.primaryBlue),
+                const SizedBox(height: 16),
+                const Text(
+                  'NATAVE',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 2),
+                ),
+                const SizedBox(height: 32),
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  hint: 'tu@email.com',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 20),
+                AppTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: true,
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  title: const Text('Recordar en este dispositivo', style: TextStyle(fontSize: 13, color: AppColors.primaryText)),
+                  value: _rememberMe,
+                  activeColor: AppColors.primaryBlue,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                ),
+                const SizedBox(height: 32),
+                AppButton(
+                  label: 'Ingresar',
+                  isLoading: _isLoading,
+                  onPressed: _handleLogin,
+                ),
+                if (_canUseBiometrics) ...[
+                  const SizedBox(height: 20),
+                  IconButton(
+                    icon: const Icon(Icons.fingerprint, size: 48, color: AppColors.primaryBlue),
+                    onPressed: _handleBiometricLogin,
+                  ),
+                  const Text('USAR BIOMETRÍA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 1)),
+                ],
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => setState(() => _showForgotPassword = true),
+                  child: const Text('¿OLVIDASTE TU CONTRASEÑA?', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondaryText, letterSpacing: 0.5)),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _showRegister = true),
+                  child: const Text('¿NO TIENES CUENTA? REGÍSTRATE AQUÍ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 0.5)),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () async {
+                    await DatabaseHelper().clearDatabase();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Base de datos local eliminada'), backgroundColor: Colors.orange),
+                      );
+                    }
+                  },
+                  child: const Text('⚠️ BORRAR BASE DE DATOS LOCAL', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

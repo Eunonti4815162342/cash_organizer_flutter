@@ -105,8 +105,10 @@ class ApiClient {
       return jsonDecode(response.body);
     }
     if (status == 401 || status == 403) {
-      clearTokenCache(); // Limpiamos cache si la sesión falla
-      throw SessionExpiredException();
+      final hadToken = _cachedToken != null;
+      clearTokenCache();
+      if (hadToken) throw SessionExpiredException();
+      throw UnauthorizedException(statusCode: status);
     }
     if (status == 404) throw NotFoundException(statusCode: status, message: response.body);
     if (status >= 400 && status < 500) throw BadRequestException(statusCode: status, message: response.body);

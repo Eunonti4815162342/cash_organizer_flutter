@@ -109,9 +109,60 @@ class _NataveAppState extends State<NataveApp> {
       supportedLocales: const [Locale('en'), Locale('es'), Locale('pt')],
       theme: ThemeData(
         primaryColor: AppColors.primaryBlue,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryBlue, primary: AppColors.primaryBlue, surface: AppColors.cardBackground),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primaryBlue,
+          primary: AppColors.primaryBlue,
+          surface: AppColors.cardBackground,
+          surfaceContainerHighest: AppColors.windowBackground,
+        ),
         scaffoldBackgroundColor: AppColors.scaffoldBackground,
+        dividerColor: AppColors.divider,
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.primaryBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.5,
+          ),
+        ),
+        cardTheme: CardTheme(
+          color: AppColors.cardBackground,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.divider),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.divider),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryBlue,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
       ),
       home: _isLoading 
         ? const Scaffold(body: Center(child: CircularProgressIndicator()))

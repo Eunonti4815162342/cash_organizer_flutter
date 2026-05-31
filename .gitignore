@@ -49,3 +49,4 @@ app.*.map.json
 # Other environment configs are generated during Docker build
 assets/config.prod.json
 assets/config.staging.json
+.gstack/

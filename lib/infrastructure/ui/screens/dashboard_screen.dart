@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/skeleton_widgets.dart';
+import '../widgets/app_components.dart';
 import 'account_details_screen.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../l10n/app_localizations.dart';
@@ -62,6 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Expanded(child: _buildFilterBox(l10n.period.toUpperCase(), _buildPeriodSelector(provider))),
                           ],
                         ),
+                  const SizedBox(height: 16),
                   _buildBalanceSection(l10n, provider),
                   const SizedBox(height: 16),
                   _buildCategoriesSection(l10n, isMobile, provider),
@@ -80,7 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,8 +105,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
-          const Icon(Icons.unfold_more, size: 16, color: AppColors.secondaryText),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+          const Icon(Icons.unfold_more, size: 16, color: AppColors.primaryBlue),
         ],
       ),
     );
@@ -212,22 +214,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // Botón aplicar
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        provider.setSelectedAccounts(tempSelected);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: const Text('Aplicar', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
+                  child: AppButton(
+                    label: 'Aplicar',
+                    onPressed: () {
+                      provider.setSelectedAccounts(tempSelected);
+                      Navigator.pop(context);
+                    },
                   ),
                 ),
               ],
@@ -256,9 +248,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Text(
             '${provider.startDate.day}/${provider.startDate.month}/${provider.startDate.year} - ${provider.endDate.day}/${provider.endDate.month}/${provider.endDate.year}',
-            style: const TextStyle(fontSize: 13),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          const Icon(Icons.calendar_today, size: 14, color: AppColors.secondaryText),
+          const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryBlue),
         ],
       ),
     );
@@ -267,8 +259,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildBalanceSection(AppLocalizations l10n, DashboardProvider provider) {
     final selected = provider.selectedAccounts;
     final netWorth = selected.fold(0.0, (sum, a) => sum + (a.amount.value / 100));
-    return _buildSectionCard(
-      title: l10n.balanceSummary.toUpperCase(),
+    return AppCard(
+      title: l10n.balanceSummary,
       child: Column(
         children: [
           _buildBalanceRow(l10n.netWorth, netWorth, isBold: true, onTap: null),
@@ -313,8 +305,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         _buildViewModeSelector(l10n, provider),
         const SizedBox(height: 12),
-        _buildSectionCard(
-          title: l10n.categoriesAnalysis.toUpperCase(),
+        AppCard(
+          title: l10n.categoriesAnalysis,
           child: Column(
             children: [
               isMobile
@@ -460,26 +452,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         }),
       ],
-    );
-  }
-
-  Widget _buildSectionCard({required String title, required Widget child}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.03), blurRadius: 16, offset: const Offset(0, 4))],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTextStyles.sectionLabel),
-          const Divider(height: 30),
-          child,
-        ],
-      ),
     );
   }
 

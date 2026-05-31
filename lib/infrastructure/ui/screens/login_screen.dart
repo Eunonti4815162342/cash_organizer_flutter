@@ -87,31 +87,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showErrorDialog(String title, String message) {
+    final bool isCredentialError = message.toLowerCase().contains('401') ||
+        message.toLowerCase().contains('unauthorized') ||
+        message.toLowerCase().contains('invalid');
+    final String friendlyMessage = isCredentialError
+        ? 'Email o contraseña incorrectos. Comprueba tus datos e inténtalo de nuevo.'
+        : 'No se pudo conectar al servidor. Verifica tu conexión e inténtalo de nuevo.';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.red),
-            const SizedBox(width: 8),
-            Text(title),
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Error de acceso'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Technical Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(4)),
-              child: Text(message, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
-            ),
-            const SizedBox(height: 16),
-            const Text('Verify your network connection and try again.'),
-          ],
-        ),
+        content: Text(friendlyMessage),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
         ],

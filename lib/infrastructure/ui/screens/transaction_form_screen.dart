@@ -91,7 +91,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   Widget _buildSelectionTile({required String label, required String value, required IconData icon, required VoidCallback? onTap, VoidCallback? onClear, bool isLocked = false}) {
-    return ListTile(onTap: onTap, leading: Icon(icon, color: isLocked ? Colors.grey : const Color(0xFF4A636F)), title: Text(label, style: TextStyle(fontSize: 10, color: isLocked ? Colors.grey : const Color(0xFF009FFB), fontWeight: FontWeight.bold)), subtitle: Text(value, style: TextStyle(fontSize: 16, color: isLocked ? Colors.grey : const Color(0xFF4A636F))), trailing: Row(mainAxisSize: MainAxisSize.min, children: [if (onClear != null) IconButton(icon: const Icon(Icons.clear, size: 18, color: Colors.grey), onPressed: onClear, padding: EdgeInsets.zero, constraints: const BoxConstraints()), if (!isLocked) ...[const SizedBox(width: 8), const Icon(Icons.chevron_right, color: Colors.grey)] else const Icon(Icons.lock_outline, size: 16, color: Colors.grey)]));
+    return ListTile(onTap: onTap, leading: Icon(icon, color: isLocked ? Colors.grey : AppColors.primaryText), title: Text(label, style: TextStyle(fontSize: 10, color: isLocked ? Colors.grey : AppColors.primaryBlue, fontWeight: FontWeight.bold)), subtitle: Text(value, style: TextStyle(fontSize: 16, color: isLocked ? Colors.grey : AppColors.primaryText)), trailing: Row(mainAxisSize: MainAxisSize.min, children: [if (onClear != null) IconButton(icon: const Icon(Icons.clear, size: 18, color: Colors.grey), onPressed: onClear, padding: EdgeInsets.zero, constraints: const BoxConstraints()), if (!isLocked) ...[const SizedBox(width: 8), const Icon(Icons.chevron_right, color: Colors.grey)] else const Icon(Icons.lock_outline, size: 16, color: Colors.grey)]));
   }
 
   Future<void> _save(BuildContext context, AppLocalizations l10n, TransactionFormProvider provider) async {
@@ -118,7 +118,95 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   void _showAccountPicker(bool isFrom, AppLocalizations l10n, TransactionFormProvider provider) {
     String search = '';
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.white, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (context) => StatefulBuilder(builder: (context, setPickerState) => Container(height: MediaQuery.of(context).size.height * 0.7, child: Column(children: [Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0), child: TextField(onChanged: (v) => setPickerState(() => search = v.toLowerCase()), decoration: InputDecoration(hintText: l10n.search, prefixIcon: const Icon(Icons.search), border: const OutlineInputBorder(), filled: true, fillColor: Color(0xFFF5F5F5)))), const SizedBox(height: 12), Expanded(child: ListView(children: [...provider.entities.map((entity) { final entityAccounts = provider.accounts.where((a) => a.entity?.id == entity.id).toList(); final filtered = entityAccounts.where((a) => a.name.toLowerCase().contains(search)).toList(); if (filtered.isEmpty) return const SizedBox(); return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Row(children: [Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, size: 16, color: AppColors.primaryBlue), const SizedBox(width: 8), Text(entity.name.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 1.1))])), ...filtered.map((acc) => ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 32), title: Text(acc.name, style: const TextStyle(fontSize: 14)), subtitle: Text('€ ${(acc.amount.value / 100).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.grey)), onTap: () { isFrom ? provider.setSelectedAccount(acc) : provider.setSelectedToAccount(acc); Navigator.pop(context); })), const Divider(height: 1, indent: 16)] ); }), _buildOrphanAccountsSection(provider, search, isFrom)]))]))));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            children: [
+              _buildSheetHandle(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: TextField(
+                  onChanged: (v) => setPickerState(() => search = v.toLowerCase()),
+                  decoration: InputDecoration(
+                    hintText: l10n.search,
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    contentPadding: EdgeInsets.zero,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    ...provider.entities.map((entity) {
+                      final entityAccounts = provider.accounts.where((a) => a.entity?.id == entity.id).toList();
+                      final filtered = entityAccounts.where((a) => a.name.toLowerCase().contains(search)).toList();
+                      if (filtered.isEmpty) return const SizedBox();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(children: [
+                              Icon(entity.type == EntityType.LEGAL ? Icons.business : Icons.person, size: 16, color: AppColors.primaryBlue),
+                              const SizedBox(width: 8),
+                              Text(entity.name.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 1.1)),
+                            ]),
+                          ),
+                          ...filtered.map((acc) => ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 32),
+                            title: Text(acc.name, style: const TextStyle(fontSize: 14)),
+                            subtitle: Text('€ ${(acc.amount.value / 100).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            onTap: () { isFrom ? provider.setSelectedAccount(acc) : provider.setSelectedToAccount(acc); Navigator.pop(context); },
+                          )),
+                          const Divider(height: 1, indent: 16),
+                        ],
+                      );
+                    }),
+                    _buildOrphanAccountsSection(provider, search, isFrom),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheetHandle() {
+    return Container(
+      width: 40,
+      height: 4,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+    );
+  }
+
+  Widget _buildSheetSearchField({required String hint, required ValueChanged<String> onChanged}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: TextField(
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: const Icon(Icons.search, size: 20),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+        ),
+      ),
+    );
   }
 
   Widget _buildOrphanAccountsSection(TransactionFormProvider provider, String search, bool isFrom) {
@@ -132,12 +220,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => StatefulBuilder(
-        builder: (context, setPickerState) {
+        builder: (context, setState) {
           String search = '';
           return StatefulBuilder(
             builder: (context, setState) {
-              // 1. Filtrar y ordenar categorías
               final filteredCategories = categories.where((c) {
                 final matchesCategory = c.name.toLowerCase().contains(search.toLowerCase());
                 final matchesSubcategory = c.subcategories.any((s) => s.name.toLowerCase().contains(search.toLowerCase()));
@@ -149,48 +238,43 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 height: MediaQuery.of(context).size.height * 0.7,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: TextField(
-                        onChanged: (v) => setState(() => search = v),
-                        decoration: InputDecoration(
-                          hintText: l10n.search,
-                          prefixIcon: const Icon(Icons.search),
-                        ),
-                      ),
+                    _buildSheetHandle(),
+                    _buildSheetSearchField(
+                      hint: l10n.search,
+                      onChanged: (v) => setState(() => search = v),
                     ),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: ListView.builder(
                         itemCount: filteredCategories.length,
                         itemBuilder: (context, index) {
                           final category = filteredCategories[index];
-                          
-                          // 2. Filtrar y ordenar subcategorías de esta categoría
-                          final filteredSubs = category.subcategories.where((s) => 
-                            s.name.toLowerCase().contains(search.toLowerCase())
-                          ).toList()
-                            ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                          final filteredSubs = category.subcategories
+                              .where((s) => s.name.toLowerCase().contains(search.toLowerCase()))
+                              .toList()
+                                ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ListTile(
-                                title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF009FFB))),
+                                title: Text(category.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
                                 onTap: () {
                                   provider.setSelectedCategory(category);
                                   Navigator.pop(context);
                                 },
                               ),
                               ...filteredSubs.map((sub) => ListTile(
-                                contentPadding: const EdgeInsets.only(left: 32),
-                                title: Text(sub.name),
-                                leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
-                                onTap: () {
-                                  provider.setSelectedCategory(category);
-                                  provider.setSelectedSubcategory(sub);
-                                  Navigator.pop(context);
-                                },
-                              )),
+                                    contentPadding: const EdgeInsets.only(left: 32),
+                                    title: Text(sub.name),
+                                    leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
+                                    onTap: () {
+                                      provider.setSelectedCategory(category);
+                                      provider.setSelectedSubcategory(sub);
+                                      Navigator.pop(context);
+                                    },
+                                  )),
                               const Divider(),
                             ],
                           );
@@ -211,22 +295,104 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New Beneficiary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'Enter name')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
-            onPressed: () async {
-              if (controller.text.isEmpty) return;
-              final newBeneficiary = Beneficiary(id: 0, name: controller.text);
-              provider.setSelectedBeneficiary(newBeneficiary);
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text('SAVE', style: TextStyle(color: Colors.white)),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.person_add_outlined, color: AppColors.primaryBlue, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Nuevo beneficiario',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 0,
+                color: Colors.grey.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.shade200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline, size: 20, color: AppColors.secondaryText),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          style: const TextStyle(fontSize: 14, color: AppColors.primaryText, fontWeight: FontWeight.w500),
+                          decoration: const InputDecoration(
+                            labelText: 'NOMBRE',
+                            labelStyle: TextStyle(fontSize: 11, color: AppColors.primaryBlue, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                            border: InputBorder.none,
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('CANCELAR',
+                          style: TextStyle(color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        if (controller.text.isEmpty) return;
+                        final newBeneficiary = Beneficiary(id: 0, name: controller.text);
+                        provider.setSelectedBeneficiary(newBeneficiary);
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: const Text('GUARDAR',
+                          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -235,31 +401,28 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => StatefulBuilder(
-        builder: (context, setPickerState) {
+        builder: (context, setState) {
           String search = '';
           return StatefulBuilder(
             builder: (context, setState) {
-              // Filtrar y ordenar beneficiarios
-              final filteredBeneficiaries = beneficiaries.where((b) => 
-                b.name.toLowerCase().contains(search.toLowerCase())
-              ).toList()
-                ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+              final filteredBeneficiaries = beneficiaries
+                  .where((b) => b.name.toLowerCase().contains(search.toLowerCase()))
+                  .toList()
+                    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
               return Container(
                 height: MediaQuery.of(context).size.height * 0.7,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: TextField(
-                        onChanged: (v) => setState(() => search = v),
-                        decoration: InputDecoration(
-                          hintText: l10n.search,
-                          prefixIcon: const Icon(Icons.search),
-                        ),
-                      ),
+                    _buildSheetHandle(),
+                    _buildSheetSearchField(
+                      hint: l10n.search,
+                      onChanged: (v) => setState(() => search = v),
                     ),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: ListView.builder(
                         itemCount: filteredBeneficiaries.length + 1,
@@ -267,7 +430,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           if (index == 0) {
                             return ListTile(
                               leading: const Icon(Icons.add_circle_outline, color: AppColors.primaryBlue),
-                              title: const Text('ADD NEW BENEFICIARY', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)),
+                              title: const Text('AÑADIR BENEFICIARIO',
+                                  style: TextStyle(
+                                      color: AppColors.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)),
                               onTap: () {
                                 Navigator.pop(context);
                                 _showNewBeneficiaryDialog(provider);

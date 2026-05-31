@@ -28,8 +28,9 @@ class _EntityFormDialogState extends State<EntityFormDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -42,7 +43,7 @@ class _EntityFormDialogState extends State<EntityFormDialog> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.business_outlined, color: AppColors.primaryBlue, size: 22),
                 ),
@@ -101,7 +102,7 @@ class _EntityFormDialogState extends State<EntityFormDialog> {
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: const Text('CANCELAR', style: TextStyle(color: AppColors.secondaryText)),
                   ),
@@ -125,7 +126,7 @@ class _EntityFormDialogState extends State<EntityFormDialog> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
                   ),

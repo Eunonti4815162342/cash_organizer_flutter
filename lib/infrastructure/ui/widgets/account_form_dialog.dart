@@ -119,11 +119,11 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
         height: isMobile ? double.infinity : 620,
         decoration: BoxDecoration(
           color: AppColors.windowBackground,
-          borderRadius: BorderRadius.circular(isMobile ? 0 : 24),
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 20),
           boxShadow: isMobile ? null : const [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, 8))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(isMobile ? 0 : 24),
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 20),
           child: Column(
             children: [
               _buildHeader(l10n, isMobile),
@@ -172,7 +172,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
               backgroundColor: AppColors.primaryBlue,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
           ),

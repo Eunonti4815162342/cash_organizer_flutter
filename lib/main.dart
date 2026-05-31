@@ -108,6 +108,7 @@ class _NataveAppState extends State<NataveApp> {
       localizationsDelegates: const [AppLocalizations.delegate, GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
       supportedLocales: const [Locale('en'), Locale('es'), Locale('pt')],
       theme: ThemeData(
+        fontFamily: 'AppFont',
         primaryColor: AppColors.primaryBlue,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primaryBlue,
@@ -124,6 +125,7 @@ class _NataveAppState extends State<NataveApp> {
           elevation: 0,
           centerTitle: false,
           titleTextStyle: TextStyle(
+            fontFamily: 'AppFont',
             fontSize: 18,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
@@ -161,7 +163,70 @@ class _NataveAppState extends State<NataveApp> {
             elevation: 0,
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            textStyle: const TextStyle(
+              fontFamily: 'AppFont',
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
           ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primaryBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            textStyle: const TextStyle(
+              fontFamily: 'AppFont',
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          titleTextStyle: const TextStyle(
+            fontFamily: 'AppFont',
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryText,
+          ),
+          contentTextStyle: const TextStyle(
+            fontFamily: 'AppFont',
+            fontSize: 14,
+            color: AppColors.primaryText,
+          ),
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return AppColors.primaryBlue;
+            return null;
+          }),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+        chipTheme: ChipThemeData(
+          selectedColor: AppColors.primaryBlue,
+          backgroundColor: Colors.grey.shade100,
+          labelStyle: const TextStyle(fontFamily: 'AppFont', fontSize: 10, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          contentTextStyle: const TextStyle(fontFamily: 'AppFont', fontSize: 13),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+        ),
+        popupMenuTheme: PopupMenuThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          color: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          textStyle: const TextStyle(fontFamily: 'AppFont', fontSize: 13, color: AppColors.primaryText),
         ),
       ),
       home: _isLoading 

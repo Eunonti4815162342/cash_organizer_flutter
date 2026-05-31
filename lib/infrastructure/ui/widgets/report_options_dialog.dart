@@ -72,7 +72,9 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: 600,
         height: 500,
@@ -110,28 +112,39 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
                 ),
                 const SizedBox(height: 16),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCELAR', style: TextStyle(color: Colors.grey)),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('CANCELAR',
+                            style: TextStyle(color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context, ReportConfig(
-                          startDate: _startDate,
-                          endDate: _endDate,
-                          accountIds: _selectedAccountIds,
-                          reportType: widget.initialConfig.reportType,
-                        ));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context, ReportConfig(
+                            startDate: _startDate,
+                            endDate: _endDate,
+                            accountIds: _selectedAccountIds,
+                            reportType: widget.initialConfig.reportType,
+                          ));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('APLICAR FILTROS',
+                            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
                       ),
-                      child: const Text('APLICAR FILTROS'),
                     ),
                   ],
                 ),

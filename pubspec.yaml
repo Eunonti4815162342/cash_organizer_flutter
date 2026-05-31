@@ -52,3 +52,9 @@ flutter:
     - assets/config.json
     - assets/branding/
     - assets/fonts/
+  fonts:
+    - family: AppFont
+      fonts:
+        - asset: assets/fonts/Arial-Regular.ttf
+        - asset: assets/fonts/Arial-Bold.ttf
+          weight: 700

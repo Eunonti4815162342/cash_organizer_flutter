@@ -69,11 +69,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
 
     return Scaffold(
       body: _buildMainContent(l10n, orphans),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddMenu(l10n),
-        backgroundColor: AppColors.primaryBlue,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 
@@ -328,14 +323,24 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final total = _allAccounts.fold(0.0, (sum, item) => sum + (item.amount.value / 100));
     final isNegative = total < 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(12, 10, 20, 10),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          TextButton.icon(
+            onPressed: () => _showAddMenu(l10n),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Añadir'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          const Spacer(),
           Text('${l10n.totalBalance}  ', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: AppColors.secondaryText)),
           Text(
             '€ ${total.toStringAsFixed(2)}',

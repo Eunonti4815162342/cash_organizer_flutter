@@ -129,7 +129,7 @@ class _NataveAppState extends State<NataveApp> {
             letterSpacing: 0.5,
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: AppColors.cardBackground,
           elevation: 0,
           shape: RoundedRectangleBorder(

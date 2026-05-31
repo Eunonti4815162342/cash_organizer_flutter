@@ -182,6 +182,28 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                     onAction: () => _showEditAccountDialog(null),
                   ),
           ),
+          // Botón justo encima del footer de balance
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade100)),
+            ),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _showAddMenu(l10n),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Añadir'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryBlue,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _buildFooter(l10n),
         ],
       ),
@@ -323,24 +345,14 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     final total = _allAccounts.fold(0.0, (sum, item) => sum + (item.amount.value / 100));
     final isNegative = total < 0;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 20, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton.icon(
-            onPressed: () => _showAddMenu(l10n),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Añadir'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryBlue,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const Spacer(),
           Text('${l10n.totalBalance}  ', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: AppColors.secondaryText)),
           Text(
             '€ ${total.toStringAsFixed(2)}',

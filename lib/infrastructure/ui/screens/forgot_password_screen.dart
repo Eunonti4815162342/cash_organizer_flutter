@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import '../../../services/api_service.dart';
 import '../styles/app_styles.dart';
+import '../widgets/app_components.dart';
 import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -66,66 +67,59 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 5))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_reset, size: 64, color: AppColors.primaryBlue),
-              const SizedBox(height: 16),
-              const Text(
-                '¿Olvidaste tu contraseña?',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Introduce tu email y te enviaremos un código para restablecer tu contraseña.',
-                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
               ],
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSubmit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
-                      : const Text('ENVIAR CÓDIGO'),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_reset, size: 64, color: AppColors.primaryBlue),
+                const SizedBox(height: 16),
+                const Text(
+                  '¿Olvidaste tu contraseña?',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: widget.onBackToLogin,
-                child: const Text('Volver al inicio de sesión'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  'Introduce tu email y te enviaremos un código para restablecer tu contraseña.',
+                  style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  hint: 'tu@email.com',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  errorText: _error,
+                ),
+                const SizedBox(height: 32),
+                AppButton(
+                  label: 'Enviar código',
+                  isLoading: _isLoading,
+                  onPressed: _handleSubmit,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: widget.onBackToLogin,
+                  child: const Text(
+                    '← Volver al inicio de sesión',
+                    style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

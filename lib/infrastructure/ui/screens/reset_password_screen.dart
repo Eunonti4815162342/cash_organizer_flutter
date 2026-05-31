@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import '../../../services/api_service.dart';
 import '../styles/app_styles.dart';
+import '../widgets/app_components.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
@@ -19,8 +20,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _confirmController = TextEditingController();
   late final ApiService _apiService;
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
   String? _error;
 
   @override
@@ -108,14 +107,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       backgroundColor: AppColors.scaffoldBackground,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 5))],
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -132,67 +133,43 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
-                TextField(
+                const SizedBox(height: 32),
+                AppTextField(
                   controller: _tokenController,
-                  decoration: const InputDecoration(
-                    labelText: 'Código recibido por email',
-                    prefixIcon: Icon(Icons.vpn_key_outlined),
-                    border: OutlineInputBorder(),
-                  ),
+                  label: 'Código recibido por email',
+                  hint: 'Introduce el código',
+                  prefixIcon: Icons.vpn_key_outlined,
                 ),
-                const SizedBox(height: 16),
-                TextField(
+                const SizedBox(height: 20),
+                AppTextField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Nueva contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
+                  label: 'Nueva contraseña',
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: true,
                 ),
-                const SizedBox(height: 16),
-                TextField(
+                const SizedBox(height: 20),
+                AppTextField(
                   controller: _confirmController,
-                  obscureText: _obscureConfirm,
-                  decoration: InputDecoration(
-                    labelText: 'Confirmar contraseña',
-                    prefixIcon: const Icon(Icons.lock_reset),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                    ),
-                  ),
+                  label: 'Confirmar contraseña',
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_reset,
+                  obscureText: true,
+                  errorText: _error,
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-                ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleReset,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
-                        : const Text('RESTABLECER CONTRASEÑA'),
-                  ),
+                const SizedBox(height: 32),
+                AppButton(
+                  label: 'Restablecer contraseña',
+                  isLoading: _isLoading,
+                  onPressed: _handleReset,
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('← Volver'),
+                  child: const Text(
+                    '← Volver',
+                    style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                  ),
                 ),
               ],
             ),

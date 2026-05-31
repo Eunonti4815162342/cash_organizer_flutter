@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../services/api_service.dart';
 import '../styles/app_styles.dart';
+import '../widgets/app_components.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback onBackToLogin;
@@ -41,7 +42,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _success = '¡Usuario creado con éxito! Ya puedes iniciar sesión.';
         _isLoading = false;
       });
-      // Esperar un poco y volver al login
       Future.delayed(const Duration(seconds: 2), () {
         widget.onBackToLogin();
       });
@@ -57,25 +57,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryBlue),
-          onPressed: widget.onBackToLogin,
-        ),
-      ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 5)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
               ],
             ),
             child: Column(
@@ -87,34 +79,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'Crear Cuenta',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
                 ),
-                const SizedBox(height: 24),
-                TextField(
+                const SizedBox(height: 32),
+                AppTextField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
-                  ),
+                  label: 'Email',
+                  hint: 'tu@email.com',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 16),
-                TextField(
+                const SizedBox(height: 20),
+                AppTextField(
                   controller: _passwordController,
+                  label: 'Contraseña',
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(),
-                  ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
+                const SizedBox(height: 20),
+                AppTextField(
                   controller: _confirmPasswordController,
+                  label: 'Confirmar Contraseña',
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_reset,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirmar Contraseña',
-                    prefixIcon: Icon(Icons.lock_reset),
-                    border: OutlineInputBorder(),
-                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
@@ -124,20 +111,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 16),
                   Text(_success!, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: _isLoading 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
-                      : const Text('REGISTRARSE'),
+                const SizedBox(height: 32),
+                AppButton(
+                  label: 'Registrarse',
+                  isLoading: _isLoading,
+                  onPressed: _handleRegister,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: widget.onBackToLogin,
+                  child: const Text(
+                    '¿Ya tienes cuenta? Inicia sesión',
+                    style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                   ),
                 ),
               ],

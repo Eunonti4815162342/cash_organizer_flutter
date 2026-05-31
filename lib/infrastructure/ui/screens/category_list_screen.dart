@@ -23,6 +23,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   
   List<Category> _categories = [];
   bool _isLoading = true;
+  bool _showFab = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   final ScrollController _scrollController = ScrollController();
@@ -88,25 +89,58 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
             child: Column(children: [_buildHeader(l10n, isMobile), _buildSearchBar(l10n)]),
           ),
           Expanded(
-            child: _isLoading 
+            child: _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : filtered.isEmpty 
+              : filtered.isEmpty
                   ? EmptyStateWidget(icon: Icons.category_outlined, title: l10n.noData, subtitle: 'Crea tu primera categoría', actionLabel: l10n.newCategory, onAction: () => _showCategoryForm())
-                  : ListView.builder(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.fromLTRB(isMobile ? 12 : 24, 16, isMobile ? 12 : 24, 100),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) => _buildCategoryCard(filtered[index], l10n),
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification is ScrollStartNotification) {
+                          if (_showFab) setState(() => _showFab = false);
+                        } else if (notification is ScrollEndNotification) {
+                          if (!_showFab) setState(() => _showFab = true);
+                        }
+                        return false;
+                      },
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(isMobile ? 12 : 24, 16, isMobile ? 12 : 24, 100),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) => _buildCategoryCard(filtered[index], l10n),
+                      ),
                     ),
           ),
         ],
+      ),
+      floatingActionButton: AnimatedSlide(
+        duration: const Duration(milliseconds: 200),
+        offset: _showFab ? Offset.zero : const Offset(0, 2),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: _showFab ? 1.0 : 0.0,
+          child: FloatingActionButton(
+            onPressed: () => _showCategoryForm(),
+            backgroundColor: AppColors.primaryBlue,
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildHeader(AppLocalizations l10n, bool isMobile) {
-    return Container(height: 60, padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24), child: Row(children: [const Icon(Icons.category_outlined, color: AppColors.primaryBlue, size: 22), const SizedBox(width: 12), Text(l10n.categories.toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText)), const Spacer(), ElevatedButton.icon(onPressed: () => _showCategoryForm(), icon: const Icon(Icons.add, size: 16, color: AppColors.white), label: Text(l10n.newCategory.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.white)), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))))]));
+    return Container(
+      height: 60,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+      child: Row(
+        children: [
+          const Icon(Icons.category_outlined, color: AppColors.primaryBlue, size: 22),
+          const SizedBox(width: 12),
+          Text(l10n.categories.toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
+        ],
+      ),
+    );
   }
 
   Widget _buildSearchBar(AppLocalizations l10n) {

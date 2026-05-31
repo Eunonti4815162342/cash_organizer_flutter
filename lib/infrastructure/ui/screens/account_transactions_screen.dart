@@ -311,7 +311,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
           color: isSelected ? AppColors.primaryBlue.withValues(alpha: 0.06) : Colors.transparent,
           border: isSelected ? const Border(left: BorderSide(color: AppColors.primaryBlue, width: 3)) : null,
         ),
-        padding: EdgeInsets.only(left: isIndented ? 20 : 16, right: 12, top: 12, bottom: 12),
+        padding: EdgeInsets.only(left: isIndented ? 20 : 16, right: 4, top: 10, bottom: 10),
         child: Row(
           children: [
             Icon(
@@ -338,6 +338,17 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                 style: TextStyle(color: isNegative ? AppColors.expenseRed : AppColors.incomeGreen, fontWeight: FontWeight.w600, fontSize: 12),
               ),
             ),
+            if (!isSelected) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: Icon(Icons.edit_outlined, size: 15, color: Colors.grey.shade400),
+                onPressed: () => _showEditAccountDialog(account),
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                tooltip: 'Editar',
+              ),
+            ] else
+              const SizedBox(width: 8),
           ],
         ),
       ),
@@ -644,8 +655,29 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       content: Text(l10n.confirmDeleteAccount),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
-        TextButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteAccount(account.id); if (success) _refreshData(); }, child: Text(l10n.closeAccount)),
-        ElevatedButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteAccountPermanently(account.id); if (success) _refreshData(); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), child: Text(l10n.deleteForever)),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            final success = await _apiService.deleteAccount(account.id);
+            if (success) {
+              setState(() => _selectedAccount = null);
+              _refreshData();
+            }
+          },
+          child: Text(l10n.closeAccount),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            final success = await _apiService.deleteAccountPermanently(account.id);
+            if (success) {
+              setState(() => _selectedAccount = null);
+              _refreshData();
+            }
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          child: Text(l10n.deleteForever),
+        ),
       ],
     ));
   }

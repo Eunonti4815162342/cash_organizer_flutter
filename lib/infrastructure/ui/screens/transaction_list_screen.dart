@@ -29,6 +29,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _isLastPage = false;
+  bool _showFab = true;
   int _currentPage = 0;
   final int _pageSize = 20;
 
@@ -197,35 +198,53 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           _buildHeader(l10n),
           _buildFilters(),
           Expanded(
-            child: _isLoading 
+            child: _isLoading
               ? const SkeletonTransactionList(itemCount: 8)
               : filteredTransactions.isEmpty && !_isLoadingMore
                 ? EmptyStateWidget(icon: Icons.receipt_long_outlined, title: l10n.noData, subtitle: 'No se encontraron resultados')
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 8, bottom: 80),
-                    itemCount: filteredTransactions.length + (_isLastPage ? 0 : 1),
-                    itemBuilder: (context, index) {
-                      if (index < filteredTransactions.length) {
-                        return TransactionListItem(transaction: filteredTransactions[index], onRefresh: _refreshTransactions);
-                      } else {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
+                : NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is ScrollStartNotification) {
+                        if (_showFab) setState(() => _showFab = false);
+                      } else if (notification is ScrollEndNotification) {
+                        if (!_showFab) setState(() => _showFab = true);
                       }
+                      return false;
                     },
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.only(top: 8, bottom: 80),
+                      itemCount: filteredTransactions.length + (_isLastPage ? 0 : 1),
+                      itemBuilder: (context, index) {
+                        if (index < filteredTransactions.length) {
+                          return TransactionListItem(transaction: filteredTransactions[index], onRefresh: _refreshTransactions);
+                        } else {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                      },
+                    ),
                   ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const TransactionFormScreen()));
-          if (result == true) _refreshTransactions();
-        },
-        backgroundColor: AppColors.primaryBlue,
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: AnimatedSlide(
+        duration: const Duration(milliseconds: 200),
+        offset: _showFab ? Offset.zero : const Offset(0, 2),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: _showFab ? 1.0 : 0.0,
+          child: FloatingActionButton(
+            onPressed: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const TransactionFormScreen()));
+              if (result == true) _refreshTransactions();
+            },
+            backgroundColor: AppColors.primaryBlue,
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        ),
       ),
     );
   }

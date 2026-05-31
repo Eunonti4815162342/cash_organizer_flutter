@@ -53,82 +53,87 @@ class AppColors {
 
 class AppTextStyles {
   static const TextStyle sidebarItem = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 13,
     color: AppColors.primaryText,
   );
 
   static const TextStyle sidebarItemBold = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 13,
     color: AppColors.primaryBlue,
     fontWeight: FontWeight.bold,
   );
 
   static const TextStyle tableHeader = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 11,
     color: AppColors.secondaryText,
   );
 
   static const TextStyle bodyText = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 14,
     color: AppColors.primaryText,
   );
 
-  // Cabeceras de sección (labels encima de tablas/filtros)
   static const TextStyle sectionLabel = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 10,
     fontWeight: FontWeight.bold,
     color: AppColors.primaryBlue,
   );
 
-  // Etiqueta de campo (label dentro de ListTile/selección)
   static const TextStyle fieldLabel = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 10,
     color: AppColors.primaryBlue,
     fontWeight: FontWeight.bold,
   );
 
-  // Valor de campo grande
   static const TextStyle fieldValue = TextStyle(
-    fontSize: 16,
+    fontFamily: 'AppFont',
+    fontSize: 15,
     color: AppColors.primaryText,
+    fontWeight: FontWeight.w500,
   );
 
-  // Texto de hint en campos de búsqueda
   static const TextStyle hintText = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 13,
-    color: Colors.grey,
+    color: AppColors.secondaryText,
   );
 
-  // Texto de cabecera de pantalla
   static const TextStyle screenTitle = TextStyle(
+    fontFamily: 'AppFont',
     fontWeight: FontWeight.bold,
     letterSpacing: 1.2,
     color: AppColors.primaryText,
   );
 
-  // Nombre de transacción / elemento principal de lista
   static const TextStyle listItemTitle = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 15,
     fontWeight: FontWeight.w500,
     color: AppColors.primaryText,
   );
 
-  // Subtítulo de elemento de lista
   static const TextStyle listItemSubtitle = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 12,
-    color: Colors.grey,
+    color: AppColors.secondaryText,
   );
 
-  // Importe en lista de transacciones
   static const TextStyle amountText = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 16,
     fontWeight: FontWeight.bold,
   );
 
-  // Fecha pequeña
   static const TextStyle dateSmall = TextStyle(
+    fontFamily: 'AppFont',
     fontSize: 11,
-    color: Colors.grey,
+    color: AppColors.secondaryText,
   );
 }
 

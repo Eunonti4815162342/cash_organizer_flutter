@@ -363,29 +363,30 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   }
 
   void _confirmDelete(AppLocalizations l10n) {
+    final dialogContext = context; // capture before builder shadows it
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: dialogContext,
+      builder: (alertContext) => AlertDialog(
         title: Text(l10n.removeAccount),
         content: Text(l10n.confirmDeleteAccount),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(alertContext),
             child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(alertContext);
               final success = await _apiService.deleteAccount(widget.account!.id);
-              if (success && mounted) Navigator.pop(context, 'deleted');
+              if (success && mounted) Navigator.pop(dialogContext, 'deleted');
             },
             child: Text(l10n.closeAccount),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(alertContext);
               final success = await _apiService.deleteAccountPermanently(widget.account!.id);
-              if (success && mounted) Navigator.pop(context, 'deleted');
+              if (success && mounted) Navigator.pop(dialogContext, 'deleted');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: Text(l10n.deleteForever),

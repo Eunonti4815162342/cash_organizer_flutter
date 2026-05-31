@@ -140,20 +140,39 @@ class _NataveAppState extends State<NataveApp> {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
+          filled: false,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: const TextStyle(
+            fontFamily: 'AppFont',
+            fontSize: 13,
+            color: AppColors.secondaryText,
+          ),
+          labelStyle: const TextStyle(
+            fontFamily: 'AppFont',
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryBlue,
+            letterSpacing: 1.1,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.divider),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.divider),
+            borderSide: BorderSide(color: Colors.grey.shade300),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+            borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.expenseRed),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.expenseRed, width: 1.5),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(

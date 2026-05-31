@@ -103,10 +103,15 @@ class _AppTextFieldState extends State<AppTextField> {
           controller: widget.controller,
           obscureText: _obscure,
           keyboardType: widget.keyboardType,
-          style: AppTextStyles.fieldValue,
+          style: const TextStyle(
+            fontFamily: 'AppFont',
+            fontSize: 15,
+            color: AppColors.primaryText,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: AppTextStyles.hintText,
+            hintStyle: const TextStyle(fontFamily: 'AppFont', fontSize: 13, color: AppColors.secondaryText),
             prefixIcon: widget.prefixIcon != null
                 ? Icon(widget.prefixIcon, color: AppColors.primaryText, size: 20)
                 : null,
@@ -120,8 +125,7 @@ class _AppTextFieldState extends State<AppTextField> {
                     onPressed: () => setState(() => _obscure = !_obscure),
                   )
                 : null,
-            filled: true,
-            fillColor: Colors.white,
+            filled: false,
             errorText: widget.errorText,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             enabledBorder: OutlineInputBorder(
@@ -130,7 +134,7 @@ class _AppTextFieldState extends State<AppTextField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+              borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -138,7 +142,7 @@ class _AppTextFieldState extends State<AppTextField> {
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.expenseRed, width: 2),
+              borderSide: const BorderSide(color: AppColors.expenseRed, width: 1.5),
             ),
           ),
         ),

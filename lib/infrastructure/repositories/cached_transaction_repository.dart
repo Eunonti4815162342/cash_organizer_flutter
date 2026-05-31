@@ -19,7 +19,7 @@ class CachedTransactionRepository implements ITransactionRepository {
       }
     }
     try {
-      final remote = await _apiService.fetchTransactions(filters).timeout(const Duration(seconds: 3));
+      final remote = await _apiService.fetchTransactions(filters);
       if (!kIsWeb) {
         await _localRepo?.reconcile(remote, filters);
         return await _localRepo!.fetchTransactions(filters);
@@ -44,7 +44,7 @@ class CachedTransactionRepository implements ITransactionRepository {
 
   Future<void> _refreshInBackground(TransactionFilters filters) async {
     try {
-      final remote = await _apiService.fetchTransactions(filters).timeout(const Duration(seconds: 5));
+      final remote = await _apiService.fetchTransactions(filters);
       if (!kIsWeb) {
         await _localRepo?.reconcile(remote, filters);
       }

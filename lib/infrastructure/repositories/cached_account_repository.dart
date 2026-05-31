@@ -18,7 +18,7 @@ class CachedAccountRepository implements IAccountRepository {
       }
     }
     try {
-      final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 2));
+      final remote = await _apiService.fetchAccounts();
       if (!kIsWeb) await _localRepo?.reconcile(remote);
       return remote;
     } catch (_) { return []; }
@@ -26,7 +26,7 @@ class CachedAccountRepository implements IAccountRepository {
 
   Future<void> _refreshInBackground() async {
     try {
-      final remote = await _apiService.fetchAccounts().timeout(const Duration(seconds: 5));
+      final remote = await _apiService.fetchAccounts();
       if (!kIsWeb) await _localRepo?.reconcile(remote);
     } catch (_) {}
   }

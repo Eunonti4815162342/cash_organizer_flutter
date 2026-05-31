@@ -28,7 +28,6 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   List<FinancialEntity> _entities = [];
   List<AccountItem> _allAccounts = [];
   bool _isLoading = true;
-  AccountItem? _selectedAccount;
 
   @override
   void initState() {
@@ -68,28 +67,8 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
 
     final orphans = _allAccounts.where((a) => a.entity == null).toList();
 
-    Widget desktopLayout = Row(
-      children: [
-        Expanded(flex: 7, child: _buildMainContent(l10n, orphans)),
-        _buildPropertiesPanel(l10n, false),
-      ],
-    );
-
-    Widget mobileLayout = SingleChildScrollView(
-      child: Column(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: _buildMainContent(l10n, orphans),
-          ),
-          const Divider(height: 1),
-          _buildPropertiesPanel(l10n, true),
-        ],
-      ),
-    );
-
     return Scaffold(
-      body: isMobile ? mobileLayout : desktopLayout,
+      body: _buildMainContent(l10n, orphans),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddMenu(l10n),
         backgroundColor: AppColors.primaryBlue,
@@ -295,35 +274,28 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   }
 
   Widget _buildAccountRow(AccountItem account, {bool isIndented = false}) {
-    final isSelected = _selectedAccount?.id == account.id;
     final balance = account.amount.value / 100;
     final isNegative = balance < 0 || account.amount.isNegative;
 
     return InkWell(
-      onTap: () {
-        setState(() => _selectedAccount = account);
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) => AccountDetailsScreen(account: account))).then((_) => _refreshData());
-      },
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (context) => AccountDetailsScreen(account: account)))
+          .then((_) => _refreshData()),
       borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryBlue.withValues(alpha: 0.06) : Colors.transparent,
-          border: isSelected ? const Border(left: BorderSide(color: AppColors.primaryBlue, width: 3)) : null,
-        ),
+      child: Padding(
         padding: EdgeInsets.only(left: isIndented ? 20 : 16, right: 4, top: 10, bottom: 10),
         child: Row(
           children: [
             Icon(
               account.isUnbalanced ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined,
               size: 17,
-              color: account.isUnbalanced ? AppColors.warningOrange : (isSelected ? AppColors.primaryBlue : Colors.grey.shade400),
+              color: account.isUnbalanced ? AppColors.warningOrange : Colors.grey.shade400,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 account.name,
-                style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13, color: isSelected ? AppColors.primaryBlue : AppColors.primaryText),
+                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: AppColors.primaryText),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -338,17 +310,14 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                 style: TextStyle(color: isNegative ? AppColors.expenseRed : AppColors.incomeGreen, fontWeight: FontWeight.w600, fontSize: 12),
               ),
             ),
-            if (!isSelected) ...[
-              const SizedBox(width: 4),
-              IconButton(
-                icon: Icon(Icons.edit_outlined, size: 15, color: Colors.grey.shade400),
-                onPressed: () => _showEditAccountDialog(account),
-                padding: const EdgeInsets.all(6),
-                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                tooltip: 'Editar',
-              ),
-            ] else
-              const SizedBox(width: 8),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(Icons.edit_outlined, size: 15, color: Colors.grey.shade400),
+              onPressed: () => _showEditAccountDialog(account),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+              tooltip: 'Editar',
+            ),
           ],
         ),
       ),
@@ -377,309 +346,14 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     );
   }
 
-  Widget _buildPropertiesPanel(AppLocalizations l10n, bool isMobile) {
-    return Container(
-      width: isMobile ? double.infinity : 300,
-      decoration: BoxDecoration(
-        color: AppColors.sidebarBackground,
-        border: Border(left: isMobile ? BorderSide.none : BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-        child: _selectedAccount != null
-            ? _buildSelectedAccountPanel(l10n, key: ValueKey(_selectedAccount!.id))
-            : _buildEmptyPanel(l10n),
-      ),
-    );
-  }
-
-  Widget _buildEmptyPanel(AppLocalizations l10n) {
-    return const EmptyStateWidget(
-      icon: Icons.account_balance_wallet_outlined,
-      title: 'Selecciona una cuenta',
-      subtitle: 'Elige una cuenta de la lista para ver sus detalles',
-    );
-  }
-
-  Widget _buildSelectedAccountPanel(AppLocalizations l10n, {Key? key}) {
-    final acc = _selectedAccount!;
-    final balance = acc.amount.value / 100;
-    final isNegative = balance < 0 || acc.amount.isNegative;
-    final typeIcon = _accountTypeIcon(acc.accountType);
-
-    final gradientColors = isNegative
-        ? [const Color(0xFFD32F2F), const Color(0xFFEF5350)]
-        : [const Color(0xFF0077CC), const Color(0xFF009FFB)];
-
-    return SingleChildScrollView(
-      key: key,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            margin: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: gradientColors[0].withValues(alpha: 0.30),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradientColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 14, 12, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _heroButton(Icons.edit_outlined, 'Editar', () => _showEditAccountDialog(acc)),
-                    _heroButton(Icons.delete_outline, 'Eliminar', () => _confirmDeleteAccount(acc, l10n),
-                        color: Colors.white60),
-                    _heroButton(Icons.close, 'Cerrar', () => setState(() => _selectedAccount = null)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(11),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(typeIcon, color: Colors.white, size: 22),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  acc.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.1,
-                    height: 1.2,
-                  ),
-                ),
-                if (acc.entity != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    acc.entity!.name,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 12),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                Text(
-                  '${acc.amount.currency} ${balance.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    acc.accountType ?? 'General',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-            ),
-          ),
-          if (acc.isUnbalanced)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 15),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Saldo no balanceado',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'DETALLES',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade400, letterSpacing: 1.3),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade100),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _detailRow(Icons.label_outline, l10n.accountName, acc.name),
-                      if (acc.entity != null) ...[
-                        _detailDivider(),
-                        _detailRow(Icons.business_outlined, l10n.entity, acc.entity!.name),
-                      ],
-                      _detailDivider(),
-                      _detailRow(typeIcon, l10n.type, acc.accountType ?? 'General'),
-                      _detailDivider(),
-                      _detailRow(Icons.currency_exchange_outlined, 'Divisa', acc.amount.currency),
-                      if ((acc.notes ?? '').isNotEmpty) ...[
-                        _detailDivider(),
-                        _detailRow(Icons.notes_outlined, 'Notas', acc.notes!),
-                      ],
-                      if ((acc.description ?? '').isNotEmpty) ...[
-                        _detailDivider(),
-                        _detailRow(Icons.info_outline, l10n.description, acc.description!),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _heroButton(IconData icon, String tooltip, VoidCallback onTap, {Color color = Colors.white}) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(7),
-          child: Icon(icon, color: color, size: 18),
-        ),
-      ),
-    );
-  }
-
-  Widget _detailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.primaryBlue.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 14, color: AppColors.primaryBlue),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade400, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 13, color: AppColors.primaryText, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailDivider() => Divider(height: 1, color: Colors.grey.shade100, indent: 44, endIndent: 0);
-
-  IconData _accountTypeIcon(String? type) {
-    switch ((type ?? '').toLowerCase()) {
-      case 'banco':
-      case 'bank':
-        return Icons.account_balance_outlined;
-      case 'tarjeta':
-      case 'card':
-        return Icons.credit_card_outlined;
-      case 'efectivo':
-      case 'cash':
-        return Icons.payments_outlined;
-      case 'inversión':
-      case 'investment':
-        return Icons.trending_up_outlined;
-      default:
-        return Icons.account_balance_wallet_outlined;
-    }
-  }
-
   void _showEditAccountDialog(AccountItem? account) {
-    showDialog(context: context, barrierDismissible: false, builder: (context) => AccountFormDialog(account: account)).then((saved) { if (saved == true) _refreshData(); });
-  }
-
-  void _confirmDeleteAccount(AccountItem account, AppLocalizations l10n) {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: Text(l10n.removeAccount),
-      content: Text(l10n.confirmDeleteAccount),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            final success = await _apiService.deleteAccount(account.id);
-            if (success) {
-              setState(() => _selectedAccount = null);
-              _refreshData();
-            }
-          },
-          child: Text(l10n.closeAccount),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            final success = await _apiService.deleteAccountPermanently(account.id);
-            if (success) {
-              setState(() => _selectedAccount = null);
-              _refreshData();
-            }
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-          child: Text(l10n.deleteForever),
-        ),
-      ],
-    ));
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AccountFormDialog(account: account),
+    ).then((result) {
+      if (result == true || result == 'deleted') _refreshData();
+    });
   }
 
   void _confirmDeleteEntity(FinancialEntity entity, AppLocalizations l10n) {

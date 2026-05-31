@@ -182,26 +182,17 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
                     onAction: () => _showEditAccountDialog(null),
                   ),
           ),
-          // Botón justo encima del footer de balance
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade100)),
-            ),
-            child: Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showAddMenu(l10n),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Añadir'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primaryBlue,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ],
+          // FAB inline encima del footer de balance
+          Padding(
+            padding: const EdgeInsets.only(right: 16, bottom: 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FloatingActionButton(
+                heroTag: 'accounts_fab',
+                onPressed: () => _showAddMenu(l10n),
+                backgroundColor: AppColors.primaryBlue,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
             ),
           ),
           _buildFooter(l10n),

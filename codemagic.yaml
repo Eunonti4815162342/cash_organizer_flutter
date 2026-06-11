@@ -59,4 +59,6 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # Solo subir el .ipa; el envio a beta review externa no hace falta para
+        # testers internos y hacia que el build acabase "failed" por timeout.
+        submit_to_testflight: false

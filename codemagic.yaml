@@ -1,0 +1,62 @@
+# CI de iOS para NATAVE (cash_organizer_flutter)
+#
+# Dos workflows:
+#   - ios-unsigned:   genera un .ipa SIN firmar, para instalarlo desde Windows
+#                     con Sideloadly + Apple ID gratuito (caduca a los 7 días).
+#   - ios-testflight: build firmada y subida automática a TestFlight.
+#                     Requiere Apple Developer Program activo y la integración
+#                     "App Store Connect" configurada en Codemagic con el nombre
+#                     `appstore_api_key` (Teams > Integrations).
+#
+# Ambos se lanzan a mano desde la UI de Codemagic ("Start new build" y eliges
+# el workflow); no hay triggers automáticos por push.
+
+workflows:
+  ios-unsigned:
+    name: iOS unsigned (Sideloadly)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Build iOS sin firma
+        script: flutter build ios --release --no-codesign
+      - name: Empaquetar .ipa sin firmar
+        script: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -qr natave-unsigned.ipa Payload
+    artifacts:
+      - build/ios/iphoneos/natave-unsigned.ipa
+
+  ios-testflight:
+    name: iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: appstore_api_key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.alvaroveiga.natave
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Aplicar perfiles de firma
+        script: xcode-project use-profiles
+      - name: Build .ipa firmada
+        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

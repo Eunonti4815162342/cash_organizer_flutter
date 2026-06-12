@@ -44,9 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Configuration files (environment-specific)
-# config.json is tracked (default development config)
-# Other environment configs are generated during Docker build
-assets/config.prod.json
-assets/config.staging.json
+# Environment configs are tracked: the Docker build copies assets/$CONFIG_FILE
+# over assets/config.json, so they must exist in the build context
 .gstack/

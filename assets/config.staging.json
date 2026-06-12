@@ -1,0 +1,12 @@
+{
+  "apiBaseUrl": "http://100.86.48.34/api",
+  "apiTimeout": 30,
+  "enableLogging": true,
+  "isProduction": false,
+  "environmentName": "Staging",
+  "tokenExpirationHours": 24,
+  "enableBiometric": true,
+  "enableBackgroundSync": true,
+  "backgroundSyncIntervalMinutes": 30,
+  "databaseName": "cash_organizer_staging.db"
+}

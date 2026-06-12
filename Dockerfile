@@ -1,5 +1,6 @@
-# Build stage - ARM64 compatible
-FROM ubuntu:22.04 AS build
+# Build stage — runs natively on the build host ($BUILDPLATFORM): the Flutter
+# web output is arch-independent, only the nginx stage needs multi-arch
+FROM --platform=$BUILDPLATFORM ubuntu:22.04 AS build
 
 ARG CONFIG_FILE=config.prod.json
 

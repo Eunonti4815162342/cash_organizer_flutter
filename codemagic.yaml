@@ -57,7 +57,9 @@ workflows:
       - name: Aplicar perfiles de firma
         script: xcode-project use-profiles
       - name: Build .ipa firmada
-        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+        # --build-number usa el contador de builds de Codemagic: App Store Connect
+        # exige que cada subida lleve un CFBundleVersion mayor que la anterior
+        script: flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:

@@ -29,8 +29,8 @@ jobs:
           push: true
           build-args: CONFIG_FILE=config.staging.json
           tags: |
-            ghcr.io/${{ github.repository_owner }}/cash_organizer_flutter:staging
-            ghcr.io/${{ github.repository_owner }}/cash_organizer_flutter:staging-${{ github.run_number }}
+            ghcr.io/eunonti4815162342/cash_organizer_flutter:staging
+            ghcr.io/eunonti4815162342/cash_organizer_flutter:staging-${{ github.run_number }}
 
   build-prod:
     runs-on: ubuntu-latest
@@ -52,5 +52,5 @@ jobs:
           push: true
           build-args: CONFIG_FILE=config.prod.json
           tags: |
-            ghcr.io/${{ github.repository_owner }}/cash_organizer_flutter:latest
-            ghcr.io/${{ github.repository_owner }}/cash_organizer_flutter:${{ github.run_number }}
+            ghcr.io/eunonti4815162342/cash_organizer_flutter:latest
+            ghcr.io/eunonti4815162342/cash_organizer_flutter:${{ github.run_number }}

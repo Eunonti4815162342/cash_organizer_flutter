@@ -21,8 +21,8 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Seleccionar config staging (Funnel HTTPS)
-        script: cp assets/config.staging.json assets/config.json
+      - name: Seleccionar config backend real (Funnel HTTPS)
+        script: cp assets/config.mobile-external.json assets/config.json
       - name: Flutter pub get
         script: flutter pub get
       - name: Build iOS sin firma
@@ -50,8 +50,8 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Seleccionar config staging (Funnel HTTPS)
-        script: cp assets/config.staging.json assets/config.json
+      - name: Seleccionar config backend real (Funnel HTTPS)
+        script: cp assets/config.mobile-external.json assets/config.json
       - name: Flutter pub get
         script: flutter pub get
       - name: Aplicar perfiles de firma

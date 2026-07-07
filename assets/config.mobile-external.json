@@ -1,0 +1,12 @@
+{
+  "apiBaseUrl": "https://rpi5-alvaro.tail56d3be.ts.net:10000/api",
+  "apiTimeout": 30,
+  "enableLogging": true,
+  "isProduction": false,
+  "environmentName": "Mobile-External",
+  "tokenExpirationHours": 24,
+  "enableBiometric": true,
+  "enableBackgroundSync": true,
+  "backgroundSyncIntervalMinutes": 30,
+  "databaseName": "cash_organizer_mobile.db"
+}

@@ -16,6 +16,21 @@ class DatabaseHelper {
     return _database!;
   }
 
+  /// Wipes every locally cached table. Must run on logout: this DB has no
+  /// user_id column, so without this, the next account to sign in on this
+  /// device would see the previous user's cached accounts/transactions.
+  Future<void> clearAllData() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('transactions');
+      await txn.delete('subcategories');
+      await txn.delete('categories');
+      await txn.delete('accounts');
+      await txn.delete('beneficiaries');
+      await txn.delete('entities');
+    });
+  }
+
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'natave_v1.db');
     return await openDatabase(

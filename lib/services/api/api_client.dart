@@ -102,7 +102,13 @@ class ApiClient {
     
     if (status >= 200 && status < 300) {
       if (response.body.isEmpty) return null;
-      return jsonDecode(response.body);
+      try {
+        return jsonDecode(response.body);
+      } on FormatException {
+        // Some endpoints (e.g. auth/register) reply with a plain-text
+        // confirmation instead of JSON on success. Don't crash on that.
+        return response.body;
+      }
     }
     if (status == 401 || status == 403) {
       final hadToken = _cachedToken != null;

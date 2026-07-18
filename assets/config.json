@@ -8,5 +8,5 @@
   "enableBiometric": true,
   "enableBackgroundSync": true,
   "backgroundSyncIntervalMinutes": 60,
-  "databaseName": "natave.db"
+  "databaseName": "natave_v1.db"
 }

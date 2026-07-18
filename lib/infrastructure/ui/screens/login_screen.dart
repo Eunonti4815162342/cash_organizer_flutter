@@ -4,7 +4,6 @@ import '../../../services/api_service.dart';
 import '../../../services/biometric_service.dart';
 import '../../../core/ports/storage_port.dart';
 import '../../../services/storage/storage_factory.dart';
-import '../../persistence/sqlite/database_helper.dart';
 import '../styles/app_styles.dart';
 import '../widgets/app_components.dart';
 import 'register_screen.dart';
@@ -194,18 +193,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: () => setState(() => _showRegister = true),
                   child: const Text('¿NO TIENES CUENTA? REGÍSTRATE AQUÍ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, letterSpacing: 0.5)),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () async {
-                    await DatabaseHelper().clearDatabase();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Base de datos local eliminada'), backgroundColor: Colors.orange),
-                      );
-                    }
-                  },
-                  child: const Text('⚠️ BORRAR BASE DE DATOS LOCAL', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

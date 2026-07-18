@@ -124,13 +124,4 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE categories ADD COLUMN financial_entity_name TEXT'); } catch (_) {}
     }
   }
-
-  Future<void> clearDatabase() async {
-    String path = join(await getDatabasesPath(), 'natave_v1.db');
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
-    }
-    await deleteDatabase(path);
-  }
 }

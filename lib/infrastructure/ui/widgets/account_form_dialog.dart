@@ -423,7 +423,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                   value: _selectedEntity,
                   isExpanded: true,
                   underline: const SizedBox(),
-                  hint: Text('Sin entidad',
+                  hint: Text('Selecciona una entidad *',
                       style: TextStyle(
                           fontFamily: 'AppFont', color: Colors.grey.shade400, fontSize: 14)),
                   style: const TextStyle(
@@ -432,14 +432,6 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                       fontSize: 14,
                       fontWeight: FontWeight.w500),
                   items: [
-                    DropdownMenuItem<FinancialEntity?>(
-                      value: null,
-                      child: Text('Sin entidad',
-                          style: TextStyle(
-                              fontFamily: 'AppFont',
-                              color: Colors.grey.shade400,
-                              fontSize: 14)),
-                    ),
                     ..._entities.map((e) => DropdownMenuItem<FinancialEntity?>(
                           value: e,
                           child: Text(e.name),
@@ -585,6 +577,12 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
 
   Future<void> _save(AppLocalizations l10n) async {
     if (_nameController.text.isEmpty) return;
+    if (_selectedEntity == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes seleccionar una entidad financiera')),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
     try {
       final double val =

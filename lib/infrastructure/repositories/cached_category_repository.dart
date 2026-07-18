@@ -50,16 +50,26 @@ class CachedCategoryRepository implements ICategoryRepository {
 
   @override
   Future<void> saveCategory(Category category) async {
-    if (!kIsWeb) await _localRepo?.saveCategory(category);
-    try {
-      if (category.id > 0) {
+    if (category.id > 0) {
+      // Update: save locally first for immediate feedback, then sync to API.
+      if (!kIsWeb) await _localRepo?.saveCategory(category);
+      try {
         await _apiService.updateCategory(category.id, category);
-      } else {
+      } catch (e, st) {
+        AppLogger.error('saveCategory update API error', e, st);
+      }
+    } else {
+      // Create: API first so we get the server-assigned id; then save locally
+      // with that id. Saving locally with id 0 first (then again with the
+      // real id) left a permanent duplicate row behind, since nothing ever
+      // removed the id-0 entry.
+      try {
         final created = await _apiService.createCategory(category);
         if (!kIsWeb && created != null) await _localRepo?.saveCategory(created);
+      } catch (e, st) {
+        AppLogger.error('saveCategory create API error', e, st);
+        if (!kIsWeb) await _localRepo?.saveCategory(category);
       }
-    } catch (e, st) {
-      AppLogger.error('saveCategory API error', e, st);
     }
   }
 

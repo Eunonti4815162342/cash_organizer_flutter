@@ -16,6 +16,7 @@ import 'package:natave_flutter/domain/repositories/entity_repository.dart';
 import 'package:natave_flutter/domain/repositories/beneficiary_repository.dart';
 import 'package:natave_flutter/l10n/app_localizations.dart';
 import 'package:natave_flutter/services/session_service.dart';
+import 'package:natave_flutter/infrastructure/ui/widgets/calculator_keypad.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionItem? transaction;
@@ -27,31 +28,85 @@ class TransactionFormScreen extends StatefulWidget {
 
 class _TransactionFormScreenState extends State<TransactionFormScreen> {
   late TransactionFormProvider _provider;
-  late TextEditingController _amountController;
   late TextEditingController _descriptionController;
-  late FocusNode _amountFocus;
   late FocusNode _descriptionFocus;
+  String _expression = '0';
+  bool _showKeypad = true;
 
   @override
   void initState() {
     super.initState();
     final getIt = GetIt.instance;
     _provider = TransactionFormProvider(getIt.get<ITransactionRepository>(), getIt.get<IAccountRepository>(), getIt.get<ICategoryRepository>(), getIt.get<IEntityRepository>(), getIt.get<IBeneficiaryRepository>(), getIt.get<SessionService>(), initialTransaction: widget.transaction, initialAccount: widget.initialAccount);
-    _amountController = TextEditingController(text: '0.00');
     _descriptionController = TextEditingController();
-    _amountFocus = FocusNode();
     _descriptionFocus = FocusNode();
-    _amountFocus.addListener(() { if (_amountFocus.hasFocus && (_amountController.text == '0.00' || _amountController.text == '0')) _amountController.clear(); });
     _descriptionFocus.addListener(() { if (_descriptionFocus.hasFocus) _descriptionController.clear(); });
     _provider.loadData().then((_) {
       if (!mounted) return;
-      if (widget.transaction != null) setState(() { _amountController.text = _provider.amount; _descriptionController.text = _provider.description; });
-      WidgetsBinding.instance.addPostFrameCallback((_) { if (_amountFocus.canRequestFocus) _amountFocus.requestFocus(); });
+      if (widget.transaction != null) {
+        setState(() {
+          _expression = _provider.amount.isEmpty ? '0' : _provider.amount;
+          _descriptionController.text = _provider.description;
+          _showKeypad = false;
+        });
+      }
     });
   }
 
   @override
-  void dispose() { _amountFocus.dispose(); _descriptionFocus.dispose(); _amountController.dispose(); _descriptionController.dispose(); super.dispose(); }
+  void dispose() { _descriptionFocus.dispose(); _descriptionController.dispose(); super.dispose(); }
+
+  double get _currentAmountValue =>
+      CalculatorExpression.evaluate(_expression) ?? double.tryParse(_expression.replaceAll(',', '.')) ?? 0.0;
+
+  int _lastOperatorIndex(String expr) {
+    for (var i = expr.length - 1; i >= 0; i--) {
+      if (CalculatorExpression.isOperator(expr[i])) return i;
+    }
+    return -1;
+  }
+
+  void _onCalcKey(String key) {
+    setState(() {
+      switch (key) {
+        case 'C':
+          _expression = '0';
+          break;
+        case 'BACKSPACE':
+          _expression = _expression.length <= 1 ? '0' : _expression.substring(0, _expression.length - 1);
+          break;
+        case '=':
+          final result = CalculatorExpression.evaluate(_expression);
+          if (result != null) _expression = CalculatorExpression.formatResult(result);
+          break;
+        case '.':
+          final segment = _expression.substring(_lastOperatorIndex(_expression) + 1);
+          if (!segment.contains('.')) _expression += '.';
+          break;
+        case '÷':
+        case '×':
+        case '-':
+        case '+':
+          if (CalculatorExpression.isOperator(_expression[_expression.length - 1])) {
+            _expression = _expression.substring(0, _expression.length - 1) + key;
+          } else {
+            _expression += key;
+          }
+          break;
+        default:
+          _expression = _expression == '0' ? key : _expression + key;
+      }
+      _provider.setAmount(_expression);
+    });
+  }
+
+  void _onCalcConfirm() {
+    setState(() {
+      _expression = CalculatorExpression.formatResult(_currentAmountValue);
+      _provider.setAmount(_expression);
+      _showKeypad = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +119,29 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             appBar: AppBar(title: Text(widget.transaction == null ? l10n.newTransaction : l10n.editTransaction), actions: [if (widget.transaction != null) IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _confirmDelete(l10n, provider))]),
             body: SafeArea(child: provider.isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(padding: const EdgeInsets.only(bottom: 100), child: Column(children: [
                         Container(color: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: Container(decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(30)), child: Row(children: [_buildTypeTab('EXPENSE', l10n.expense, Colors.redAccent, provider), _buildTypeTab('INCOME', l10n.income, Colors.greenAccent, provider), _buildTypeTab('TRANSFER', l10n.transfer, Colors.blueAccent, provider)]))),
-                        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Card(elevation: 0, color: themeColor.withValues(alpha: 0.10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), child: Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(l10n.amount.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: themeColor, letterSpacing: 1.2)), TextField(controller: _amountController, focusNode: _amountFocus, textAlign: TextAlign.left, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: provider.setAmount, style: TextStyle(fontFamily: 'AppFont', fontSize: 44, fontWeight: FontWeight.bold, color: themeColor), decoration: InputDecoration(border: InputBorder.none, prefixText: '€ ', prefixStyle: TextStyle(fontSize: 28, color: themeColor.withValues(alpha: 0.5), fontWeight: FontWeight.w300)))])))),
+                        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Card(elevation: 0, color: themeColor.withValues(alpha: 0.10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), child: Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(l10n.amount.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: themeColor, letterSpacing: 1.2)),
+                                InkWell(
+                                  onTap: () => setState(() => _showKeypad = true),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    child: Row(children: [
+                                      Text('€ ', style: TextStyle(fontSize: 28, color: themeColor.withValues(alpha: 0.5), fontWeight: FontWeight.w300)),
+                                      Flexible(child: Text(_expression, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'AppFont', fontSize: 40, fontWeight: FontWeight.bold, color: themeColor))),
+                                    ]),
+                                  ),
+                                ),
+                              ])))),
+                        if (_showKeypad) Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                          child: CalculatorKeypad(
+                            expression: _expression,
+                            themeColor: themeColor,
+                            onKeyPressed: _onCalcKey,
+                            onConfirm: _onCalcConfirm,
+                          ),
+                        ),
+                        if (!_showKeypad) ...[
                         const SizedBox(height: 8),
                         Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Card(elevation: 0, color: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.grey.shade200)), child: Column(children: [
                                 _buildSelectionTile(label: widget.initialAccount != null ? widget.initialAccount!.name.toUpperCase() : (provider.selectedTypeLabel == 'TRANSFER' ? 'FROM ACCOUNT' : 'ACCOUNT'), value: provider.selectedAccount?.name ?? 'Select...', icon: Icons.account_balance_wallet_outlined, onTap: widget.initialAccount != null ? null : () => _showAccountPicker(true, l10n, provider), onClear: (widget.initialAccount != null || provider.selectedAccount == null) ? null : () => provider.setSelectedAccount(null), isLocked: widget.initialAccount != null),
@@ -77,8 +154,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                   const Divider(height: 1, indent: 70)],
                                 Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0), child: TextField(controller: _descriptionController, focusNode: _descriptionFocus, onChanged: provider.setDescription, style: TextStyle(color: Colors.grey.shade700, fontSize: 15), decoration: InputDecoration(labelText: l10n.description.toUpperCase(), labelStyle: const TextStyle(fontSize: 11, color: AppColors.primaryBlue, fontWeight: FontWeight.bold, letterSpacing: 1.1), hintText: 'Add a note...', floatingLabelBehavior: FloatingLabelBehavior.always, border: InputBorder.none), maxLines: 2)),
                               ]))),
+                        ],
                       ]))),
-            floatingActionButton: Container(margin: const EdgeInsets.all(24), child: SizedBox(width: 200, height: 50, child: ElevatedButton(onPressed: () => _save(context, l10n, provider), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 8, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.check, size: 20), const SizedBox(width: 8), Text(l10n.save.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2))])))),
+            floatingActionButton: _showKeypad ? null : Container(margin: const EdgeInsets.all(24), child: SizedBox(width: 200, height: 50, child: ElevatedButton(onPressed: () => _save(context, l10n, provider), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, foregroundColor: Colors.white, elevation: 8, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.check, size: 20), const SizedBox(width: 8), Text(l10n.save.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2))])))),
             floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
           );
         }),
@@ -95,10 +173,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   Future<void> _save(BuildContext context, AppLocalizations l10n, TransactionFormProvider provider) async {
-    provider.setAmount(_amountController.text);
+    final amountValue = _currentAmountValue;
+    provider.setAmount(amountValue.toStringAsFixed(2));
     provider.setDescription(_descriptionController.text);
     String? errorMessage;
-    final amountValue = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
     if (amountValue <= 0) errorMessage = 'El importe debe ser mayor que 0';
     else if (provider.selectedAccount == null) errorMessage = 'Debes seleccionar una cuenta de origen';
     else if (provider.selectedTypeLabel == 'TRANSFER' && provider.selectedToAccount == null) errorMessage = 'Debes seleccionar una cuenta de destino';

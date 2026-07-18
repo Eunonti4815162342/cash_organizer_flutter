@@ -1,12 +1,12 @@
 {
-  "apiBaseUrl": "http://100.86.48.34:8085/api",
-  "apiTimeout": 10,
-  "enableLogging": true,
-  "isProduction": false,
-  "environmentName": "Development",
+  "apiBaseUrl": "https://rpi5-alvaro.tail56d3be.ts.net:10000/api",
+  "apiTimeout": 15,
+  "enableLogging": false,
+  "isProduction": true,
+  "environmentName": "Production",
   "tokenExpirationHours": 24,
   "enableBiometric": true,
   "enableBackgroundSync": true,
-  "backgroundSyncIntervalMinutes": 15,
-  "databaseName": "cash_organizer_dev.db"
+  "backgroundSyncIntervalMinutes": 60,
+  "databaseName": "natave.db"
 }

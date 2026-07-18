@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soporte · NATAVE</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --card: #ffffff;
+    --text: #1c2733;
+    --muted: #5b6b7c;
+    --accent: #009ffb;
+    --border: #e3e8ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1620;
+      --card: #161f2b;
+      --text: #eaf0f6;
+      --muted: #9fb0c0;
+      --accent: #4fc3ff;
+      --border: #263242;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .brand-mark {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent); flex-shrink: 0;
+  }
+  h1 { font-size: 1.75rem; margin: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+  h2 { font-size: 1.1rem; margin-top: 0; }
+  a.button {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <h1>Soporte de NATAVE</h1>
+  </div>
+
+  <div class="card">
+    <h2>¿Tienes un problema o una sugerencia?</h2>
+    <p>Escríbenos directamente y te responderemos lo antes posible.</p>
+    <a class="button" href="mailto:alvaroveigavazquez@gmail.com">alvaroveigavazquez@gmail.com</a>
+  </div>
+
+  <div class="card">
+    <h2>Reportar un fallo técnico</h2>
+    <p>Si eres desarrollador o prefieres el seguimiento público, también puedes abrir un issue en GitHub:</p>
+    <a class="button" href="https://github.com/Eunonti4815162342/cash_organizer_flutter/issues/new" target="_blank" rel="noopener">Abrir un issue en GitHub</a>
+  </div>
+
+  <p class="muted">NATAVE · Política de Privacidad disponible en <a href="./privacy-policy.html">este enlace</a>.</p>
+</div>
+</body>
+</html>

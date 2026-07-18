@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:natave_flutter/services/config_service.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -32,7 +33,7 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'natave_v1.db');
+    String path = join(await getDatabasesPath(), ConfigService.databaseName);
     return await openDatabase(
       path,
       version: 9, // Subimos a la versión 9

@@ -45,4 +45,18 @@ class CachedEntityRepository implements IEntityRepository {
   Future<void> reconcile(List<FinancialEntity> serverEntities) async {
     if (!kIsWeb) await _localRepo?.reconcile(serverEntities);
   }
+
+  @override
+  Future<FinancialEntity?> createEntity(Map<String, dynamic> data) async {
+    final created = await _apiService.createEntity(data);
+    if (!kIsWeb && created != null) await _localRepo?.saveAll([created]);
+    return created;
+  }
+
+  @override
+  Future<bool> deleteEntity(int id) async {
+    final success = await _apiService.deleteEntity(id);
+    if (success && !kIsWeb) await _localRepo?.deleteEntity(id);
+    return success;
+  }
 }

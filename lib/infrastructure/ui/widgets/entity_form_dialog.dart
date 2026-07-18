@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
-import '../../../services/api_service.dart';
 import '../../../domain/models/financial_entity.dart';
+import '../../../domain/repositories/entity_repository.dart';
 
 class EntityFormDialog extends StatefulWidget {
   const EntityFormDialog({super.key});
@@ -11,7 +12,7 @@ class EntityFormDialog extends StatefulWidget {
 }
 
 class _EntityFormDialogState extends State<EntityFormDialog> {
-  final ApiService _apiService = ApiService();
+  final IEntityRepository _entityRepo = GetIt.instance<IEntityRepository>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _taxIdController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
@@ -280,7 +281,7 @@ class _EntityFormDialogState extends State<EntityFormDialog> {
     if (_nameController.text.isEmpty) return;
     setState(() => _isSaving = true);
     try {
-      await _apiService.createEntity({
+      await _entityRepo.createEntity({
         'name': _nameController.text,
         'taxId': _taxIdController.text,
         'description': _descController.text,

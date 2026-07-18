@@ -32,6 +32,7 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   FinancialEntity? _selectedEntity;
   List<FinancialEntity> _entities = [];
   bool _isSaving = false;
+  String? _errorMessage;
 
   static const _typeConfig = {
     'CASH': (Icons.payments_rounded, 'Efectivo'),
@@ -239,6 +240,30 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                 ),
               ),
 
+              // ── Error inline ────────────────────────────────────
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, size: 18, color: Colors.red.shade400),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_errorMessage!,
+                              style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               // ── Botones ─────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -437,7 +462,10 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
                           child: Text(e.name),
                         )),
                   ],
-                  onChanged: (v) => setState(() => _selectedEntity = v),
+                  onChanged: (v) => setState(() {
+                    _selectedEntity = v;
+                    _errorMessage = null;
+                  }),
                 ),
               ],
             ),
@@ -578,12 +606,13 @@ class _AccountFormDialogState extends State<AccountFormDialog> {
   Future<void> _save(AppLocalizations l10n) async {
     if (_nameController.text.isEmpty) return;
     if (_selectedEntity == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes seleccionar una entidad financiera')),
-      );
+      setState(() => _errorMessage = 'Debes seleccionar una entidad financiera');
       return;
     }
-    setState(() => _isSaving = true);
+    setState(() {
+      _errorMessage = null;
+      _isSaving = true;
+    });
     try {
       final double val =
           double.tryParse(_initialBalanceController.text.replaceAll(',', '.')) ?? 0.0;

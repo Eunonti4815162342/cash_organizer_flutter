@@ -5,7 +5,6 @@ import '../../../domain/models/account_item.dart';
 import '../../../domain/models/financial_entity.dart';
 import '../../../domain/repositories/account_repository.dart';
 import '../../../domain/repositories/entity_repository.dart';
-import '../../../services/api_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'account_details_screen.dart';
 import '../widgets/account_form_dialog.dart';
@@ -23,8 +22,7 @@ class AccountTransactionsScreen extends StatefulWidget {
 class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
   final IAccountRepository _accountRepo = GetIt.instance.get<IAccountRepository>();
   final IEntityRepository _entityRepo = GetIt.instance.get<IEntityRepository>();
-  final ApiService _apiService = GetIt.instance.get<ApiService>();
-  
+
   List<FinancialEntity> _entities = [];
   List<AccountItem> _allAccounts = [];
   bool _isLoading = true;
@@ -370,7 +368,7 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
       content: Text('Are you sure you want to delete "${entity.name}"?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
-        TextButton(onPressed: () async { Navigator.pop(context); final success = await _apiService.deleteEntity(entity.id); if (success) _refreshData(); }, child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent))),
+        TextButton(onPressed: () async { Navigator.pop(context); final success = await _entityRepo.deleteEntity(entity.id); if (success) _refreshData(); }, child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent))),
       ],
     ));
   }

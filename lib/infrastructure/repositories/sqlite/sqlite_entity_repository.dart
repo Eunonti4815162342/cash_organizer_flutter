@@ -59,4 +59,22 @@ class SqliteEntityRepository implements IEntityRepository {
       }
     });
   }
+
+  @override
+  Future<FinancialEntity?> createEntity(Map<String, dynamic> data) async {
+    final entity = FinancialEntity(
+      id: data['id'] as int? ?? 0,
+      name: data['name'] as String? ?? '',
+      type: data['type'] == 'LEGAL' ? EntityType.LEGAL : EntityType.PHYSICAL,
+    );
+    await saveAll([entity]);
+    return entity;
+  }
+
+  @override
+  Future<bool> deleteEntity(int id) async {
+    final db = await _dbHelper.database;
+    await db.delete('entities', where: 'id = ?', whereArgs: [id]);
+    return true;
+  }
 }

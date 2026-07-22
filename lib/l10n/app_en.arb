@@ -93,6 +93,10 @@
   "accept": "OK",
   "moInc": "Income",
   "moExp": "Expenses",
-  "moNet": "Net"
+  "moNet": "Net",
+  "deleteAccount": "Delete account",
+  "deleteAccountConfirmTitle": "Delete your account?",
+  "deleteAccountConfirmMessage": "This will permanently delete your account and all your data (accounts, transactions, categories). This action cannot be undone.",
+  "deleteAccountSuccess": "Your account has been deleted."
   }
 

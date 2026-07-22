@@ -295,4 +295,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get moNet => 'Net';
+
+  @override
+  String get deleteAccount => 'Excluir conta';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Excluir sua conta?';
+
+  @override
+  String get deleteAccountConfirmMessage => 'Isso excluirá permanentemente sua conta e todos os seus dados (contas, transações, categorias). Esta ação não pode ser desfeita.';
+
+  @override
+  String get deleteAccountSuccess => 'Sua conta foi excluída.';
 }

@@ -43,6 +43,12 @@ class AuthApi {
     AppLogger.info('Logout successful');
   }
 
+  Future<void> deleteAccount() async {
+    await _client.delete('users/me');
+    await _storage.delete(key: 'jwt_token');
+    AppLogger.info('Account deleted');
+  }
+
   Future<bool> isOnline() async {
     try {
       // Usamos un endpoint que acepte GET (como accounts)

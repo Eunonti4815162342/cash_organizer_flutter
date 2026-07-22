@@ -93,5 +93,9 @@
   "accept": "OK",
   "moInc": "Ingresos",
   "moExp": "Gastos",
-  "moNet": "Neto"
+  "moNet": "Neto",
+  "deleteAccount": "Eliminar cuenta",
+  "deleteAccountConfirmTitle": "¿Eliminar tu cuenta?",
+  "deleteAccountConfirmMessage": "Esto eliminará permanentemente tu cuenta y todos tus datos (cuentas, transacciones, categorías). Esta acción no se puede deshacer.",
+  "deleteAccountSuccess": "Tu cuenta ha sido eliminada."
 }

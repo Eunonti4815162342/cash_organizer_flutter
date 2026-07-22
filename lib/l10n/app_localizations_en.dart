@@ -294,4 +294,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moNet => 'Net';
+
+  @override
+  String get deleteAccount => 'Delete account';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Delete your account?';
+
+  @override
+  String get deleteAccountConfirmMessage => 'This will permanently delete your account and all your data (accounts, transactions, categories). This action cannot be undone.';
+
+  @override
+  String get deleteAccountSuccess => 'Your account has been deleted.';
 }

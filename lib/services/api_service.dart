@@ -36,6 +36,7 @@ class ApiService {
   Future<bool> forgotPassword(String email) => _auth.forgotPassword(email);
   Future<bool> resetPassword(String token, String newPassword) => _auth.resetPassword(token, newPassword);
   Future<void> logout() => _auth.logout();
+  Future<void> deleteUserAccount() => _auth.deleteAccount();
 
   // --- ACCOUNTS ---
   Future<List<AccountItem>> fetchAccounts() => _accounts.fetchAll();

@@ -365,6 +365,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
                     if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => NataveApp(locale: _appLocale.value)), (route) => false);
                   },
                 ),
+                _buildDeleteAccountTile(l10n),
                 const SizedBox(height: 40),
               ],
             ),
@@ -396,6 +397,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
               if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => NataveApp(locale: _appLocale.value)), (route) => false);
             },
           ),
+          _buildDeleteAccountTile(l10n),
         ],
       ),
     );
@@ -442,6 +444,67 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
       title: Text(l10n.backup),
       onTap: () => _showBackupDialog(l10n),
     );
+  }
+
+  Widget _buildDeleteAccountTile(AppLocalizations l10n) {
+    return ListTile(
+      leading: const Icon(Icons.delete_forever_outlined, size: 20, color: Colors.redAccent),
+      title: Text(l10n.deleteAccount, style: const TextStyle(fontSize: 13, color: Colors.redAccent)),
+      onTap: () => _showDeleteAccountDialog(l10n),
+    );
+  }
+
+  void _showDeleteAccountDialog(AppLocalizations l10n) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteAccountConfirmTitle),
+        content: Text(l10n.deleteAccountConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performDeleteAccount(l10n);
+            },
+            child: Text(l10n.deleteAccount, style: const TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performDeleteAccount(AppLocalizations l10n) async {
+    try {
+      await _apiService.deleteUserAccount();
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.deleteAccountSuccess),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => NataveApp(locale: _appLocale.value)), (route) => false);
+      }
+    } catch (e, st) {
+      AppLogger.error('Account deletion failed', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   void _showBackupDialog(AppLocalizations l10n) {

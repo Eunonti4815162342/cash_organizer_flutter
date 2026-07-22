@@ -68,5 +68,9 @@
   "deleteTransaction": "Excluir transação",
   "confirmDeleteTransactionBody": "Tem certeza de que deseja excluir esta transação?",
   "exportError": "Ocorreu um erro ao exportar o relatório.",
-  "saveError": "Não foi possível salvar. O nome pode já existir ou há um problema de conexão."
+  "saveError": "Não foi possível salvar. O nome pode já existir ou há um problema de conexão.",
+  "deleteAccount": "Excluir conta",
+  "deleteAccountConfirmTitle": "Excluir sua conta?",
+  "deleteAccountConfirmMessage": "Isso excluirá permanentemente sua conta e todos os seus dados (contas, transações, categorias). Esta ação não pode ser desfeita.",
+  "deleteAccountSuccess": "Sua conta foi excluída."
 }

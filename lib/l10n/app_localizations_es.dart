@@ -295,4 +295,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get moNet => 'Neto';
+
+  @override
+  String get deleteAccount => 'Eliminar cuenta';
+
+  @override
+  String get deleteAccountConfirmTitle => '¿Eliminar tu cuenta?';
+
+  @override
+  String get deleteAccountConfirmMessage => 'Esto eliminará permanentemente tu cuenta y todos tus datos (cuentas, transacciones, categorías). Esta acción no se puede deshacer.';
+
+  @override
+  String get deleteAccountSuccess => 'Tu cuenta ha sido eliminada.';
 }

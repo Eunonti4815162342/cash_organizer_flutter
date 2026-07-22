@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../core/logger/app_logger.dart';
 import '../../core/ports/storage_port.dart';
+import '../../infrastructure/persistence/sqlite/database_helper.dart';
 import '../storage/storage_factory.dart';
 import 'api_client.dart';
 
@@ -40,6 +42,9 @@ class AuthApi {
 
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    if (!kIsWeb) {
+      await DatabaseHelper().clearAllData();
+    }
     AppLogger.info('Logout successful');
   }
 

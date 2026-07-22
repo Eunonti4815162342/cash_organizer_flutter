@@ -541,7 +541,7 @@ class _ResponsiveMainLayoutState extends State<ResponsiveMainLayout> {
 
   Future<void> _performBackup() async {
     final dbDir = await getDatabasesPath();
-    final sourcePath = join(dbDir, 'natave_v1.db');
+    final sourcePath = join(dbDir, ConfigService.databaseName);
     final sourceFile = File(sourcePath);
 
     if (!await sourceFile.exists()) {

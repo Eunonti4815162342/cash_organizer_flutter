@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +29,21 @@ import 'services/background_sync.dart'
     if (dart.library.html) 'services/background_sync_web.dart';
 
 final ValueNotifier<Locale> _appLocale = ValueNotifier(const Locale('en'));
+
+/// Lee el claim 'sub' (email) de un JWT sin validar su firma.
+/// La firma la valida siempre el backend en cada petición autenticada;
+/// esto es sólo una comprobación local de "¿es de la sesión esperada?".
+String? _extractJwtEmail(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+    final claims = jsonDecode(payload) as Map<String, dynamic>;
+    return claims['sub'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,12 +91,16 @@ class _NataveAppState extends State<NataveApp> {
     try {
       final storage = StorageFactory.create();
       final token = await storage.read(key: 'jwt_token');
-      
+
       if (token != null) {
-        // Validación rápida contra el backend para asegurar que el token no ha expirado
-        final apiService = getIt<ApiService>();
-        final online = await apiService.isOnline();
-        if (online) {
+        // Confiamos en la sesión guardada (con o sin conexión) siempre que el
+        // email del token coincida con el de la última sesión iniciada: así
+        // evitamos mostrar los datos cacheados de otra cuenta si el token
+        // quedase desincronizado. Si luego el token resulta inválido/expirado,
+        // las peticiones autenticadas ya lo gestionan con un 401 propio.
+        final storedEmail = await storage.read(key: 'user_email');
+        final tokenEmail = _extractJwtEmail(token);
+        if (tokenEmail != null && tokenEmail == storedEmail) {
           setState(() {
             _isLoggedIn = true;
             _isLoading = false;
@@ -91,7 +111,7 @@ class _NataveAppState extends State<NataveApp> {
     } catch (e) {
       debugPrint('Error checking login status: $e');
     }
-    
+
     if (mounted) {
       setState(() {
         _isLoggedIn = false;

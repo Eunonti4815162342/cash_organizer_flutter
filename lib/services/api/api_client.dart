@@ -32,6 +32,12 @@ class ApiClient {
     _cachedToken = null;
   }
 
+  /// Sincroniza el token en memoria tras un login (el ??= de authHeaders
+  /// no lo pisaría si ya había uno cacheado de una sesión anterior)
+  static void setCachedToken(String? token) {
+    _cachedToken = token;
+  }
+
   Future<dynamic> get(String endpoint, {Map<String, String>? queryParameters, Duration? customTimeout}) async {
     final uri = _buildUri(endpoint, queryParameters);
     return _sendRequest('GET', uri, customTimeout: customTimeout);

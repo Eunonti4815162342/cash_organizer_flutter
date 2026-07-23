@@ -20,6 +20,10 @@ class AuthApi {
 
     if (data != null && data['token'] != null) {
       await _storage.write(key: 'jwt_token', value: data['token']);
+      if (data['email'] != null) {
+        await _storage.write(key: 'user_email', value: data['email']);
+      }
+      ApiClient.setCachedToken(data['token']);
       AppLogger.info('Login successful for $email');
     }
     return data;
@@ -42,6 +46,8 @@ class AuthApi {
 
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_email');
+    ApiClient.clearTokenCache();
     if (!kIsWeb) {
       await DatabaseHelper().clearAllData();
     }
@@ -51,6 +57,8 @@ class AuthApi {
   Future<void> deleteAccount() async {
     await _client.delete('users/me');
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_email');
+    ApiClient.clearTokenCache();
     AppLogger.info('Account deleted');
   }
 

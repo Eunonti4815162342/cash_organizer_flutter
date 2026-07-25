@@ -62,18 +62,23 @@ class SqliteCategoryRepository implements ICategoryRepository {
         }
       }
       
-      // 2. Borrar categorías locales que no existen en el servidor.
-      // Guard: only delete when server returned data to avoid wiping local
-      // data on network errors or empty responses.
+      // 2. Borrar categorías locales que no existen en el servidor. Una lista
+      // vacía es una respuesta válida (el usuario se quedó sin categorías),
+      // no un fallo: reconcile() solo se invoca tras una respuesta de red
+      // correcta, así que no limpiar en ese caso deja huérfanas para siempre.
       if (serverCatIds.isNotEmpty) {
         final catPlaceholders = List.filled(serverCatIds.length, '?').join(',');
         await txn.delete('categories', where: 'id NOT IN ($catPlaceholders)', whereArgs: serverCatIds);
+      } else {
+        await txn.delete('categories');
       }
 
       // 3. Borrar subcategorías locales que no existen en el servidor.
       if (serverSubIds.isNotEmpty) {
         final subPlaceholders = List.filled(serverSubIds.length, '?').join(',');
         await txn.delete('subcategories', where: 'id NOT IN ($subPlaceholders)', whereArgs: serverSubIds);
+      } else {
+        await txn.delete('subcategories');
       }
     });
   }

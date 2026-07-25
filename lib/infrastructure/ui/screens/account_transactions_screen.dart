@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import '../styles/app_styles.dart';
@@ -6,6 +7,7 @@ import '../../../domain/models/financial_entity.dart';
 import '../../../domain/repositories/account_repository.dart';
 import '../../../domain/repositories/entity_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../services/api_service.dart';
 import 'account_details_screen.dart';
 import '../widgets/account_form_dialog.dart';
 import '../widgets/entity_form_dialog.dart';
@@ -37,16 +39,26 @@ class _AccountTransactionsScreenState extends State<AccountTransactionsScreen> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      // Usamos los repositorios que manejan caché/fallback automáticamente
-      final results = await Future.wait([
-        _entityRepo.fetchEntities(),
-        _accountRepo.fetchAccounts(),
-      ]);
-      
+      // El saldo de cuenta lo calcula y guarda el servidor; nada lo ajusta
+      // en local tras crear/borrar una transacción. _accountRepo.fetchAccounts()
+      // (CachedAccountRepository) devolvería la copia local al instante y
+      // solo reconciliaría en segundo plano, mostrando el saldo anterior
+      // justo después de un movimiento. Pedimos el saldo real al servidor
+      // aquí y reconciliamos la caché local con ese resultado.
+      List<AccountItem> accounts;
+      try {
+        accounts = await GetIt.instance.get<ApiService>().fetchAccounts();
+        if (!kIsWeb && accounts.isNotEmpty) await _accountRepo.reconcile(accounts);
+      } catch (_) {
+        accounts = await _accountRepo.fetchAccounts();
+      }
+
+      final entities = await _entityRepo.fetchEntities();
+
       if (mounted) {
         setState(() {
-          _entities = results[0] as List<FinancialEntity>;
-          _allAccounts = results[1] as List<AccountItem>;
+          _entities = entities;
+          _allAccounts = accounts;
           _isLoading = false;
         });
       }

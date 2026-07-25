@@ -23,11 +23,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final getIt = GetIt.instance;
-    _provider = DashboardProvider(
-      getIt.get(),
-      getIt.get(),
-    );
+    // Shared singleton (see service_locator.dart): other screens refresh
+    // this same instance after mutating transactions, so the Dashboard
+    // stays current even when it isn't the active route.
+    _provider = GetIt.instance.get<DashboardProvider>();
     _provider.loadInitialData();
   }
 

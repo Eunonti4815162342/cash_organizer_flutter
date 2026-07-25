@@ -59,6 +59,12 @@ class AuthApi {
     await _storage.delete(key: 'jwt_token');
     await _storage.delete(key: 'user_email');
     ApiClient.clearTokenCache();
+    // Igual que en logout(): sin esto, las cuentas/transacciones/categorías
+    // de la cuenta borrada se quedaban en el SQLite local y se colaban en el
+    // Dashboard del siguiente usuario que iniciase sesión en este dispositivo.
+    if (!kIsWeb) {
+      await DatabaseHelper().clearAllData();
+    }
     AppLogger.info('Account deleted');
   }
 

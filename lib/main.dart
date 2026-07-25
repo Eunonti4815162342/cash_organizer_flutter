@@ -22,6 +22,8 @@ import 'services/connectivity_service.dart';
 import 'service_locator.dart';
 import 'config/environment_factory.dart';
 import 'services/storage/storage_factory.dart';
+import 'services/api/api_client.dart';
+import 'infrastructure/persistence/sqlite/database_helper.dart';
 
 // Importación condicional
 import 'services/background_sync.dart'
@@ -111,6 +113,20 @@ class _NataveAppState extends State<NataveApp> {
     } catch (e) {
       debugPrint('Error checking login status: $e');
     }
+
+    // Token ausente/inválido o email desincronizado: no confiamos en la
+    // sesión guardada. Limpiamos también la caché local (SQLite + token en
+    // memoria) para que, si a continuación entra un usuario distinto en el
+    // mismo dispositivo, no vea datos cacheados de la sesión anterior (ver
+    // el bug de la transacción "Alimentacion" que sobrevivía a un logout
+    // implícito como este).
+    try {
+      final storage = StorageFactory.create();
+      await storage.delete(key: 'jwt_token');
+      await storage.delete(key: 'user_email');
+      ApiClient.clearTokenCache();
+      if (!kIsWeb) await DatabaseHelper().clearAllData();
+    } catch (_) {}
 
     if (mounted) {
       setState(() {

@@ -4,6 +4,7 @@ import 'package:natave_flutter/domain/models/transaction_item.dart';
 import 'package:natave_flutter/domain/models/transaction_filters.dart';
 import 'package:natave_flutter/domain/repositories/transaction_repository.dart';
 import 'package:natave_flutter/domain/repositories/account_repository.dart';
+import 'package:natave_flutter/services/api_service.dart';
 import 'package:natave_flutter/service_locator.dart';
 
 class DashboardProvider extends ChangeNotifier {
@@ -70,17 +71,24 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  /// Refresco rápido de saldos (Útil tras añadir una transacción)
+  /// Refresco rápido de saldos (Útil tras añadir/borrar una transacción)
   Future<void> refreshBalances() async {
     try {
-      // 1. Cargamos cuentas de SQLite (Rápido)
-      if (!kIsWeb) {
-        final localAccounts = await getIt<IAccountRepository>(instanceName: 'local_account').fetchAccounts();
-        if (localAccounts.isNotEmpty) {
-          _accounts = localAccounts;
-        }
+      // 1. Saldo de cuentas: lo pedimos SIEMPRE al servidor (no al caché
+      // local vía IAccountRepository/CachedAccountRepository, que devuelve
+      // la copia local al instante y solo reconcilia en segundo plano). El
+      // saldo lo calcula y guarda el servidor, nada lo actualiza en local
+      // tras borrar/crear una transacción, así que leer solo de SQLite aquí
+      // dejaba el Balance Summary con el valor anterior hasta la próxima
+      // vez que se abriera el Dashboard.
+      final remoteAccounts = await getIt<ApiService>().fetchAccounts();
+      if (remoteAccounts.isNotEmpty) {
+        _accounts = remoteAccounts;
+        if (!kIsWeb) await _accountRepo.reconcile(remoteAccounts);
       }
-      
+    } catch (_) {}
+
+    try {
       // 2. Refrescamos transacciones del periodo para el gráfico
       _cachedTransactions = await _transactionRepo.fetchTransactions(
         TransactionFilters(
@@ -88,10 +96,10 @@ class DashboardProvider extends ChangeNotifier {
           endDate: _endDate.toIso8601String(),
         )
       );
-      
       _recomputeCategories();
-      notifyListeners(); // Notificamos a la UI del Dashboard
     } catch (_) {}
+
+    notifyListeners(); // Notificamos a la UI del Dashboard
   }
 
   Future<void> refreshDashboard() async {
@@ -103,9 +111,15 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final remoteAccounts = await _accountRepo.fetchAccounts();
+      // Igual que en refreshBalances(): pedimos el saldo real al servidor en
+      // vez de usar _accountRepo.fetchAccounts() (CachedAccountRepository),
+      // que devuelve la copia local al instante y solo reconcilia en
+      // segundo plano — mostraría el saldo anterior al recién llegar al
+      // Dashboard si esa reconciliación aún no había terminado.
+      final remoteAccounts = await getIt<ApiService>().fetchAccounts();
       if (remoteAccounts.isNotEmpty) {
         _accounts = remoteAccounts;
+        if (!kIsWeb) await _accountRepo.reconcile(remoteAccounts);
         if (_selectedAccountIds.isEmpty) {
           _selectedAccountIds = _accounts.map((a) => a.id).toList();
         }

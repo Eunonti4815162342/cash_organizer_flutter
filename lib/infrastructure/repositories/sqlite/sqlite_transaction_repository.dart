@@ -136,17 +136,30 @@ class SqliteTransactionRepository implements ITransactionRepository {
         await txn.insert('transactions', _toRow(tx, id: tx.id, serverId: tx.id, pendingSync: 0), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       
-      // 2. Borrar huérfanas del rango — solo si el servidor devolvió al menos una transacción.
-      // Si serverIds está vacío no actuamos: puede ser un fallo de red silenciado upstream,
-      // y borrar todo el rango con respuesta vacía provocaría pérdida de datos.
-      if (filters.startDate != null && filters.endDate != null && serverIds.isNotEmpty) {
-        final placeholders = List.filled(serverIds.length, '?').join(',');
-        final whereArgs = [filters.startDate, filters.endDate, ...serverIds];
-        await txn.delete(
-          'transactions',
-          where: 'date >= ? AND date <= ? AND pending_sync = 0 AND id NOT IN ($placeholders)',
-          whereArgs: whereArgs,
-        );
+      // 2. Borrar huérfanas del rango: cualquier transacción ya sincronizada
+      // (pending_sync = 0) dentro del periodo consultado que el servidor ya
+      // no devuelve (p.ej. porque se borró). serverIds vacío es una
+      // respuesta válida (el usuario no tiene transacciones en el periodo),
+      // no un indicio de fallo: reconcile() solo se invoca tras una
+      // respuesta de red correcta (los llamantes ya capturan y descartan
+      // los errores de red antes de llegar aquí), así que no limpiar en ese
+      // caso solo deja huérfanos locales para siempre.
+      if (filters.startDate != null && filters.endDate != null) {
+        if (serverIds.isEmpty) {
+          await txn.delete(
+            'transactions',
+            where: 'date >= ? AND date <= ? AND pending_sync = 0',
+            whereArgs: [filters.startDate, filters.endDate],
+          );
+        } else {
+          final placeholders = List.filled(serverIds.length, '?').join(',');
+          final whereArgs = [filters.startDate, filters.endDate, ...serverIds];
+          await txn.delete(
+            'transactions',
+            where: 'date >= ? AND date <= ? AND pending_sync = 0 AND id NOT IN ($placeholders)',
+            whereArgs: whereArgs,
+          );
+        }
       }
     });
   }

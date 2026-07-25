@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import '../../../domain/models/transaction_item.dart';
 import '../../../domain/repositories/transaction_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../providers/dashboard_provider.dart';
 import '../screens/transaction_form_screen.dart';
 import '../styles/app_styles.dart';
 
@@ -108,7 +109,9 @@ class TransactionListItem extends StatelessWidget {
               Navigator.pop(context);
               // EL AWAIT AQUÍ ES CLAVE: Esperamos a que SQLite borre localmente
               await repo.deleteTransaction(transaction.id);
-              // Una vez borrado de SQLite, refrescamos la UI de inmediato
+              // Refrescamos esta lista y el Dashboard (singleton compartido,
+              // no depende de que el Dashboard esté montado en este momento)
+              GetIt.instance.get<DashboardProvider>().refreshBalances();
               if (onRefresh != null) onRefresh!();
             },
             child: Text(l10n.delete.toUpperCase(), style: const TextStyle(color: Colors.redAccent)),

@@ -23,6 +23,7 @@ import 'package:natave_flutter/domain/repositories/report_repository.dart';
 import 'package:natave_flutter/services/biometric_service.dart';
 import 'package:natave_flutter/services/session_service.dart';
 import 'package:natave_flutter/infrastructure/persistence/sqlite/database_helper.dart';
+import 'package:natave_flutter/infrastructure/ui/providers/dashboard_provider.dart';
 
 final getIt = GetIt.instance;
 
@@ -74,4 +75,10 @@ void setupServiceLocator() {
   getIt.registerSingleton<ICategoryRepository>(CachedCategoryRepository());
   getIt.registerSingleton<IEntityRepository>(CachedEntityRepository());
   getIt.registerSingleton<IBeneficiaryRepository>(CachedBeneficiaryRepository());
+
+  // Shared across screens so a transaction mutation on any screen is
+  // reflected on the Dashboard without needing to leave and re-enter it.
+  getIt.registerLazySingleton<DashboardProvider>(
+    () => DashboardProvider(getIt.get(), getIt.get()),
+  );
 }

@@ -189,7 +189,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
     final success = await provider.saveTransaction();
     if (success && mounted) {
-      try { Provider.of<DashboardProvider>(context, listen: false).refreshBalances(); } catch (_) {}
+      GetIt.instance.get<DashboardProvider>().refreshBalances();
       Navigator.of(context).pop(true);
     }
   }
@@ -545,10 +545,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
       TextButton(onPressed: () async { 
         Navigator.pop(context); 
-        final success = await provider.deleteTransaction(widget.transaction!.id); 
+        final success = await provider.deleteTransaction(widget.transaction!.id);
         if (success && mounted) {
-          try { Provider.of<DashboardProvider>(context, listen: false).refreshBalances(); } catch (_) {}
-          Navigator.of(context).pop(true); 
+          GetIt.instance.get<DashboardProvider>().refreshBalances();
+          Navigator.of(context).pop(true);
         }
       }, child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent))),
     ]));
